@@ -3,7 +3,7 @@
 Figma Link: https://www.figma.com/design/N74e2WiHM9UkGWrl8t6iBo/Login-Page?node-id=0-1&p=f&t=fh612BikO0P5QHGC-0
 
 
-## App Overview
+# App Overview
 TraceLink is a mobile-based platform designed to help **university students** securely report, track, and recover lost items within campus premises.  
 It ensures **safe, quick, and reliable** communication between finders and owners while protecting user privacy. The app also creates a collaborative network that makes returning lost items easier and more trustworthy.
 
@@ -53,7 +53,7 @@ It ensures **safe, quick, and reliable** communication between finders and owner
 - **Instant Photo Capture** - Take pictures directly within the app when finding items
 - **Gallery Access** - Choose existing photos from your device
 
-## -- Core Functionalities --
+# -- Core Functionalities --
 
 - University Authentication -> Secure login via student ID/university email
 - Smart Reporting -> Detailed lost/found reports with images & descriptions
