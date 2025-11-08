@@ -20,20 +20,22 @@ class Welcome2Screen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Define the primary bright blue color for consistent use
+    const Color primaryBrightBlue = Color(0xFF1E90FF); // Dodger Blue
+    const Color deepBlueText = Color(0xFF005BAC); // Darker blue for contrast
+
     return Scaffold(
       // Set the background color to be transparent to show the body's gradient
       backgroundColor: Colors.transparent,
       body: Container(
-        // 1. Apply a Linear Gradient for the pink/purple background
+        // 1. Apply a Linear Gradient for the bright blue background
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            // Matching the pink, purple, and blue tones from the image
+            // Updated to brighter, more vibrant blue/cyan tones
             colors: [
-              Color(0xFFffb5d7), // Light Pink/Purple top
-              Color(0xFFa29bfe), // Mid-range Blue/Purple
-              Color(
-                0xFFffdfe6,
-              ), // Light Pink bottom (subtle hint of the first screen)
+              Color(0xFF00CED1), // Dark Turquoise (Light top)
+              primaryBrightBlue, // Dodger Blue (Mid)
+              Color(0xFF007FFF), // Azure (Deep Blue bottom)
             ],
             // Start the gradient at the top and end at the bottom
             begin: Alignment.topCenter,
@@ -111,7 +113,7 @@ class Welcome2Screen extends StatelessWidget {
                 height: 60,
                 child: ElevatedButton(
                   onPressed: () {
-                    // *** NAVIGATION ADDED HERE ***
+                    // Navigation logic: Push the Welcome3Screen
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -126,25 +128,21 @@ class Welcome2Screen extends StatelessWidget {
                     ),
                     padding: const EdgeInsets.symmetric(vertical: 15),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
                         'Next',
                         style: TextStyle(
-                          // Using a deep purple/blue color for the text/icon for contrast
-                          color: Color(0xFF4854a0),
+                          // Using a deep blue color for the text/icon for contrast
+                          color: deepBlueText,
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      SizedBox(width: 8),
-                      Icon(
-                        Icons.chevron_right,
-                        color: Color(0xFF4854a0),
-                        size: 24,
-                      ),
+                      const SizedBox(width: 8),
+                      Icon(Icons.chevron_right, color: deepBlueText, size: 24),
                     ],
                   ),
                 ),

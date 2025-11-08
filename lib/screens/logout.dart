@@ -2,15 +2,26 @@ import 'package:flutter/material.dart';
 
 // Placeholders for navigation
 import 'profile_page.dart';
-import 'welcome_3.dart';
+import 'login_screen.dart';
 
 class LogoutConfirmationScreen extends StatelessWidget {
   const LogoutConfirmationScreen({super.key});
 
+  // --- New Color Definitions for the Blue Theme ---
+  // Background: Very Light Blue
+  static const Color _lightBlueBackground = Color(0xFFE3F2FD); // Light Blue 50
+  // Primary Gradient: Bright Blue
+  static const List<Color> _brightBlueGradient = [
+    Color(0xFF42A5F5), // Mid-light Blue
+    Color(0xFF1565C0), // Darker Blue
+  ];
+  // Secondary Color: Dark Blue (for text and outlines)
+  static const Color _darkBlue = Color(0xFF0D47A1); // Very Dark Blue
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F9),
+      backgroundColor: _lightBlueBackground, // Updated: Light Blue Background
       body: SingleChildScrollView(
         child: Column(
           children: <Widget>[
@@ -47,9 +58,9 @@ class LogoutConfirmationScreen extends StatelessWidget {
   // --- Widget Builders ---
 
   Widget _buildGradientHeader(BuildContext context) {
-    // Defines the bright, multi-color gradient from the image
+    // Defines the bright blue gradient
     const gradient = LinearGradient(
-      colors: [Color(0xFFE53995), Color(0xFFFF8B3F)], // Pink to Orange
+      colors: _brightBlueGradient, // Bright Blue Gradient
       begin: Alignment.topCenter,
       end: Alignment.bottomCenter,
     );
@@ -57,9 +68,9 @@ class LogoutConfirmationScreen extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.only(top: 60, bottom: 40, left: 20, right: 20),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         gradient: gradient,
-        borderRadius: const BorderRadius.only(
+        borderRadius: BorderRadius.only(
           bottomLeft: Radius.circular(30),
           bottomRight: Radius.circular(30),
         ),
@@ -70,7 +81,10 @@ class LogoutConfirmationScreen extends StatelessWidget {
           Align(
             alignment: Alignment.topLeft,
             child: IconButton(
-              icon: const Icon(Icons.arrow_back, color: Colors.white),
+              icon: const Icon(
+                Icons.arrow_back,
+                color: Colors.white,
+              ), // Text is White
               onPressed: () {
                 Navigator.of(context).pushReplacement(
                   MaterialPageRoute(
@@ -99,9 +113,9 @@ class LogoutConfirmationScreen extends StatelessWidget {
               ],
             ),
             child: const Icon(
-              Icons
-                  .logout, // Use Icons.logout or Icons.arrow_forward for the exit icon
-              color: Color(0xFFFF5C8D), // A pinkish color from the gradient
+              Icons.logout,
+              color:
+                  _darkBlue, // Dark Blue for the icon inside the white circle
               size: 50,
             ),
           ),
@@ -112,7 +126,7 @@ class LogoutConfirmationScreen extends StatelessWidget {
           const Text(
             'Leaving Already? 🥺',
             style: TextStyle(
-              color: Colors.white,
+              color: Colors.white, // Text is White
               fontSize: 26,
               fontWeight: FontWeight.bold,
             ),
@@ -121,7 +135,10 @@ class LogoutConfirmationScreen extends StatelessWidget {
           const Text(
             "We'll miss you! Are you sure you want to logout? ✨",
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.white70, fontSize: 16),
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 16,
+            ), // Text is White
           ),
         ],
       ),
@@ -133,7 +150,14 @@ class LogoutConfirmationScreen extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: Card(
         elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        color: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+          side: const BorderSide(
+            color: _darkBlue,
+            width: 1.5,
+          ), // Dark Blue Outline
+        ),
         child: Padding(
           padding: const EdgeInsets.all(20.0),
           child: Row(
@@ -141,12 +165,14 @@ class LogoutConfirmationScreen extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: Colors.deepPurple.withOpacity(0.1),
+                  color: _darkBlue.withOpacity(
+                    0.1,
+                  ), // Dark Blue opacity background
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(
                   Icons.star,
-                  color: Colors.deepPurple,
+                  color: _darkBlue, // Dark Blue Icon
                   size: 30,
                 ),
               ),
@@ -160,12 +186,13 @@ class LogoutConfirmationScreen extends StatelessWidget {
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 18,
+                        color: _darkBlue, // Dark Blue Text
                       ),
                     ),
                     Text(
                       "You've helped return 8 items and earned a 4.9⭐ rating from the community!",
                       style: TextStyle(
-                        color: Colors.grey.shade700,
+                        color: _darkBlue.withOpacity(0.8), // Dark Blue Text
                         fontSize: 14,
                       ),
                     ),
@@ -184,23 +211,32 @@ class LogoutConfirmationScreen extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: Card(
         elevation: 0,
-        color: Colors.amber.shade100, // Light yellow background
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        color: const Color(0xFFBBDEFB), // Distinct Light Blue background
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+          side: const BorderSide(
+            color: _darkBlue,
+            width: 1.5,
+          ), // Dark Blue Outline
+        ),
         child: Padding(
           padding: const EdgeInsets.all(20.0),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(
+              const Icon(
                 Icons.warning_amber_rounded,
-                color: Colors.amber.shade700,
+                color: _darkBlue, // Dark Blue Icon
                 size: 24,
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: Text(
+                child: const Text(
                   "You'll need to login again to access your account and continue helping the community.",
-                  style: TextStyle(color: Colors.amber.shade900, fontSize: 14),
+                  style: TextStyle(
+                    color: _darkBlue,
+                    fontSize: 14,
+                  ), // Dark Blue Text
                 ),
               ),
             ],
@@ -217,25 +253,25 @@ class LogoutConfirmationScreen extends StatelessWidget {
         width: double.infinity,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(15),
-          // Gradient for 'Yes, Logout' button
+          // Gradient for 'Yes, Logout' button (Bright Blue)
           gradient: const LinearGradient(
-            colors: [Color(0xFFFF3F6A), Color(0xFFFF8B3F)], // Red to Orange
+            colors: _brightBlueGradient,
             begin: Alignment.centerLeft,
             end: Alignment.centerRight,
           ),
         ),
         child: ElevatedButton.icon(
           onPressed: () {
-            // Navigate to 'welcome_3.dart'
+            // Navigate to 'login_screen.dart'
             Navigator.of(context).pushReplacement(
-              MaterialPageRoute(builder: (context) => const Welcoming3()),
+              MaterialPageRoute(builder: (context) => const LoginScreen()),
             );
           },
           icon: const Icon(Icons.arrow_forward, color: Colors.white),
           label: const Text(
             'Yes, Logout',
             style: TextStyle(
-              color: Colors.white,
+              color: Colors.white, // Text is White
               fontSize: 18,
               fontWeight: FontWeight.bold,
             ),
@@ -260,12 +296,9 @@ class LogoutConfirmationScreen extends StatelessWidget {
         width: double.infinity,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(15),
-          // Gradient for 'Stay Logged In' button
+          // Gradient for 'Stay Logged In' button (Bright Blue)
           gradient: const LinearGradient(
-            colors: [
-              Color(0xFF8B5CF6),
-              Color(0xFFC084FC),
-            ], // Purple/Indigo to Light Purple
+            colors: _brightBlueGradient,
             begin: Alignment.centerLeft,
             end: Alignment.centerRight,
           ),
@@ -281,7 +314,7 @@ class LogoutConfirmationScreen extends StatelessWidget {
           label: const Text(
             'Stay Logged In',
             style: TextStyle(
-              color: Colors.white,
+              color: Colors.white, // Text is White
               fontSize: 18,
               fontWeight: FontWeight.bold,
             ),

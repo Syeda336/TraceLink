@@ -1,16 +1,35 @@
 import 'package:flutter/material.dart';
-import 'home.dart'; // Import the hypothetical Home.dart screen
-
-import 'settings.dart'; // File for Settings
+import 'home.dart';
+import 'settings.dart';
 import 'accessibility.dart';
-import 'rewards.dart'; // File for Rewards & Badges screen
-import 'logout.dart'; // Placeholder for the Logout Confirmation Screen
+import 'logout.dart';
 import 'edit_profile.dart';
+import 'rewards.dart';
 
-// ---------------------------------
+// --- COLOR PALETTE ---
+const Color brightBlueStart = Color(0xFF4A90E2); // Bright Blue
+const Color brightBlueEnd = Color(0xFF50E3C2); // Teal/Cyan End
+const Color lightBackground = Color(0xFFF5F8FF); // Very Light Blue/White
+const Color darkBlueText = Color(0xFF1E3A8A); // Darker Blue for content text
+
+// --- DUMMY USER DATA MODEL ---
+class _UserData {
+  final String fullName;
+  final String studentId;
+  final String email;
+
+  // Constructor updated to use required POSITIONAL arguments
+  const _UserData(this.fullName, this.studentId, this.email);
+}
 
 class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({super.key});
+  const ProfileScreen({super.key}); // Added key for best practice
+
+  final _UserData userData = const _UserData(
+    'Jane Doe',
+    'STU789012',
+    'jane.doe@uni.edu',
+  );
 
   // --- Helper function for navigation ---
   void _navigateTo(BuildContext context, Widget page) {
@@ -21,6 +40,12 @@ class ProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color.fromARGB(
+        255,
+        239,
+        246,
+        250,
+      ), // Set main background to light blue
       body: CustomScrollView(
         slivers: [
           // --- Header Section (Profile Summary) ---
@@ -30,10 +55,10 @@ class ProfileScreen extends StatelessWidget {
             expandedHeight: 300.0, // Height to accommodate profile details
             flexibleSpace: FlexibleSpaceBar(
               background: Container(
-                // Purple/Pink Gradient
+                // Bright Blue Gradient
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [Color(0xFFCC2B5E), Color(0xFF753A88)],
+                    colors: [brightBlueStart, brightBlueEnd],
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                   ),
@@ -45,39 +70,44 @@ class ProfileScreen extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
                         // Top Row: Back and Settings Buttons
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            // Back Button (Top Left Corner Button) - Navigates to home.dart
-                            IconButton(
-                              icon: const Icon(
-                                Icons.arrow_back,
-                                color: Colors.white,
-                                size: 30,
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8.0,
+                          ), // Added horizontal padding
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              // Back Button (Top Left Corner Button)
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.arrow_back,
+                                  color: Colors.white,
+                                  size: 30,
+                                ),
+                                onPressed: () {
+                                  // Navigating back usually uses pop, but since there's a HomeScreen import,
+                                  // I'm keeping the original logic to replace the current route.
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => const HomeScreen(),
+                                    ),
+                                  );
+                                },
                               ),
-                              onPressed: () {
-                                // Functionality to open home.dart (using pushReplacement for clean stack)
-                                Navigator.pushReplacement(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => const HomeScreen(),
-                                  ),
-                                );
-                              },
-                            ),
-                            // Settings Button (Top Right Corner Button) - Navigates to settings_page.dart
-                            IconButton(
-                              icon: const Icon(
-                                Icons.settings,
-                                color: Colors.white,
-                                size: 30,
+                              // Settings Button (Top Right Corner Button)
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.settings,
+                                  color: Colors.white,
+                                  size: 30,
+                                ),
+                                onPressed: () {
+                                  _navigateTo(context, const SettingsScreen());
+                                },
                               ),
-                              onPressed: () {
-                                // Navigate to settings_page.dart
-                                _navigateTo(context, const SettingsScreen());
-                              },
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                         // Profile Avatar
                         Stack(
@@ -93,16 +123,16 @@ class ProfileScreen extends StatelessWidget {
                                   width: 3,
                                 ),
                                 gradient: const LinearGradient(
-                                  colors: [
-                                    Color(0xFFCC2B5E),
-                                    Color(0xFF753A88),
-                                  ],
+                                  colors: [brightBlueStart, brightBlueEnd],
                                 ),
                               ),
-                              child: const Center(
+                              child: Center(
                                 child: Text(
-                                  'JD',
-                                  style: TextStyle(
+                                  // Safely get initials, assuming two words
+                                  userData.fullName.contains(' ')
+                                      ? '${userData.fullName.split(' ').first.substring(0, 1)}${userData.fullName.split(' ').last.substring(0, 1)}'
+                                      : userData.fullName.substring(0, 1),
+                                  style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 36,
                                     fontWeight: FontWeight.bold,
@@ -113,33 +143,46 @@ class ProfileScreen extends StatelessWidget {
                             // Edit Icon
                             Positioned(
                               right: 0,
-                              child: Container(
-                                padding: const EdgeInsets.all(4),
-                                decoration: const BoxDecoration(
-                                  color: Colors.white,
-                                  shape: BoxShape.circle,
+                              child: GestureDetector(
+                                onTap: () => _navigateTo(
+                                  context,
+                                  const EditProfileScreen(),
                                 ),
-                                child: const Icon(
-                                  Icons.edit,
-                                  color: Color(0xFF753A88),
-                                  size: 20,
+                                child: const CircleAvatar(
+                                  radius: 12,
+                                  backgroundColor: Colors.white,
+                                  child: Icon(
+                                    Icons.edit,
+                                    color: brightBlueStart,
+                                    size: 16,
+                                  ),
                                 ),
                               ),
                             ),
                           ],
                         ),
-                        // User Info
-                        const Text(
-                          'John Doe',
-                          style: TextStyle(
+                        // User Info (DYNAMIC DATA)
+                        Text(
+                          userData.fullName,
+                          style: const TextStyle(
                             color: Colors.white,
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        const Text(
-                          'Student ID: STU123456',
-                          style: TextStyle(color: Colors.white70, fontSize: 16),
+                        Text(
+                          'ID: ${userData.studentId}',
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 16,
+                          ),
+                        ),
+                        Text(
+                          userData.email,
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 16,
+                          ),
                         ),
                         // Verified Student Badge
                         Container(
@@ -176,56 +219,63 @@ class ProfileScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Your Stats',
+                    Text(
+                      'Your Status',
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
+                        color: darkBlueText,
                       ),
                     ),
                     const SizedBox(height: 10),
                     // Stats Card (3 columns)
-                    const Row(
+                    Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
                         _StatItem(
                           count: '12',
                           label: 'Items Found',
                           icon: Icons.inventory_2_outlined,
-                          color: Color(0xFF753A88),
+                          color: brightBlueStart,
                         ),
                         _StatItem(
                           count: '8',
                           label: 'Items Returned',
-                          icon: Icons.show_chart,
-                          color: Color(0xFFCC2B5E),
+                          icon: Icons.check_circle_outline,
+                          color: brightBlueEnd,
                         ),
                         _StatItem(
                           count: '4.9',
                           label: 'Rating',
                           icon: Icons.star_border,
-                          color: Colors.blue,
+                          color: darkBlueText,
                         ),
                       ],
                     ),
                     const SizedBox(height: 30),
 
-                    // --- Rewards & Badges Banner (ADDED TAP FUNCTIONALITY) ---
+                    // --- Rewards & Badges Banner (BRIGHT BLUE) ---
                     GestureDetector(
                       onTap: () {
-                        // Navigate to rewards.dart (RewardsScreen)
-                        _navigateTo(context, RewardsPage());
+                        _navigateTo(context, RewardsPage()); // Added const
                       },
                       child: Container(
                         padding: const EdgeInsets.all(16.0),
                         decoration: BoxDecoration(
-                          // Orange/Yellow Gradient
+                          // Bright Blue Gradient for Rewards section
                           gradient: const LinearGradient(
-                            colors: [Color(0xFFFFB743), Color(0xFFFF8C00)],
+                            colors: [brightBlueStart, brightBlueEnd],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
                           borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: brightBlueStart.withOpacity(0.3),
+                              blurRadius: 10,
+                              offset: const Offset(0, 5),
+                            ),
+                          ],
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -269,59 +319,51 @@ class ProfileScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 30),
 
-                    // --- Settings List Items ---
+                    // --- Settings List Items (WITH DARK BLUE OUTLINE) ---
 
                     // Edit Profile
                     _SettingsItem(
                       title: 'Edit Profile',
                       subtitle: 'Update your information',
                       icon: Icons.edit_note,
-                      iconColor: const Color(0xFF753A88),
+                      iconColor: const Color.fromARGB(255, 45, 129, 224),
+                      isOutlined: true, // Use outlined style
                       onTap: () {
                         _navigateTo(context, const EditProfileScreen());
                       },
                     ),
-                    const Divider(height: 1),
+                    const SizedBox(height: 10),
 
                     // Notification Settings
                     _SettingsItem(
                       title: 'Notification Settings',
                       subtitle: 'Manage your notifications',
                       icon: Icons.notifications_none,
-                      iconColor: const Color(0xFF8DA3E9), // Light Blue/Purple
+                      iconColor: const Color.fromARGB(255, 26, 180, 147),
+                      isOutlined: true, // Use outlined style
                       onTap: () {
                         _navigateTo(context, const SettingsScreen());
                       },
                     ),
-                    const Divider(height: 1),
+                    const SizedBox(height: 10),
 
                     // Language & Accessibility
                     _SettingsItem(
                       title: 'Language & Accessibility',
                       subtitle: 'Change language and accessibility options',
                       icon: Icons.language,
-                      iconColor: const Color(0xFF28B463), // Green
+                      iconColor: const Color.fromARGB(255, 154, 47, 173),
+                      isOutlined: true, // Use outlined style
                       onTap: () {
                         _navigateTo(context, const AccessibilityScreen());
                       },
                     ),
-                    const Divider(height: 1),
 
-                    // Admin Dashboard (If applicable)
-                    const _SettingsItem(
-                      title: 'Admin Dashboard',
-                      subtitle: 'Manage reports & users',
-                      icon: Icons.admin_panel_settings_outlined,
-                      iconColor: Color(0xFF753A88),
-                      isButton: true,
-                      // Add onTap: () { ... } if you have an AdminScreen
-                    ),
                     const SizedBox(height: 30),
 
-                    // --- Log Out Button (ADDED TAP FUNCTIONALITY) ---
+                    // --- Log Out Button ---
                     OutlinedButton(
                       onPressed: () {
-                        // Navigate to logout.dart (LogoutScreen)
                         _navigateTo(context, const LogoutConfirmationScreen());
                       },
                       style: OutlinedButton.styleFrom(
@@ -331,9 +373,9 @@ class ProfileScreen extends StatelessWidget {
                           borderRadius: BorderRadius.circular(15),
                         ),
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
+                        children: const [
                           Icon(Icons.logout, color: Colors.red),
                           SizedBox(width: 10),
                           Text(
@@ -359,7 +401,7 @@ class ProfileScreen extends StatelessWidget {
   }
 }
 
-// --- Helper Widgets (No changes needed, kept for completeness) ---
+// --- Helper Widgets (Updated for Outline Style) ---
 
 class _StatItem extends StatelessWidget {
   final String count;
@@ -389,9 +431,19 @@ class _StatItem extends StatelessWidget {
         const SizedBox(height: 8),
         Text(
           count,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+            color: Color.fromARGB(255, 16, 46, 129),
+          ),
         ),
-        Text(label, style: TextStyle(color: Colors.grey[600], fontSize: 14)),
+        Text(
+          label,
+          style: TextStyle(
+            color: const Color.fromARGB(255, 17, 44, 121).withOpacity(0.7),
+            fontSize: 14,
+          ),
+        ),
       ],
     );
   }
@@ -402,69 +454,86 @@ class _SettingsItem extends StatelessWidget {
   final String subtitle;
   final IconData icon;
   final Color iconColor;
-  final bool isButton;
-  final VoidCallback? onTap; // Added optional onTap callback
+  final bool isOutlined; // New property to trigger the outlined style
+  final VoidCallback? onTap;
 
   const _SettingsItem({
     required this.title,
     required this.subtitle,
     required this.icon,
     required this.iconColor,
-    this.isButton = false,
-    this.onTap, // Initialize the new parameter
+    this.isOutlined = false,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    if (isButton) {
-      // Special styling for Admin Dashboard
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8.0),
-        child: InkWell(
-          onTap: onTap, // Use the onTap callback
-          child: Container(
-            padding: const EdgeInsets.all(16.0),
-            decoration: BoxDecoration(
-              // Purple/Blue Gradient
-              gradient: const LinearGradient(
-                colors: [Color(0xFF8B45B4), Color(0xFF4B0082)],
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
-              ),
-              borderRadius: BorderRadius.circular(15),
+    if (isOutlined) {
+      // Outlined Card Style (for Edit Profile, Notifications, Language)
+      return InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(15),
+        child: Container(
+          padding: const EdgeInsets.all(15),
+          decoration: BoxDecoration(
+            color: Colors.white, // White background for the card
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(
+              color: const Color.fromARGB(
+                255,
+                20,
+                51,
+                134,
+              ).withOpacity(0.6), // Dark Blue Outline
+              width: 1.5,
             ),
-            child: Row(
-              children: [
-                Icon(icon, color: Colors.white, size: 30),
-                const SizedBox(width: 16),
-                Column(
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: iconColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: iconColor, size: 28),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       title,
                       style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
                         fontWeight: FontWeight.bold,
+                        color: Color.fromARGB(255, 17, 48, 134),
+                        fontSize: 16,
                       ),
                     ),
                     Text(
                       subtitle,
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 14,
+                      style: TextStyle(
+                        color: const Color.fromARGB(
+                          255,
+                          19,
+                          51,
+                          139,
+                        ).withOpacity(0.7),
+                        fontSize: 13,
                       ),
                     ),
                   ],
                 ),
-              ],
-            ),
+              ),
+              const Icon(Icons.arrow_forward_ios, color: Colors.grey, size: 16),
+            ],
           ),
         ),
       );
     }
 
-    // Standard list item style
+    // Fallback: Default ListTile style (not used in this final version, but kept for logic safety)
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(vertical: 5, horizontal: 0),
       leading: Container(
@@ -475,14 +544,23 @@ class _SettingsItem extends StatelessWidget {
         ),
         child: Icon(icon, color: iconColor, size: 28),
       ),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-      subtitle: Text(subtitle, style: TextStyle(color: Colors.grey[600])),
+      title: Text(
+        title,
+        style: const TextStyle(
+          fontWeight: FontWeight.bold,
+          color: darkBlueText,
+        ),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: TextStyle(color: darkBlueText.withOpacity(0.7)),
+      ),
       trailing: const Icon(
         Icons.arrow_forward_ios,
         color: Colors.grey,
         size: 16,
       ),
-      onTap: onTap, // Use the onTap callback for standard list items
+      onTap: onTap,
     );
   }
 }

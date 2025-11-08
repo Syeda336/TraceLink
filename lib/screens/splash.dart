@@ -49,7 +49,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFFffb5d7), Color(0xFFa29bfe), Color(0xFF81e6d9)],
+            // Bright blue theme
+            colors: [Color(0xFF87CEEB), Color(0xFF1E90FF), Color(0xFF00BFFF)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -62,22 +63,23 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               Material(
                 elevation: 4,
                 borderRadius: BorderRadius.all(Radius.circular(16.0)),
+                color: Color(0xFFE0FFFF),
                 child: Padding(
                   padding: EdgeInsets.all(20.0),
                   child: Icon(
-                    Icons.favorite,
+                    // Changed icon to 'track_changes'
+                    Icons.track_changes,
                     size: 60.0,
-                    color: Color(0xFFff7979),
+                    color: Color(0xFF1E90FF), // A bright blue color
                   ),
-                ),
-                color: Color(0xFFffdfe6),
+                ), // A light blue background for the icon
               ),
 
               SizedBox(height: 25.0),
 
               // --- Main Title Text ---
               Text(
-                'Lost & Found',
+                'TraceLink', // Changed from 'Lost & Found'
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 26,

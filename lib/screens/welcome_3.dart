@@ -1,47 +1,41 @@
 import 'package:flutter/material.dart';
-import 'home.dart'; // ✅ make sure this file exists and defines HomePage()
+import 'login_screen.dart'; // ✅ make sure this file exists and defines HomeScreen()
 
-void main() {
-  runApp(const FigmaToCodeApp());
-}
-
-class FigmaToCodeApp extends StatelessWidget {
-  const FigmaToCodeApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false, // ✅ remove debug banner
-      theme: ThemeData.dark().copyWith(
-        scaffoldBackgroundColor: const Color.fromARGB(255, 18, 32, 47),
-      ),
-      home: const Welcoming3(), // ✅ show this screen directly
-    );
-  }
-}
+// Note: Removed the main() and FigmaToCodeApp classes as they weren't requested for modification
+// and the Welcoming3 class is the focus of the theme change.
 
 class Welcoming3 extends StatelessWidget {
   const Welcoming3({super.key});
 
   @override
   Widget build(BuildContext context) {
+    // Define the primary bright blue color for consistent use
+    const Color primaryBrightBlue = Color(0xFF1E90FF); // Dodger Blue
+    const Color deepBlueText = Color(0xFF005BAC); // Darker blue for contrast
+    const Color lightCyan = Color(
+      0xFF00CED1,
+    ); // Dark Turquoise (for gradient top)
+    const Color azureBlue = Color(0xFF007FFF); // Azure (for gradient bottom)
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.transparent, // Set to transparent
       body: Container(
         width: double.infinity,
         height: double.infinity,
         decoration: const BoxDecoration(
+          // 1. Apply a Linear Gradient for the bright blue background
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFFFB63B6), Color(0xFFFFA0AD)],
+            // Updated to bright blue theme
+            colors: [lightCyan, primaryBrightBlue, azureBlue],
           ),
         ),
         child: SafeArea(
           child: Column(
             children: [
               const Spacer(), // Push content to vertical center
-              // 🌸 Center Circle + Texts
+              // 💙 Center Circle + Texts
               Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -49,17 +43,19 @@ class Welcoming3 extends StatelessWidget {
                     width: 128,
                     height: 128,
                     decoration: ShapeDecoration(
-                      color: Colors.white.withValues(alpha: 0.30),
+                      // Used standard Flutter method withOpacity for transparency
+                      color: Colors.white.withOpacity(0.30),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(100),
                       ),
                     ),
                     child: const Center(
                       child: Icon(
-                        Icons.favorite_outline,
+                        Icons
+                            .emoji_events_outlined, // Changed icon to a Trophy/Reward
                         color: Colors.white,
                         size: 60,
-                      ), // placeholder icon (replace with image)
+                      ),
                     ),
                   ),
                   const SizedBox(height: 32),
@@ -68,9 +64,9 @@ class Welcoming3 extends StatelessWidget {
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 16,
-                      fontFamily: 'Arimo',
-                      fontWeight: FontWeight.w400,
+                      fontSize: 24, // Increased font size for title prominence
+                      fontWeight: FontWeight.bold,
+                      // Removed explicit fontFamily: 'Arimo' if not globally defined
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -80,9 +76,9 @@ class Welcoming3 extends StatelessWidget {
                       'Build your reputation and earn badges by helping return lost items',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: Color(0xE5FFFEFE),
+                        color: Color(0xE5FFFFFF), // Nearly white subtitle text
                         fontSize: 16,
-                        fontFamily: 'Arimo',
+                        // Removed explicit fontFamily: 'Arimo'
                         fontWeight: FontWeight.w400,
                       ),
                     ),
@@ -101,7 +97,10 @@ class Welcoming3 extends StatelessWidget {
                       const SizedBox(width: 8),
                       _buildDot(alpha: 0.4),
                       const SizedBox(width: 8),
-                      _buildDot(width: 32, alpha: 1.0),
+                      _buildDot(
+                        width: 32,
+                        alpha: 1.0,
+                      ), // Active dot (last screen)
                     ],
                   ),
                   const SizedBox(height: 24),
@@ -109,9 +108,12 @@ class Welcoming3 extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 32),
                     child: InkWell(
                       onTap: () {
-                        Navigator.push(
+                        // 2. Navigation logic: Go to the home screen
+                        Navigator.pushReplacement(
                           context,
-                          MaterialPageRoute(builder: (context) => HomeScreen()),
+                          MaterialPageRoute(
+                            builder: (context) => LoginScreen(),
+                          ),
                         );
                       },
                       borderRadius: BorderRadius.circular(16),
@@ -124,14 +126,15 @@ class Welcoming3 extends StatelessWidget {
                             borderRadius: BorderRadius.circular(16),
                           ),
                         ),
-                        child: const Center(
+                        child: Center(
                           child: Text(
                             'Get Started',
                             style: TextStyle(
-                              color: Color(0xFF980FFA),
-                              fontSize: 14,
-                              fontFamily: 'Arimo',
-                              fontWeight: FontWeight.w400,
+                              // Updated text color to match the bright blue theme
+                              color: deepBlueText,
+                              fontSize: 18, // Increased font size slightly
+                              // Removed explicit fontFamily: 'Arimo'
+                              fontWeight: FontWeight.bold, // Made text bold
                             ),
                           ),
                         ),
@@ -153,9 +156,31 @@ class Welcoming3 extends StatelessWidget {
       width: width,
       height: 8,
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: alpha),
+        // Used standard Flutter method withOpacity for transparency
+        color: Colors.white.withOpacity(alpha),
         borderRadius: BorderRadius.circular(50),
       ),
     );
   }
+}
+
+// Re-including the original main and app wrapper for completeness,
+// using the corrected Welcoming3 class
+class FigmaToCodeApp extends StatelessWidget {
+  const FigmaToCodeApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false, // ✅ remove debug banner
+      theme: ThemeData.dark().copyWith(
+        scaffoldBackgroundColor: const Color.fromARGB(255, 18, 32, 47),
+      ),
+      home: const Welcoming3(), // ✅ show this screen directly
+    );
+  }
+}
+
+void main() {
+  runApp(const FigmaToCodeApp());
 }

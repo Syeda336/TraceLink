@@ -21,18 +21,22 @@ class Welcome1Screen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Define the primary bright blue color for consistent use
+    const Color primaryBrightBlue = Color(0xFF00BFFF); // Deep Sky Blue
+    // Cyan
+
     return Scaffold(
       // Set the background color to be transparent to show the body's gradient
       backgroundColor: Colors.transparent,
       body: Container(
-        // 1. Apply a Linear Gradient for the blue background
+        // 1. Apply a Linear Gradient for the bright blue background
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            // Matching the light to deep blue tones from the image
+            // Updated to brighter, more vibrant blue/cyan tones
             colors: [
-              Color(0xFF81e6d9), // Light blue top (teal hint)
-              Color(0xFF4854a0), // Mid blue
-              Color(0xFF2e3a80), // Deep blue bottom
+              Color(0xFF00CED1), // Dark Turquoise (Light top)
+              Color(0xFF1E90FF), // Dodger Blue (Mid)
+              Color(0xFF007FFF), // Azure (Deep Blue bottom)
             ],
             // Start the gradient at the top and end at the bottom
             begin: Alignment.topCenter,
@@ -132,7 +136,7 @@ class Welcome1Screen extends StatelessWidget {
                       Text(
                         'Next',
                         style: TextStyle(
-                          color: Color(0xFF4854a0), // Blue text color
+                          color: primaryBrightBlue, // Bright blue text color
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
                         ),
@@ -140,7 +144,7 @@ class Welcome1Screen extends StatelessWidget {
                       SizedBox(width: 8),
                       Icon(
                         Icons.chevron_right,
-                        color: Color(0xFF4854a0),
+                        color: primaryBrightBlue, // Bright blue icon color
                         size: 24,
                       ),
                     ],

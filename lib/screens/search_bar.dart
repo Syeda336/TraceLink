@@ -1,9 +1,30 @@
 import 'package:flutter/material.dart';
 
-// Import the hypothetical Home.dart screen
-// Note: In a real app, you would need to define this screen.
 import 'home.dart';
-import 'filter.dart'; // Assumed to contain FiltersScreen
+
+// --- 1. DATA MODEL ---
+// Defines the structure for each item.
+class Item {
+  final String name;
+  final String status; // 'Lost' or 'Found'
+  final String category;
+  final String color;
+  final String location;
+  final DateTime date;
+  final Widget imageWidget;
+
+  Item({
+    required this.name,
+    required this.status,
+    required this.category,
+    required this.color,
+    required this.location,
+    required this.date,
+    required this.imageWidget,
+  });
+}
+
+// --- 2. SEARCH SCREEN ---
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -13,18 +34,170 @@ class SearchScreen extends StatefulWidget {
 }
 
 class _SearchScreenState extends State<SearchScreen> {
-  // State variables for the horizontally scrolling filters
-  String _selectedCategory = 'All';
-  String _selectedColor = 'All';
+  // --- THEME COLORS ---
+  final Color _brightBluePrimary = const Color(0xFF1E90FF);
+  final Color _deepBlueBottom = const Color(0xFF007FFF);
+  final Color _lightBlueBackground = const Color(0xFFF0F8FF);
+  final Color _darkBlueText = const Color(0xFF00008B);
+  final Color _whiteTextColor = Colors.white;
 
-  // --- Helper Function to Navigate to FiltersScreen ---
-  void _openFiltersScreen() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) =>
-            const FiltersScreen(), // Opens the filter.dart screen
+  // --- MASTER ITEM LIST (Sample Data) ---
+  final List<Item> _masterItems = [
+    Item(
+      name: 'Blue Backpack',
+      status: 'Lost',
+      category: 'Accessories',
+      color: 'Blue',
+      location: 'Cafeteria',
+      date: DateTime.now().subtract(const Duration(days: 3)),
+      imageWidget: Image.asset(
+        'lib/images/blue_backpack.jfif',
+        fit: BoxFit.cover,
       ),
+    ),
+    Item(
+      name: 'Set of Keys',
+      status: 'Found',
+      category: 'Keys',
+      color: 'Silver',
+      location: 'Gym',
+      date: DateTime.now().subtract(const Duration(days: 1)),
+      imageWidget: Image.asset('lib/images/key.jfif', fit: BoxFit.cover),
+    ),
+    Item(
+      name: 'MacBook Pro',
+      status: 'Lost',
+      category: 'Electronics',
+      color: 'Silver',
+      location: 'Computer Lab',
+      date: DateTime.now().subtract(const Duration(days: 8)),
+      imageWidget: Image.asset('lib/images/laptop.jfif', fit: BoxFit.cover),
+    ),
+    Item(
+      name: 'Black Wallet',
+      status: 'Found',
+      category: 'Documents',
+      color: 'Black',
+      location: 'Library',
+      date: DateTime.now().subtract(const Duration(days: 5)),
+      imageWidget: Image.asset(
+        'lib/images/black_wallet.jfif',
+        fit: BoxFit.cover,
+      ),
+    ),
+    Item(
+      name: 'Water bottle',
+      status: 'Lost',
+      category: 'Accessories',
+      color: 'White',
+      location: 'Classroom',
+      date: DateTime.now().subtract(const Duration(days: 20)),
+      imageWidget: Image.asset('lib/images/bottle.jfif', fit: BoxFit.cover),
+    ),
+  ];
+
+  // --- STATE VARIABLES ---
+  String _searchQuery = '';
+  List<Item> _filteredItems = [];
+  Map<String, dynamic> _activeFilters = {
+    'itemType': 'All Items',
+    'categories': <String>{},
+    'colors': <String>{},
+    'dateRangeDays': 30.0,
+    'location': 'All Locations',
+  };
+
+  @override
+  void initState() {
+    super.initState();
+    _applySearchAndFilters(); // Initialize the filtered list
+  }
+
+  // --- FILTERING AND SEARCH LOGIC ---
+  void _applySearchAndFilters() {
+    setState(() {
+      List<Item> tempItems = List.from(_masterItems);
+
+      // 1. Apply Filtering Logic
+      tempItems = tempItems.where((item) {
+        // Filter by Item Type (Lost/Found)
+        if (_activeFilters['itemType'] == 'Lost Items Only' &&
+            item.status != 'Lost') {
+          return false;
+        }
+        if (_activeFilters['itemType'] == 'Found Items Only' &&
+            item.status != 'Found') {
+          return false;
+        }
+
+        // Filter by Categories
+        Set<String> selectedCategories = _activeFilters['categories'];
+        if (selectedCategories.isNotEmpty &&
+            !selectedCategories.contains(item.category)) {
+          return false;
+        }
+
+        // Filter by Colors
+        Set<String> selectedColors = _activeFilters['colors'];
+        if (selectedColors.isNotEmpty && !selectedColors.contains(item.color)) {
+          return false;
+        }
+
+        // Filter by Location
+        String selectedLocation = _activeFilters['location'];
+        if (selectedLocation != 'All Locations' &&
+            item.location != selectedLocation) {
+          return false;
+        }
+
+        // Filter by Date Range (e.g., last X days)
+        double days = _activeFilters['dateRangeDays'];
+        DateTime cutoffDate = DateTime.now().subtract(
+          Duration(days: days.round()),
+        );
+        if (item.date.isBefore(cutoffDate)) {
+          return false;
+        }
+
+        return true;
+      }).toList();
+
+      // 2. Apply Search Query Logic (and display matches on top)
+      if (_searchQuery.isNotEmpty) {
+        final query = _searchQuery.toLowerCase();
+
+        // Filter the remaining items by search query
+        tempItems = tempItems.where((item) {
+          return item.name.toLowerCase().contains(query) ||
+              item.category.toLowerCase().contains(query) ||
+              item.location.toLowerCase().contains(query);
+        }).toList();
+      }
+
+      // 3. Update the displayed list
+      _filteredItems = tempItems;
+    });
+  }
+
+  // --- Helper Function to Open Filters as a Bottom Sheet ---
+  void _openFiltersSection() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) {
+        return FilterSectionContent(
+          brightBluePrimary: _brightBluePrimary,
+          darkBlueText: _darkBlueText,
+          initialFilters: _activeFilters,
+          onApplyFilters: (newFilters) {
+            // Update the state with new filters and re-apply search/filters
+            setState(() {
+              _activeFilters = newFilters;
+            });
+            _applySearchAndFilters();
+          },
+        );
+      },
     );
   }
 
@@ -33,7 +206,7 @@ class _SearchScreenState extends State<SearchScreen> {
     required String title,
     required List<String> filters,
     required String selectedFilter,
-    required Function(String) onChipSelected, // Callback for chip selection
+    required Function(String) onChipSelected,
   }) {
     return Padding(
       padding: const EdgeInsets.only(top: 8.0, left: 16.0, bottom: 8.0),
@@ -42,7 +215,11 @@ class _SearchScreenState extends State<SearchScreen> {
         children: [
           Text(
             title,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: _darkBlueText,
+            ),
           ),
           const SizedBox(height: 8),
           SizedBox(
@@ -58,18 +235,15 @@ class _SearchScreenState extends State<SearchScreen> {
                   child: ChoiceChip(
                     label: Text(filter),
                     selected: isSelected,
-                    selectedColor: isSelected
-                        ? const Color(0xFF8E2DE2)
-                        : Colors.grey[200],
-                    backgroundColor: Colors.grey[200],
+                    selectedColor: _brightBluePrimary,
+                    backgroundColor: _lightBlueBackground,
                     labelStyle: TextStyle(
-                      color: isSelected ? Colors.white : Colors.black,
+                      color: isSelected ? _whiteTextColor : _darkBlueText,
                     ),
                     onSelected: (bool selected) {
                       if (selected) {
-                        // When a chip is selected, update the local state AND open the full filter screen
                         onChipSelected(filter);
-                        _openFiltersScreen();
+                        _openFiltersSection();
                       }
                     },
                   ),
@@ -85,16 +259,17 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: _lightBlueBackground,
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
             pinned: true,
+            automaticallyImplyLeading: false, // REMOVES THE BLACK BACK ARROW
             toolbarHeight: 120,
             flexibleSpace: Container(
-              decoration: const BoxDecoration(
-                // Gradient similar to the image background
+              decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [Color(0xFF8E2DE2), Color(0xFF4A00E0)],
+                  colors: [_brightBluePrimary, _deepBlueBottom],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -113,11 +288,10 @@ class _SearchScreenState extends State<SearchScreen> {
                     children: [
                       Row(
                         children: [
-                          // Back Arrow Button (Navigate to home.dart)
                           IconButton(
-                            icon: const Icon(
+                            icon: Icon(
                               Icons.arrow_back,
-                              color: Colors.white,
+                              color: _whiteTextColor, // Back arrow is white
                             ),
                             onPressed: () {
                               // Functionality to open home.dart
@@ -130,10 +304,10 @@ class _SearchScreenState extends State<SearchScreen> {
                             },
                           ),
                           const SizedBox(width: 8),
-                          const Text(
+                          Text(
                             'Search Items',
                             style: TextStyle(
-                              color: Colors.white,
+                              color: _whiteTextColor,
                               fontSize: 24,
                               fontWeight: FontWeight.bold,
                             ),
@@ -148,40 +322,46 @@ class _SearchScreenState extends State<SearchScreen> {
                             child: Container(
                               height: 40,
                               decoration: BoxDecoration(
-                                color: Colors.white,
+                                color: _whiteTextColor,
                                 borderRadius: BorderRadius.circular(20),
                               ),
-                              child: const TextField(
+                              child: TextField(
+                                onChanged: (value) {
+                                  setState(() {
+                                    _searchQuery = value;
+                                  });
+                                  _applySearchAndFilters();
+                                },
                                 decoration: InputDecoration(
                                   hintText: 'Search...',
-                                  hintStyle: TextStyle(color: Colors.grey),
+                                  hintStyle: TextStyle(color: _darkBlueText),
                                   prefixIcon: Icon(
                                     Icons.search,
-                                    color: Colors.grey,
+                                    color: _darkBlueText,
                                   ),
                                   border: InputBorder.none,
                                   enabledBorder: InputBorder.none,
                                   focusedBorder: InputBorder.none,
-                                  contentPadding: EdgeInsets.symmetric(
+                                  contentPadding: const EdgeInsets.symmetric(
                                     vertical: 8,
+                                    horizontal: 10,
                                   ),
                                 ),
                               ),
                             ),
                           ),
                           const SizedBox(width: 8),
-                          // Filter Button (Opens filter.dart/FiltersScreen)
+                          // Filter Button (Opens filter section)
                           Container(
                             width: 40,
                             height: 40,
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: _brightBluePrimary,
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: IconButton(
-                              icon: const Icon(Icons.tune, color: Colors.black),
-                              onPressed:
-                                  _openFiltersScreen, // FIXED: Opens FiltersScreen
+                              icon: Icon(Icons.tune, color: _whiteTextColor),
+                              onPressed: _openFiltersSection,
                             ),
                           ),
                         ],
@@ -194,7 +374,6 @@ class _SearchScreenState extends State<SearchScreen> {
           ),
           SliverList(
             delegate: SliverChildListDelegate([
-              // --- Category Filters ---
               _buildFilterRow(
                 title: 'Category',
                 filters: const [
@@ -202,16 +381,11 @@ class _SearchScreenState extends State<SearchScreen> {
                   'Electronics',
                   'Accessories',
                   'Documents',
-                  'Cloth',
+                  'Clothing',
                 ],
-                selectedFilter: _selectedCategory,
-                onChipSelected: (newCategory) {
-                  setState(() {
-                    _selectedCategory = newCategory;
-                  });
-                },
+                selectedFilter: 'All',
+                onChipSelected: (newCategory) {},
               ),
-              // --- Color Filters ---
               _buildFilterRow(
                 title: 'Color',
                 filters: const [
@@ -222,81 +396,49 @@ class _SearchScreenState extends State<SearchScreen> {
                   'Brown',
                   'Silver',
                 ],
-                selectedFilter: _selectedColor,
-                onChipSelected: (newColor) {
-                  setState(() {
-                    _selectedColor = newColor;
-                  });
-                },
+                selectedFilter: 'All',
+                onChipSelected: (newColor) {},
               ),
-              const Padding(
-                padding: EdgeInsets.all(16.0),
+
+              // --- Results Count ---
+              Padding(
+                padding: const EdgeInsets.all(16.0),
                 child: Text(
-                  '4 items found',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  '${_filteredItems.length} items found',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: _darkBlueText,
+                  ),
                 ),
               ),
+
               // --- Item Cards Grid ---
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: GridView.count(
-                  crossAxisCount: 2,
+                child: GridView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
-                  mainAxisSpacing: 16.0,
-                  crossAxisSpacing: 16.0,
-                  childAspectRatio: 0.6,
-                  children: [
-                    // Item Card 1: Lost Backpack
-                    _ItemCard(
-                      status: 'Lost',
-                      itemName: 'Backpack',
-                      location: 'Cafeteria',
-                      date: 'Oct 12, 2025',
-                      isLost: true,
-                      imageWidget: Image.asset(
-                        'lib/images/blue_backpack.jfif',
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                    // Item Card 2: Found Set of Keys
-                    _ItemCard(
-                      status: 'Found',
-                      itemName: 'Set of Keys',
-                      location: 'Gym',
-                      date: 'Oct 12, 2025',
-                      isLost: false,
-                      imageWidget: Image.asset(
-                        'lib/images/key.jfif',
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                    // Item Card 3: Lost MacBook Pro
-                    _ItemCard(
-                      status: 'Lost',
-                      itemName: 'MacBook Pro',
-                      location: 'Computer Lab',
-                      date: 'Oct 10, 2025',
-                      isLost: true,
-                      imageWidget: Image.asset(
-                        'lib/images/laptop.jfif',
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                    // Item Card 4: Found Wallet
-                    _ItemCard(
-                      status: 'Found',
-                      itemName: 'Wallet',
-                      location: 'Library',
-                      date: 'Oct 11, 2025',
-                      isLost: false,
-                      // Note: I'm keeping the Image.asset here, assuming you have a dummy asset setup in your project
-                      imageWidget: Image.asset(
-                        'lib/images/black_wallet.jfif',
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                  ],
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    mainAxisSpacing: 16.0,
+                    crossAxisSpacing: 16.0,
+                    childAspectRatio: 0.6,
+                  ),
+                  itemCount: _filteredItems.length,
+                  itemBuilder: (context, index) {
+                    final item = _filteredItems[index];
+                    return _ItemCard(
+                      status: item.status,
+                      itemName: item.name,
+                      location: item.location,
+                      date:
+                          '${item.date.month}/${item.date.day}/${item.date.year}',
+                      isLost: item.status == 'Lost',
+                      statusColor: _brightBluePrimary,
+                      imageWidget: item.imageWidget,
+                    );
+                  },
                 ),
               ),
               const SizedBox(height: 20),
@@ -316,6 +458,7 @@ class _ItemCard extends StatelessWidget {
   final String date;
   final bool isLost;
   final Widget imageWidget;
+  final Color statusColor;
 
   const _ItemCard({
     required this.status,
@@ -323,13 +466,14 @@ class _ItemCard extends StatelessWidget {
     required this.location,
     required this.date,
     required this.isLost,
+    required this.statusColor,
     required this.imageWidget,
   });
 
   @override
   Widget build(BuildContext context) {
-    // Determine the status tag color
-    final Color statusColor = isLost ? const Color(0xFF9932CC) : Colors.green;
+    final Color tagColor = isLost ? statusColor : Colors.green;
+    final Color darkBlueText = const Color(0xFF00008B);
 
     return Card(
       elevation: 0,
@@ -350,7 +494,6 @@ class _ItemCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Item Image/Placeholder
             Expanded(
               flex: 3,
               child: Stack(
@@ -366,7 +509,6 @@ class _ItemCard extends StatelessWidget {
                       child: imageWidget,
                     ),
                   ),
-                  // Status Tag (Lost/Found)
                   Positioned(
                     top: 10,
                     right: 10,
@@ -376,7 +518,7 @@ class _ItemCard extends StatelessWidget {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: statusColor,
+                        color: tagColor,
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
@@ -392,7 +534,6 @@ class _ItemCard extends StatelessWidget {
                 ],
               ),
             ),
-            // Item Details
             Expanded(
               flex: 2,
               child: Padding(
@@ -403,19 +544,26 @@ class _ItemCard extends StatelessWidget {
                   children: [
                     Text(
                       itemName,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
+                        color: darkBlueText,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
                     Text(
                       location,
-                      style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                      style: TextStyle(
+                        color: Colors.grey.shade700,
+                        fontSize: 14,
+                      ),
                     ),
                     Text(
                       date,
-                      style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                      style: TextStyle(
+                        color: Colors.grey.shade700,
+                        fontSize: 14,
+                      ),
                     ),
                   ],
                 ),
@@ -428,18 +576,654 @@ class _ItemCard extends StatelessWidget {
   }
 }
 
-// --- Placeholder Widget for Images (Remains the same) ---
-class PlaceholderImage extends StatelessWidget {
-  final Color color;
-  final IconData icon;
+// -----------------------------------------------------
+// --- 3. FILTER SECTION CONTENT (MODAL) ---
+// -----------------------------------------------------
 
-  const PlaceholderImage({super.key, required this.color, required this.icon});
+class FilterSectionContent extends StatefulWidget {
+  final Color brightBluePrimary;
+  final Color darkBlueText;
+  final Map<String, dynamic> initialFilters;
+  final Function(Map<String, dynamic>) onApplyFilters;
+
+  const FilterSectionContent({
+    super.key,
+    required this.brightBluePrimary,
+    required this.darkBlueText,
+    required this.initialFilters,
+    required this.onApplyFilters,
+  });
+
+  @override
+  State<FilterSectionContent> createState() => _FilterSectionContentState();
+}
+
+class _FilterSectionContentState extends State<FilterSectionContent> {
+  late String _selectedItemType;
+  late Set<String> _selectedCategories;
+  late Set<String> _selectedColors;
+  late double _dateRangeValue;
+  late String _selectedLocation;
+
+  // Global list of all possible filter options
+  final List<String> _allCategories = [
+    'Electronics',
+    'Accessories',
+    'Documents',
+    'Clothing',
+    'Keys',
+    'Books',
+  ];
+  final Map<String, Color> _allColors = {
+    'Black': Colors.black,
+    'Blue': Colors.blue,
+    'Red': Colors.red,
+    'Brown': const Color(0xFF8B4513),
+    'Silver': Colors.grey,
+    'White': Colors.white,
+    'Green': Colors.green,
+    'Yellow': Colors.yellow,
+  };
+  final List<String> _allLocations = [
+    'All Locations',
+    'Library',
+    'Computer Lab',
+    'Cafeteria',
+    'Gym',
+    'Classroom',
+    'Parking Lot',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    // Safely initialize state variables using null-aware operators
+    _selectedItemType = widget.initialFilters['itemType'] ?? 'All Items';
+    _selectedCategories = Set<String>.from(
+      widget.initialFilters['categories'] ?? {},
+    );
+    _selectedColors = Set<String>.from(widget.initialFilters['colors'] ?? {});
+    _dateRangeValue = widget.initialFilters['dateRangeDays'] ?? 30.0;
+    _selectedLocation = widget.initialFilters['location'] ?? 'All Locations';
+  }
+
+  // --- Functions for user interaction (apply/reset) ---
+
+  void _applyFilters() {
+    // 1. Compile the final filter map
+    final Map<String, dynamic> finalFilters = {
+      'itemType': _selectedItemType,
+      'categories': _selectedCategories,
+      'colors': _selectedColors,
+      'dateRangeDays': _dateRangeValue,
+      'location': _selectedLocation,
+    };
+
+    // 2. Call the callback function in the parent screen to update the search results
+    widget.onApplyFilters(finalFilters);
+
+    // 3. Show success and close
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('✅ Filters applied successfully!'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+
+    Future.delayed(const Duration(milliseconds: 500), () {
+      Navigator.of(context).pop();
+    });
+  }
+
+  void _resetFilters() {
+    // 1. Reset local state variables to default "All" settings
+    setState(() {
+      _selectedItemType = 'All Items';
+      _selectedCategories.clear();
+      _selectedColors.clear();
+      _dateRangeValue = 30.0;
+      _selectedLocation = 'All Locations';
+    });
+
+    // 2. Manually construct the map representing the default/reset state
+    final Map<String, dynamic> resetFilters = {
+      'itemType': 'All Items',
+      'categories': <String>{}, // Empty set
+      'colors': <String>{}, // Empty set
+      'dateRangeDays': 30.0,
+      'location': 'All Locations',
+    };
+
+    // 3. CRITICAL FIX: Call the callback function with the reset map
+    // This immediately tells the parent screen to refresh and show all items.
+    widget.onApplyFilters(resetFilters);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('🔄 Filters have been reset. Displaying all items.'),
+        duration: Duration(milliseconds: 1500),
+      ),
+    );
+
+    // 4. Close the modal
+    Future.delayed(const Duration(milliseconds: 500), () {
+      Navigator.of(context).pop();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    final double sheetHeight = MediaQuery.of(context).size.height * 0.9;
+
     return Container(
-      color: color.withOpacity(0.1),
-      child: Center(child: Icon(icon, size: 60, color: color)),
+      height: sheetHeight,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(25.0),
+          topRight: Radius.circular(25.0),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            spreadRadius: 5,
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          _buildHeader(),
+          Expanded(
+            child: Container(
+              decoration: const BoxDecoration(color: Color(0xFFF0F0F0)),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.only(bottom: 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    _buildFilterCard(
+                      title: 'Item Type',
+                      content: _buildItemTypeSelector(),
+                    ),
+                    _buildFilterCard(
+                      title: 'Categories',
+                      content: _buildCategoriesSelector(),
+                    ),
+                    _buildFilterCard(
+                      title: 'Colors',
+                      content: _buildColorsSelector(),
+                    ),
+                    _buildFilterCard(
+                      title: 'Date Range',
+                      content: _buildDateRangeSelector(),
+                    ),
+                    _buildFilterCard(
+                      title: 'Location',
+                      content: _buildLocationSelector(),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          _buildBottomBar(),
+        ],
+      ),
+    );
+  }
+
+  // --- Helper Widgets for the Filter Section ---
+
+  Widget _buildHeader() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 15, 10, 10),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            widget.brightBluePrimary,
+            widget.brightBluePrimary.withOpacity(0.8),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(25.0),
+          topRight: Radius.circular(25.0),
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Filters',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                'Refine your search results',
+                style: TextStyle(color: Colors.white70, fontSize: 14),
+              ),
+            ],
+          ),
+          IconButton(
+            icon: const Icon(Icons.close, color: Colors.white, size: 30),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterCard({required String title, required Widget content}) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(15, 10, 15, 10),
+      child: Card(
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: widget.darkBlueText,
+                ),
+              ),
+              const SizedBox(height: 15),
+              content,
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Section 1: Item Type (Radio buttons)
+  Widget _buildItemTypeSelector() {
+    return Column(
+      children: [
+        _buildItemTypeOption(
+          'All Items',
+          Colors.black,
+          _selectedItemType == 'All Items',
+        ),
+        _buildItemTypeOption(
+          'Lost Items Only',
+          widget.brightBluePrimary,
+          _selectedItemType == 'Lost Items Only',
+          label: 'Lost',
+        ),
+        _buildItemTypeOption(
+          'Found Items Only',
+          Colors.green,
+          _selectedItemType == 'Found Items Only',
+          label: 'Found',
+        ),
+      ],
+    );
+  }
+
+  Widget _buildItemTypeOption(
+    String value,
+    Color activeColor,
+    bool isSelected, {
+    String? label,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        children: [
+          Radio<String>(
+            value: value,
+            groupValue: _selectedItemType,
+            onChanged: (String? newValue) {
+              setState(() {
+                _selectedItemType = newValue!;
+              });
+            },
+            activeColor: activeColor,
+          ),
+          Text(
+            value,
+            style: TextStyle(fontSize: 16, color: widget.darkBlueText),
+          ),
+          if (label != null) const SizedBox(width: 8),
+          if (label != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: activeColor,
+                borderRadius: BorderRadius.circular(5),
+              ),
+              child: Text(
+                label,
+                style: const TextStyle(color: Colors.white, fontSize: 12),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  // Section 2: Categories (Checkboxes)
+  Widget _buildCategoriesSelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: _allCategories
+          .map(
+            (category) => _CategoryCheckbox(
+              label: category,
+              activeColor: widget.brightBluePrimary,
+              isChecked: _selectedCategories.contains(category),
+              onChanged: (bool? newValue) {
+                setState(() {
+                  if (newValue == true) {
+                    _selectedCategories.add(category);
+                  } else {
+                    _selectedCategories.remove(category);
+                  }
+                });
+              },
+            ),
+          )
+          .toList(),
+    );
+  }
+
+  // Section 3: Colors (Checkboxes grid)
+  Widget _buildColorsSelector() {
+    return GridView.count(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisCount: 2,
+      childAspectRatio: 3,
+      crossAxisSpacing: 10,
+      mainAxisSpacing: 5,
+      children: _allColors.entries
+          .map(
+            (entry) => _ColorCheckbox(
+              label: entry.key,
+              color: entry.value,
+              activeColor: widget.brightBluePrimary,
+              isChecked: _selectedColors.contains(entry.key),
+              onChanged: (bool? newValue) {
+                setState(() {
+                  if (newValue == true) {
+                    _selectedColors.add(entry.key);
+                  } else {
+                    _selectedColors.remove(entry.key);
+                  }
+                });
+              },
+            ),
+          )
+          .toList(),
+    );
+  }
+
+  // Section 4: Date Range (Slider)
+  Widget _buildDateRangeSelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            Text(
+              'Last ${_dateRangeValue.round()} days',
+              style: TextStyle(
+                color: widget.brightBluePrimary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        SliderTheme(
+          data: SliderTheme.of(context).copyWith(
+            activeTrackColor: widget.brightBluePrimary,
+            inactiveTrackColor: Colors.grey.shade300,
+            thumbColor: Colors.white,
+            overlayColor: Colors.transparent,
+            thumbShape: const RoundSliderThumbShape(
+              enabledThumbRadius: 10.0,
+              disabledThumbRadius: 10.0,
+            ),
+            trackHeight: 8.0,
+          ),
+          child: Slider(
+            value: _dateRangeValue,
+            min: 1,
+            max: 30,
+            divisions: 29,
+            onChanged: (double newValue) {
+              setState(() {
+                _dateRangeValue = newValue;
+              });
+            },
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '1 day',
+                style: TextStyle(color: widget.darkBlueText.withOpacity(0.7)),
+              ),
+              Text(
+                '30 days',
+                style: TextStyle(color: widget.darkBlueText.withOpacity(0.7)),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Section 5: Location (Chips)
+  Widget _buildLocationSelector() {
+    return Wrap(
+      spacing: 8.0,
+      runSpacing: 8.0,
+      children: _allLocations.map((location) {
+        final bool isSelected = _selectedLocation == location;
+        return ActionChip(
+          label: Text(location),
+          labelStyle: TextStyle(
+            color: isSelected ? Colors.white : widget.darkBlueText,
+            fontWeight: FontWeight.w500,
+          ),
+          backgroundColor: isSelected ? widget.brightBluePrimary : Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(
+              color: isSelected
+                  ? widget.brightBluePrimary
+                  : Colors.grey.shade300,
+              width: 1.5,
+            ),
+          ),
+          onPressed: () {
+            setState(() {
+              _selectedLocation = location;
+            });
+          },
+        );
+      }).toList(),
+    );
+  }
+
+  // Bottom action bar
+  Widget _buildBottomBar() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 5,
+            blurRadius: 7,
+            offset: const Offset(0, -3),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // Reset Button
+          Expanded(
+            child: OutlinedButton(
+              onPressed: _resetFilters,
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 15),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                side: BorderSide(
+                  color: widget.brightBluePrimary.withOpacity(0.7),
+                ),
+                foregroundColor: widget.darkBlueText,
+              ),
+              child: const Text('Reset', style: TextStyle(fontSize: 18)),
+            ),
+          ),
+          const SizedBox(width: 15),
+          // Apply Filters Button
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(15),
+                color: widget.brightBluePrimary,
+              ),
+              child: ElevatedButton(
+                onPressed: _applyFilters,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  shadowColor: Colors.transparent,
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.check_circle_outline, color: Colors.white),
+                    SizedBox(width: 5),
+                    Text(
+                      'Apply Filters',
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// --- Reusable Widgets for Checkboxes (Stateless) ---
+
+class _CategoryCheckbox extends StatelessWidget {
+  final String label;
+  final Color activeColor;
+  final bool isChecked;
+  final ValueChanged<bool?> onChanged;
+
+  const _CategoryCheckbox({
+    required this.label,
+    required this.activeColor,
+    required this.isChecked,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 24,
+            height: 24,
+            child: Checkbox(
+              value: isChecked,
+              onChanged: onChanged,
+              activeColor: activeColor,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Text(label, style: const TextStyle(fontSize: 16)),
+        ],
+      ),
+    );
+  }
+}
+
+class _ColorCheckbox extends StatelessWidget {
+  final String label;
+  final Color color;
+  final Color activeColor;
+  final bool isChecked;
+  final ValueChanged<bool?> onChanged;
+
+  const _ColorCheckbox({
+    required this.label,
+    required this.color,
+    required this.activeColor,
+    required this.isChecked,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          width: 24,
+          height: 24,
+          child: Checkbox(
+            value: isChecked,
+            onChanged: onChanged,
+            activeColor: activeColor,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Container(
+          width: 15,
+          height: 15,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+            border: color == Colors.white
+                ? Border.all(color: Colors.grey.shade400)
+                : null,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(label, style: const TextStyle(fontSize: 16)),
+      ],
     );
   }
 }

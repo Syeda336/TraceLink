@@ -29,6 +29,15 @@ class _HomeScreenState extends State<HomeScreen> {
     Navigator.push(context, MaterialPageRoute(builder: (context) => screen));
   }
 
+  // --- Bottom Navigation Colors ---
+  final List<Color> _navItemColors = const [
+    Colors.green, // Home (Index 0)
+    Colors.pink, // Browse (Index 1)
+    Colors.orange, // Feed (Index 2)
+    Color(0xFF00008B), // Dark Blue for Chat (Index 3)
+    Colors.purple, // Profile (Index 4)
+  ];
+
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
@@ -37,7 +46,6 @@ class _HomeScreenState extends State<HomeScreen> {
     // Handle navigation for Bottom Navigation Bar items
     switch (index) {
       case 0:
-        // Already on the Home screen. Can add functionality to scroll to top.
         break;
       case 1: // Browse
         _navigateToScreen(context, SearchLost());
@@ -54,10 +62,19 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // --- Widget Builders ---
+  // Helper function to get the icon color
+  Color _getIconColor(int index) {
+    return _selectedIndex == index ? _navItemColors[index] : Colors.grey;
+  }
 
-  // 1. Builds the main gradient header area
+  // 1. Builds the main gradient header area (Bright Blue Theme)
   Widget _buildHeader(BuildContext context) {
+    const Color brightBlueTop = Color(0xFF1E90FF); // Dodger Blue
+    const Color deepBlueBottom = Color(0xFF007FFF); // Azure Blue
+    const Color darkSearchTextColor = Color(
+      0xFF4a148c,
+    ); // Using the original dark purple for contrast
+
     return Container(
       padding: const EdgeInsets.fromLTRB(25, 60, 25, 25),
       decoration: const BoxDecoration(
@@ -66,10 +83,7 @@ class _HomeScreenState extends State<HomeScreen> {
           bottomRight: Radius.circular(30),
         ),
         gradient: LinearGradient(
-          colors: [
-            Color(0xFF8e44ad), // Deeper Purple/Pink Top
-            Color(0xFF4a148c), // Very Deep Violet/Indigo Middle
-          ],
+          colors: [brightBlueTop, deepBlueBottom],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -88,19 +102,38 @@ class _HomeScreenState extends State<HomeScreen> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              // Notifications Button Functionality Added
+              // Notifications Button with Red Dot
               GestureDetector(
                 onTap: () => _navigateToScreen(context, NotificationsScreen()),
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.white24,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(
-                    Icons.notifications_active_outlined,
-                    color: Colors.white,
-                  ),
+                child: Stack(
+                  alignment: Alignment.topRight,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white24,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        Icons.notifications_active_outlined,
+                        color: Colors.white,
+                      ),
+                    ),
+                    // ✅ Red Notification Dot
+                    Positioned(
+                      right: 0,
+                      top: 0,
+                      child: Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 1.5),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -111,15 +144,16 @@ class _HomeScreenState extends State<HomeScreen> {
             style: TextStyle(color: Colors.white70, fontSize: 16),
           ),
           const SizedBox(height: 25),
-          // Search Bar Functionality Added (Taps open SearchScreen)
+          // Search Bar
           GestureDetector(
             onTap: () => _navigateToScreen(context, SearchScreen()),
             child: TextField(
-              enabled: false, // Disable typing in the home screen search bar
+              enabled: false,
               decoration: InputDecoration(
+                // ✅ Search bar hint text color changed to dark blue
                 hintText: 'Search for items...',
-                hintStyle: const TextStyle(color: Colors.black54),
-                prefixIcon: const Icon(Icons.search, color: Color(0xFF4a148c)),
+                hintStyle: const TextStyle(color: darkSearchTextColor),
+                prefixIcon: const Icon(Icons.search, color: deepBlueBottom),
                 filled: true,
                 fillColor: Colors.white,
                 border: OutlineInputBorder(
@@ -145,14 +179,16 @@ class _HomeScreenState extends State<HomeScreen> {
     required Color backgroundColor,
     required Widget destination,
   }) {
+    // Determine text color based on background (always white for blue sections)
+    const Color textColor = Colors.white;
+
     return Expanded(
       child: Card(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
         elevation: 2,
         color: backgroundColor,
         child: InkWell(
-          onTap: () =>
-              _navigateToScreen(context, destination), // Navigation Added
+          onTap: () => _navigateToScreen(context, destination),
           borderRadius: BorderRadius.circular(15),
           child: Padding(
             padding: const EdgeInsets.all(15.0),
@@ -166,11 +202,15 @@ class _HomeScreenState extends State<HomeScreen> {
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
+                    color: textColor, // ✅ Text color changed to white
                   ),
                 ),
                 Text(
                   subtitle,
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 13,
+                  ), // ✅ Subtitle color changed to white
                 ),
               ],
             ),
@@ -188,17 +228,14 @@ class _HomeScreenState extends State<HomeScreen> {
     required String status,
     required Color statusColor,
     required String imageUrl,
-    // Add an onTap callback for the whole card
     required VoidCallback onTap,
   }) {
-    // Wrap the Card with a GestureDetector or use InkWell/Card's onTap
     return Card(
       margin: const EdgeInsets.only(bottom: 15),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       elevation: 2,
       child: InkWell(
-        // Using InkWell for a ripple effect on tap
-        onTap: onTap, // <--- Use the new onTap callback
+        onTap: onTap,
         borderRadius: BorderRadius.circular(15),
         child: Padding(
           padding: const EdgeInsets.all(12.0),
@@ -215,8 +252,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   errorBuilder: (context, error, stackTrace) => Container(
                     width: 60,
                     height: 60,
-                    color: Colors.grey.shade200,
-                    child: const Icon(Icons.broken_image, color: Colors.grey),
+                    color: const Color.fromARGB(255, 206, 232, 247),
+                    child: const Icon(
+                      Icons.broken_image,
+                      color: Color.fromARGB(255, 158, 158, 158),
+                    ),
                   ),
                 ),
               ),
@@ -235,9 +275,16 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(height: 4),
                     Text(
                       location,
-                      style: TextStyle(color: Colors.grey.shade600),
+                      style: TextStyle(
+                        color: const Color.fromARGB(255, 26, 94, 182),
+                      ),
                     ),
-                    Text(time, style: TextStyle(color: Colors.grey.shade400)),
+                    Text(
+                      time,
+                      style: TextStyle(
+                        color: const Color.fromARGB(255, 99, 147, 209),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -269,7 +316,19 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const Color backgroundLightColor = Color(0xFFf3f0f7);
+    const Color backgroundLightColor = Color.fromARGB(
+      255,
+      201,
+      228,
+      252,
+    ); // Light Azure Blue
+    const Color brightBlueTop = Color(0xFF1E90FF); // Dodger Blue
+    const Color deepBlueBottom = Color(0xFF007FFF); // Azure Blue
+    const Color whiteTextColor = Colors.white;
+
+    // Existing colors for other elements
+    const Color lostStatusColor = Color(0xFF2980b9);
+    const Color foundStatusColor = Color(0xFF2ecc71);
 
     return Scaffold(
       backgroundColor: backgroundLightColor,
@@ -283,7 +342,7 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // --- Emergency Alert Card Functionality Added ---
+                  // --- Emergency Alert Card (Bright Blue Gradient, White Text) ---
                   GestureDetector(
                     onTap: () => _navigateToScreen(context, EmergencyAlerts()),
                     child: Container(
@@ -292,7 +351,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(15),
                         gradient: const LinearGradient(
-                          colors: [Color(0xFFD35400), Color(0xFFF39C12)],
+                          colors: [brightBlueTop, deepBlueBottom],
                           begin: Alignment.centerLeft,
                           end: Alignment.centerRight,
                         ),
@@ -309,7 +368,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         children: [
                           Icon(
                             Icons.warning_amber_rounded,
-                            color: Colors.white,
+                            color: whiteTextColor,
                             size: 30,
                           ),
                           SizedBox(width: 15),
@@ -320,7 +379,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                 Text(
                                   '3 Emergency Alerts',
                                   style: TextStyle(
-                                    color: Colors.white,
+                                    color:
+                                        whiteTextColor, // ✅ Text color is white
                                     fontSize: 18,
                                     fontWeight: FontWeight.bold,
                                   ),
@@ -328,7 +388,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                 SizedBox(height: 4),
                                 Text(
                                   'Lost student IDs & laptops',
-                                  style: TextStyle(color: Colors.white70),
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                  ), // ✅ Subtitle color is white
                                 ),
                               ],
                             ),
@@ -338,26 +400,31 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
 
-                  // --- Report Lost / Report Found Row Functionality Added ---
+                  // --- Report Lost / Report Found Row (Solid Blue, White Text) ---
                   Row(
                     children: [
                       _buildActionCard(
                         context: context,
                         icon: Icons.search,
-                        iconColor: const Color(0xFFa29bfe),
+                        iconColor: whiteTextColor, // Icon color is white
                         title: 'Report Lost',
                         subtitle: 'Lost something?',
-                        backgroundColor: Colors.white,
+                        backgroundColor: const Color.fromARGB(
+                          255,
+                          69,
+                          160,
+                          252,
+                        ),
                         destination: ReportLostItemScreen(),
                       ),
                       const SizedBox(width: 15),
                       _buildActionCard(
                         context: context,
                         icon: Icons.inventory_2_outlined,
-                        iconColor: const Color(0xFFffb5d7),
+                        iconColor: whiteTextColor, // Icon color is white
                         title: 'Report Found',
                         subtitle: 'Found something?',
-                        backgroundColor: Colors.white,
+                        backgroundColor: const Color.fromARGB(255, 0, 183, 255),
                         destination: ReportFoundItemScreen(),
                       ),
                     ],
@@ -365,7 +432,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                   const SizedBox(height: 15),
 
-                  // --- Report a Problem Card Functionality Added ---
+                  // --- Report a Problem Card (Blue Gradient, White Text) ---
                   GestureDetector(
                     onTap: () => _navigateToScreen(context, ReportProblem()),
                     child: Container(
@@ -375,7 +442,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(15),
                         gradient: const LinearGradient(
-                          colors: [Color(0xFFE67E22), Color(0xFFF9A825)],
+                          colors: [deepBlueBottom, brightBlueTop],
                           begin: Alignment.centerLeft,
                           end: Alignment.centerRight,
                         ),
@@ -391,7 +458,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         children: [
                           Icon(
                             Icons.error_outline,
-                            color: Colors.white,
+                            color: whiteTextColor,
                             size: 30,
                           ),
                           SizedBox(width: 15),
@@ -401,14 +468,17 @@ class _HomeScreenState extends State<HomeScreen> {
                               Text(
                                 'Report a Problem',
                                 style: TextStyle(
-                                  color: Colors.white,
+                                  color:
+                                      whiteTextColor, // ✅ Text color is white
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
                               Text(
                                 'User not returning an item?',
-                                style: TextStyle(color: Colors.white70),
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                ), // ✅ Subtitle color is white
                               ),
                             ],
                           ),
@@ -417,7 +487,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
 
-                  // --- Recent Posts Section (Navigation added to individual posts) ---
+                  // --- Recent Posts Section ---
                   const Text(
                     'Recent Posts',
                     style: TextStyle(
@@ -427,15 +497,13 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   const SizedBox(height: 15),
-
                   _buildRecentPostCard(
                     title: 'Black Wallet',
                     location: 'Library, 2nd Floor',
                     time: '2h ago',
                     status: 'Lost',
-                    statusColor: const Color(0xFF9b59b6),
+                    statusColor: lostStatusColor,
                     imageUrl: 'lib/images/black_wallet.jfif',
-                    // Navigation to ItemDescriptionScreen on tap
                     onTap: () => _navigateToScreen(
                       context,
                       ItemDetailScreen(itemName: 'Black Wallet'),
@@ -446,9 +514,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     location: 'Cafeteria Entrance',
                     time: '4h ago',
                     status: 'Found',
-                    statusColor: const Color(0xFF2ecc71),
+                    statusColor: foundStatusColor,
                     imageUrl: 'lib/images/key.jfif',
-                    // Navigation to ItemDescriptionScreen on tap
                     onTap: () => _navigateToScreen(
                       context,
                       ItemDetailScreen(itemName: 'Set of Keys'),
@@ -459,9 +526,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     location: 'Science Building',
                     time: '5h ago',
                     status: 'Lost',
-                    statusColor: const Color(0xFF9b59b6),
+                    statusColor: lostStatusColor,
                     imageUrl: 'lib/images/blue_backpack.jfif',
-                    // Navigation to ItemDescriptionScreen on tap
                     onTap: () => _navigateToScreen(
                       context,
                       ItemDetailScreen(itemName: 'Blue Backpack'),
@@ -478,35 +544,35 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
 
-      // 3. The Bottom Navigation Bar (Fixed at the bottom)
+      // 3. The Bottom Navigation Bar (Multi-Colored)
       bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
+        items: <BottomNavigationBarItem>[
           BottomNavigationBarItem(
-            icon: Icon(Icons.favorite), // Home
+            icon: Icon(Icons.favorite, color: _getIconColor(0)),
             label: 'Home',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.browse_gallery), // Browse/Search
+            icon: Icon(Icons.browse_gallery, color: _getIconColor(1)),
             label: 'Browse',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.inventory_2_outlined), // Feed
+            icon: Icon(Icons.inventory_2_outlined, color: _getIconColor(2)),
             label: 'Feed',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.chat_bubble_outline), // Chat
+            icon: Icon(Icons.chat_bubble_outline, color: _getIconColor(3)),
             label: 'Chat',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline), // Profile
+            icon: Icon(Icons.person_outline, color: _getIconColor(4)),
             label: 'Profile',
           ),
         ],
         currentIndex: _selectedIndex,
-        selectedItemColor: const Color(0xFF9b59b6),
+        selectedItemColor: _navItemColors[_selectedIndex],
         unselectedItemColor: Colors.grey,
         showUnselectedLabels: true,
-        onTap: _onItemTapped, // All navigation handled here
+        onTap: _onItemTapped,
         type: BottomNavigationBarType.fixed,
         backgroundColor: Colors.white,
         elevation: 10,
