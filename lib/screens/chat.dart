@@ -1,6 +1,17 @@
 // chat_screen.dart
 import 'package:flutter/material.dart';
 
+// --- Define the Color Palette ---
+const Color primaryBlue = Color(0xFF42A5F5); // Bright Blue (Header, My Bubble)
+const Color darkBlue = Color(
+  0xFF1977D2,
+); // Dark Blue (Body text, partner bubble text)
+const Color lightBlueBackground = Color(
+  0xFFE3F2FD,
+); // Very Light Blue (Background)
+const Color myBubbleColor = primaryBlue;
+const Color partnerBubbleColor = lightBlueBackground;
+
 class ChatScreen extends StatefulWidget {
   final String chatPartnerName;
   final String chatPartnerInitials;
@@ -21,12 +32,14 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _messageController = TextEditingController();
+  // Ensure the ListView scrolls to the bottom when a new message is added or keyboard pops up
+  final ScrollController _scrollController = ScrollController();
   final List<Map<String, dynamic>> _messages = []; // To store chat messages
 
   @override
   void initState() {
     super.initState();
-    // Initialize with example messages from Image 2
+    // Initialize with example messages
     _messages.add({
       'text': 'Hi! I found your wallet at the library',
       'isMe': false,
@@ -50,6 +63,14 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
+  // Clean up controllers
+  @override
+  void dispose() {
+    _messageController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
   void _sendMessage() {
     if (_messageController.text.trim().isNotEmpty) {
       setState(() {
@@ -60,7 +81,12 @@ class _ChatScreenState extends State<ChatScreen> {
         });
       });
       _messageController.clear();
-      // In a real app, you would send this message to a backend
+      // Scroll to the latest message after sending
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
     }
   }
 
@@ -68,10 +94,14 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.white, // Light background for app bar
-        elevation: 0,
+        // THEME CHANGE: AppBar background set to Primary Blue
+        backgroundColor: primaryBlue,
+        elevation: 1,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: const Icon(
+            Icons.arrow_back,
+            color: Colors.white,
+          ), // THEME CHANGE: Icon set to White
           onPressed: () {
             Navigator.pop(context); // Go back to MessagesListScreen
           },
@@ -80,11 +110,11 @@ class _ChatScreenState extends State<ChatScreen> {
           children: [
             CircleAvatar(
               radius: 20,
-              backgroundColor: widget.avatarColor,
+              backgroundColor: widget.avatarColor.withOpacity(0.8),
               child: Text(
                 widget.chatPartnerInitials,
                 style: const TextStyle(
-                  color: Colors.white, // Initials color inside avatar
+                  color: Colors.white,
                   fontWeight: FontWeight.bold,
                   fontSize: 14,
                 ),
@@ -97,7 +127,8 @@ class _ChatScreenState extends State<ChatScreen> {
                 Text(
                   widget.chatPartnerName,
                   style: const TextStyle(
-                    color: Colors.black,
+                    color:
+                        Colors.white, // THEME CHANGE: Partner name set to White
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
                   ),
@@ -107,7 +138,9 @@ class _ChatScreenState extends State<ChatScreen> {
                       ? 'Online'
                       : 'Offline', // Dynamically show online/offline
                   style: TextStyle(
-                    color: widget.isOnline ? Colors.green : Colors.grey,
+                    color: Colors.white.withOpacity(
+                      0.8,
+                    ), // THEME CHANGE: Status text set to White
                     fontSize: 12,
                   ),
                 ),
@@ -117,17 +150,22 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.more_vert, color: Colors.black),
+            icon: const Icon(
+              Icons.more_vert,
+              color: Colors.white,
+            ), // THEME CHANGE: Icon set to White
             onPressed: () {
               // More options
             },
           ),
         ],
       ),
+      // --- Ensures Input Field is Responsive on Keyboard Pop-up ---
       body: Column(
         children: [
           Expanded(
             child: ListView.builder(
+              controller: _scrollController, // Use the scroll controller
               padding: const EdgeInsets.all(16.0),
               itemCount: _messages.length,
               itemBuilder: (context, index) {
@@ -136,10 +174,8 @@ class _ChatScreenState extends State<ChatScreen> {
                   message: message['text'],
                   isMe: message['isMe'],
                   time: message['time'],
-                  chatPartnerInitials:
-                      widget.chatPartnerInitials, // Pass for received messages
-                  chatPartnerAvatarColor:
-                      widget.avatarColor, // Pass for received messages
+                  chatPartnerInitials: widget.chatPartnerInitials,
+                  chatPartnerAvatarColor: widget.avatarColor,
                 );
               },
             ),
@@ -148,67 +184,74 @@ class _ChatScreenState extends State<ChatScreen> {
           Container(
             padding: const EdgeInsets.all(8.0),
             decoration: BoxDecoration(
+              // THEME CHANGE: Input container color (White)
               color: Colors.white,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.grey.withOpacity(0.1),
+                  color: Colors.grey.withOpacity(0.2),
                   spreadRadius: 1,
                   blurRadius: 5,
                 ),
               ],
             ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(25),
-                    ),
-                    child: TextField(
-                      controller: _messageController,
-                      decoration: InputDecoration(
-                        hintText: 'Type a message...',
-                        hintStyle: const TextStyle(color: Colors.grey),
-                        border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 10,
+            // Wrap in SingleChildScrollView to make TextField responsive
+            child: SingleChildScrollView(
+              reverse: true,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color:
+                            lightBlueBackground, // THEME CHANGE: Input field background
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                      child: TextField(
+                        controller: _messageController,
+                        onSubmitted: (_) =>
+                            _sendMessage(), // Allows sending on enter
+                        decoration: InputDecoration(
+                          hintText: 'Type a message...',
+                          hintStyle: const TextStyle(color: Colors.grey),
+                          // THEME CHANGE: Input text is Dark Blue
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 10,
+                          ),
+                          suffixIcon: IconButton(
+                            icon: const Icon(
+                              Icons.mic,
+                              color:
+                                  darkBlue, // THEME CHANGE: Mic icon is Dark Blue
+                            ),
+                            onPressed: () {
+                              // Voice message functionality
+                            },
+                          ),
                         ),
-                        suffixIcon: IconButton(
-                          icon: const Icon(
-                            Icons.mic,
-                            color: Color(0xFF9932CC),
-                          ), // Purple mic icon
-                          onPressed: () {
-                            // Voice message functionality
-                          },
-                        ),
+                        style: const TextStyle(
+                          color: darkBlue,
+                        ), // THEME CHANGE: Typed text color
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [
-                        Color(0xFFCC2B5E),
-                        Color(0xFF753A88),
-                      ], // Pink to Purple gradient
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
+                  const SizedBox(width: 8),
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      // THEME CHANGE: Send button uses Primary Blue solid color
+                      color: primaryBlue,
+                      borderRadius: BorderRadius.circular(24),
                     ),
-                    borderRadius: BorderRadius.circular(24), // Circular button
+                    child: IconButton(
+                      icon: const Icon(Icons.send, color: Colors.white),
+                      onPressed: _sendMessage,
+                    ),
                   ),
-                  child: IconButton(
-                    icon: const Icon(Icons.send, color: Colors.white),
-                    onPressed: _sendMessage,
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ],
@@ -221,8 +264,8 @@ class _MessageBubble extends StatelessWidget {
   final String message;
   final bool isMe;
   final String time;
-  final String? chatPartnerInitials; // Only for received messages
-  final Color? chatPartnerAvatarColor; // Only for received messages
+  final String? chatPartnerInitials;
+  final Color? chatPartnerAvatarColor;
 
   const _MessageBubble({
     required this.message,
@@ -236,10 +279,13 @@ class _MessageBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     // Determine alignment based on who sent the message
     final alignment = isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start;
-    final backgroundColor = isMe
-        ? const Color(0xFFCC2B5E)
-        : Colors.grey.shade100; // Pink for me, light grey for others
-    final textColor = isMe ? Colors.white : Colors.black;
+
+    // THEME CHANGE: My bubble is Primary Blue, Partner bubble is Light Blue
+    final backgroundColor = isMe ? myBubbleColor : partnerBubbleColor;
+
+    // THEME CHANGE: My text is White, Partner text is Dark Blue
+    final textColor = isMe ? Colors.white : darkBlue;
+
     final borderRadius = BorderRadius.circular(15);
 
     return Container(
@@ -253,13 +299,14 @@ class _MessageBubble extends StatelessWidget {
                 : MainAxisAlignment.start,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Avatar for received messages
               if (!isMe &&
                   chatPartnerInitials != null &&
                   chatPartnerAvatarColor != null)
                 CircleAvatar(
                   radius: 16,
-                  backgroundColor:
-                      chatPartnerAvatarColor, // Use actual avatar color
+                  // Use a slightly darker color for better contrast
+                  backgroundColor: chatPartnerAvatarColor!.withOpacity(0.8),
                   child: Text(
                     chatPartnerInitials!,
                     style: const TextStyle(color: Colors.white, fontSize: 12),
@@ -291,11 +338,12 @@ class _MessageBubble extends StatelessWidget {
           Padding(
             padding: EdgeInsets.only(
               left: isMe ? 0 : 40.0,
-              right: isMe ? 0 : 40.0,
-            ), // Adjust for avatar
+              right: isMe ? 40.0 : 0, // Adjusted right padding for my messages
+            ),
             child: Text(
               time,
-              style: TextStyle(color: Colors.grey[600], fontSize: 10),
+              // THEME CHANGE: Time text is Dark Blue (slightly muted)
+              style: TextStyle(color: darkBlue.withOpacity(0.6), fontSize: 10),
             ),
           ),
         ],

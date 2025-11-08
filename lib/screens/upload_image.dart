@@ -1,8 +1,22 @@
 import 'package:flutter/material.dart';
-import 'report_lost.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
-// Assuming you have a Home widget (replace with your actual import)
-// import 'home.dart';
+// --- CONDITIONAL IMPORT FIX ---
+// This imports 'dart:io' (which contains the File class) for all platforms
+// except for the web (where dart.library.html is true).
+// For web, it imports a non-existent placeholder ('dart:typed_data' is a simple
+// library that is supported on web, but the File class is not exposed).
+import 'dart:io';
+
+// If you need conditional types, sometimes using a simple
+// if (kIsWeb) { ... } else { ... } approach is clearer.
+// We will stick to the standard 'dart:io' import and check kIsWeb inside the build.
+
+// --- Color Palette ---
+const Color primaryBlue = Color(0xFF42A5F5); // Bright Blue
+const Color darkBlue = Color(0xFF1977D2); // Dark Blue
+const Color lightBlueBackground = Color(0xFFE3F2FD); // Very Light Blue
 
 class UploadPhotosScreen extends StatefulWidget {
   const UploadPhotosScreen({super.key});
@@ -12,86 +26,91 @@ class UploadPhotosScreen extends StatefulWidget {
 }
 
 class _UploadPhotosScreenState extends State<UploadPhotosScreen> {
-  // State variable to track if any photos have been uploaded (or selected)
-  // Initially false, making the "Continue" button blurred/disabled.
-  bool _hasUploadedPhotos = false;
-  int _photoCount = 0; // Simulate the number of uploaded photos
+  // Stores paths of uploaded images (up to 5)
+  final List<String> _uploadedImagePaths = [];
+  final ImagePicker _picker = ImagePicker();
+  final int _maxPhotos = 5;
 
-  // Function to simulate photo upload success (for demonstration)
-  void _simulatePhotoUpload() {
-    setState(() {
-      _hasUploadedPhotos = true;
-      _photoCount = 1; // Set to 1 or more to enable the button
-    });
-    // In a real app, this is where you'd call an image picker service.
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('🖼️ Photo selection simulated!'),
-        duration: Duration(milliseconds: 1500),
-      ),
-    );
-  }
+  // --- Image Picker Functionality ---
 
-  // Function to handle "Skip for Now" navigation
-  void _skipForNow() {
-    // Navigate to Home.dart, replacing the current screen (using pushAndRemoveUntil)
-    // Replace Home() with your actual Home widget and path if necessary
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (context) => const ReportLostItemScreen()),
-      (Route<dynamic> route) => false,
-    );
-  }
-
-  // Function to handle "Continue" logic
-  void _continue() {
-    if (_hasUploadedPhotos) {
-      // Logic for continuing to the next step (e.g., item description)
+  Future<void> _pickImage(ImageSource source) async {
+    if (_uploadedImagePaths.length >= _maxPhotos) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('➡️ Continuing to the next step...'),
-          duration: Duration(seconds: 2),
+        SnackBar(
+          content: Text(
+            'Limit reached: Maximum of $_maxPhotos photos allowed.',
+          ),
         ),
       );
-      // In a real app, you'd navigate here:
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (context) => const ReportLostItemScreen()),
+      return;
+    }
+
+    final XFile? pickedFile = await _picker.pickImage(source: source);
+
+    if (pickedFile != null) {
+      setState(() {
+        _uploadedImagePaths.add(pickedFile.path);
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('🖼️ Photo uploaded successfully!'),
+          duration: Duration(milliseconds: 1500),
+        ),
       );
     }
   }
 
+  // Function to remove an image
+  void _removeImage(int index) {
+    setState(() {
+      _uploadedImagePaths.removeAt(index);
+    });
+  }
+
+  // Function to handle "Continue" logic
+  void _continue() {
+    if (_uploadedImagePaths.isNotEmpty) {
+      // Returns the path of the *first* uploaded image to the previous screen.
+      Navigator.of(context).pop(_uploadedImagePaths.first);
+    }
+  }
+
+  // Function to handle "Skip for Now" navigation
+  void _skipForNow() {
+    // Pops the screen and returns null, indicating no image was selected.
+    Navigator.of(context).pop(null);
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Determine button style based on photo count
-    final bool isButtonActive = _hasUploadedPhotos;
-    final Color buttonColor = isButtonActive ? Colors.white : Colors.white60;
-    final double opacity = isButtonActive ? 1.0 : 0.5;
+    final int photoCount = _uploadedImagePaths.length;
+    final bool isButtonActive = photoCount > 0;
+
+    final Color buttonTextColor = isButtonActive
+        ? Colors.white
+        : Colors.white70;
+    final double buttonOpacity = isButtonActive ? 1.0 : 0.6;
 
     return Scaffold(
-      // The images suggest a purple/pink gradient background for the top of the AppBar
+      backgroundColor: Colors.white,
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFFE5397C), Color(0xFF8E2DE2)], // Pink to Purple
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-        ),
+        backgroundColor: primaryBlue,
+        elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () {
-            // Close the screen when the top left button is clicked
-            Navigator.of(context).pop();
-          },
+          onPressed: _skipForNow,
         ),
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               'Upload Photos',
-              style: TextStyle(color: Colors.white, fontSize: 20),
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             Text(
               'Add photos of your lost item',
@@ -102,28 +121,23 @@ class _UploadPhotosScreenState extends State<UploadPhotosScreen> {
       ),
 
       body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(
-          20,
-          20,
-          20,
-          100,
-        ), // Padding for the bottom content
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            // 1. Photo Tips Card (Image 1)
+            // 1. Photo Tips Card
             _buildPhotoTipsCard(),
             const SizedBox(height: 25),
 
-            // 2. Gallery and Camera Cards (Image 1)
+            // 2. Gallery and Camera Cards
             Row(
               children: [
                 Expanded(
                   child: _buildUploadOptionCard(
-                    icon: Icons.upload_rounded,
+                    icon: Icons.photo_library_outlined,
                     title: 'Gallery',
                     subtitle: 'Choose from photos',
-                    onTap: _simulatePhotoUpload, // Simulate upload
+                    onTap: () => _pickImage(ImageSource.gallery),
                   ),
                 ),
                 const SizedBox(width: 20),
@@ -132,26 +146,40 @@ class _UploadPhotosScreenState extends State<UploadPhotosScreen> {
                     icon: Icons.camera_alt_outlined,
                     title: 'Camera',
                     subtitle: 'Take a photo',
-                    onTap: _simulatePhotoUpload, // Simulate capture
+                    onTap: () => _pickImage(ImageSource.camera),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 25),
 
-            // 3. No Photos Yet Card (Image 3)
-            _buildNoPhotosCard(),
+            // 3. Photo Grid (Displays uploaded photos or a placeholder)
+            _buildPhotoGrid(photoCount),
             const SizedBox(height: 25),
 
-            // 4. Privacy Notice Card (Image 3)
+            // 4. Privacy Notice Card
             _buildPrivacyNoticeCard(),
             const SizedBox(height: 40),
+          ],
+        ),
+      ),
 
-            // 5. Continue with X Photos Button (Image 3 - bottom part)
-            _buildContinueButton(isButtonActive, opacity, buttonColor),
-            const SizedBox(height: 20),
+      // --- Persistent Bottom Bar with Buttons ---
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // 5. Continue with X Photos Button
+            _buildContinueButton(
+              isButtonActive,
+              buttonOpacity,
+              buttonTextColor,
+              photoCount,
+            ),
+            const SizedBox(height: 15),
 
-            // 6. Skip for Now Button (Image 2)
+            // 6. Skip for Now Button
             _buildSkipForNowButton(),
           ],
         ),
@@ -159,12 +187,15 @@ class _UploadPhotosScreenState extends State<UploadPhotosScreen> {
     );
   }
 
-  // --- Helper Widgets ---
+  // --- Helper Widgets (Separated for clarity) ---
 
   Widget _buildPhotoTipsCard() {
     return Card(
       elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+        side: const BorderSide(color: darkBlue, width: 1.5),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(20.0),
         child: Column(
@@ -172,15 +203,15 @@ class _UploadPhotosScreenState extends State<UploadPhotosScreen> {
           children: [
             const Row(
               children: [
-                Icon(
-                  Icons.check_circle_outline,
-                  color: Color(0xFF5C6BC0),
-                  size: 24,
-                ), // Blue check icon
+                Icon(Icons.lightbulb_outline, color: darkBlue, size: 24),
                 SizedBox(width: 8),
                 Text(
                   'Photo Tips',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: darkBlue,
+                  ),
                 ),
               ],
             ),
@@ -189,7 +220,7 @@ class _UploadPhotosScreenState extends State<UploadPhotosScreen> {
                   'Use clear, well-lit photos',
                   'Show multiple angles if possible',
                   'Include any unique features or markings',
-                  'Upload up to 5 photos',
+                  'Upload up to $_maxPhotos photos',
                 ]
                 .map(
                   (tip) => Padding(
@@ -197,7 +228,10 @@ class _UploadPhotosScreenState extends State<UploadPhotosScreen> {
                       vertical: 4.0,
                       horizontal: 8.0,
                     ),
-                    child: Text('• $tip', style: const TextStyle(fontSize: 15)),
+                    child: Text(
+                      '• $tip',
+                      style: const TextStyle(fontSize: 15, color: darkBlue),
+                    ),
                   ),
                 )
                 .toList(),
@@ -215,7 +249,11 @@ class _UploadPhotosScreenState extends State<UploadPhotosScreen> {
   }) {
     return Card(
       elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      color: lightBlueBackground,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+        side: const BorderSide(color: darkBlue, width: 1.5),
+      ),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(15),
@@ -223,18 +261,22 @@ class _UploadPhotosScreenState extends State<UploadPhotosScreen> {
           padding: const EdgeInsets.symmetric(vertical: 30.0, horizontal: 10),
           child: Column(
             children: [
-              Icon(icon, color: const Color(0xFF5C6BC0), size: 40),
+              Icon(icon, color: darkBlue, size: 40),
               const SizedBox(height: 10),
               Text(
                 title,
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
+                  color: darkBlue,
                 ),
               ),
               Text(
                 subtitle,
-                style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+                style: TextStyle(
+                  color: darkBlue.withOpacity(0.7),
+                  fontSize: 14,
+                ),
               ),
             ],
           ),
@@ -243,63 +285,145 @@ class _UploadPhotosScreenState extends State<UploadPhotosScreen> {
     );
   }
 
-  Widget _buildNoPhotosCard() {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      child: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          children: [
-            Icon(Icons.image_outlined, color: Colors.grey.shade400, size: 60),
-            const SizedBox(height: 10),
-            const Text(
-              'No Photos Yet',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+  Widget _buildPhotoGrid(int photoCount) {
+    if (photoCount == 0) {
+      return Card(
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+          side: const BorderSide(color: darkBlue, width: 1.5),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            children: [
+              Icon(
+                Icons.image_outlined,
+                color: darkBlue.withOpacity(0.5),
+                size: 60,
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                'No Photos Yet',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: darkBlue,
+                ),
+              ),
+              const SizedBox(height: 5),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20.0),
+                child: Text(
+                  'Upload or capture photos to help identify your lost item',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: darkBlue),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: photoCount,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        crossAxisSpacing: 10.0,
+        mainAxisSpacing: 10.0,
+        childAspectRatio: 1.0,
+      ),
+      itemBuilder: (context, index) {
+        final String imagePath = _uploadedImagePaths[index];
+        Widget imageWidget;
+
+        if (kIsWeb) {
+          // Placeholder for web since Image.file is not supported
+          imageWidget = Container(
+            color: lightBlueBackground.withOpacity(0.7),
+            child: const Center(
+              child: Icon(Icons.image_not_supported, color: darkBlue, size: 30),
             ),
-            const SizedBox(height: 5),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20.0),
-              child: Text(
-                'Upload or capture photos to help identify your lost item',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey),
+          );
+        } else {
+          // Use Image.file for mobile/desktop. File is available because of 'dart:io' import.
+          imageWidget = Image.file(
+            File(imagePath),
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) => Container(
+              color: Colors.red.shade100,
+              child: const Center(
+                child: Text(
+                  "File Error",
+                  style: TextStyle(color: Colors.red, fontSize: 12),
+                ),
               ),
             ),
-          ],
-        ),
-      ),
+          );
+        }
+
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: GridTile(
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                imageWidget,
+                // Delete button overlay
+                Positioned(
+                  top: 5,
+                  right: 5,
+                  child: InkWell(
+                    onTap: () => _removeImage(index),
+                    child: const CircleAvatar(
+                      radius: 12,
+                      backgroundColor: Colors.black54,
+                      child: Icon(Icons.close, size: 16, color: Colors.white),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
   Widget _buildPrivacyNoticeCard() {
     return Card(
       elevation: 0,
-      color: const Color(0xFFFFFBE5), // Light yellowish background
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      child: Padding(
-        padding: const EdgeInsets.all(20.0),
+      color: lightBlueBackground,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+        side: const BorderSide(color: darkBlue, width: 1.5),
+      ),
+      child: const Padding(
+        padding: EdgeInsets.all(20.0),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(
-              Icons.warning_amber,
-              color: Color(0xFFFF9800),
-              size: 24,
-            ), // Orange warning icon
-            const SizedBox(width: 10),
-            const Expanded(
+            Icon(Icons.warning_amber, color: darkBlue, size: 24),
+            SizedBox(width: 10),
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     'Privacy Notice',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: darkBlue,
+                    ),
                   ),
                   SizedBox(height: 4),
                   Text(
                     'Ensure photos don\'t contain sensitive personal information like credit cards or passwords.',
-                    style: TextStyle(fontSize: 14),
+                    style: TextStyle(fontSize: 14, color: darkBlue),
                   ),
                 ],
               ),
@@ -313,47 +437,35 @@ class _UploadPhotosScreenState extends State<UploadPhotosScreen> {
   Widget _buildContinueButton(
     bool isButtonActive,
     double opacity,
-    Color buttonColor,
+    Color buttonTextColor,
+    int photoCount,
   ) {
     return Opacity(
       opacity: opacity,
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(15),
-          gradient: const LinearGradient(
-            colors: [
-              Color(0xFFE5397C),
-              Color(0xFF8E2DE2),
-            ], // Pink to Purple Gradient
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
+      child: ElevatedButton(
+        onPressed: isButtonActive ? _continue : null,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: primaryBlue,
+          shadowColor: Colors.transparent,
+          padding: const EdgeInsets.symmetric(vertical: 18),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
           ),
         ),
-        child: ElevatedButton(
-          onPressed: isButtonActive ? _continue : null, // Disable if no photos
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.transparent,
-            shadowColor: Colors.transparent,
-            padding: const EdgeInsets.symmetric(vertical: 18),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(15),
-            ),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.check_circle_outline, color: buttonColor),
-              const SizedBox(width: 8),
-              Text(
-                'Continue with $_photoCount Photos',
-                style: TextStyle(
-                  fontSize: 18,
-                  color: buttonColor,
-                  fontWeight: FontWeight.bold,
-                ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.check_circle_outline, color: buttonTextColor),
+            const SizedBox(width: 8),
+            Text(
+              'Continue with $photoCount Photos',
+              style: TextStyle(
+                fontSize: 18,
+                color: buttonTextColor,
+                fontWeight: FontWeight.bold,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -365,14 +477,16 @@ class _UploadPhotosScreenState extends State<UploadPhotosScreen> {
       style: ElevatedButton.styleFrom(
         backgroundColor: Colors.white,
         padding: const EdgeInsets.symmetric(vertical: 18),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        side: BorderSide(color: Colors.grey.shade200, width: 1),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+          side: const BorderSide(color: darkBlue, width: 1.5),
+        ),
       ),
       child: const Text(
         'Skip for Now',
         style: TextStyle(
           fontSize: 18,
-          color: Colors.black87,
+          color: darkBlue,
           fontWeight: FontWeight.bold,
         ),
       ),

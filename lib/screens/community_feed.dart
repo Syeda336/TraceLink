@@ -1,13 +1,83 @@
 import 'package:flutter/material.dart';
-import 'home.dart'; // Import the hypothetical Home.dart screen
+import 'home.dart';
+import 'profile_page.dart';
+import 'search_lost.dart';
+import 'messages.dart';
 import 'item_description.dart';
 
-class CommunityFeed extends StatelessWidget {
+// --- Define the NEW Color Palette ---
+const Color primaryBlue = Color(0xFF42A5F5); // Bright Blue
+const Color darkBlue = Color(0xFF1977D2); // Dark Blue
+const Color lightBlueBackground = Color(0xFFE3F2FD); // Very Light Blue
+
+// 1. Convert StatelessWidget to StatefulWidget
+class CommunityFeed extends StatefulWidget {
   const CommunityFeed({super.key});
+
+  @override
+  State<CommunityFeed> createState() => _CommunityFeedState();
+}
+
+class _CommunityFeedState extends State<CommunityFeed> {
+  // Move state variables here
+  int _selectedIndex = 2; // Set to 2 (Feed) since this is the Feed screen
+
+  // --- Bottom Navigation Colors ---
+  final List<Color> _navItemColors = const [
+    Colors.green, // Home (Index 0)
+    Colors.pink, // Browse (Index 1)
+    Colors.orange, // Feed (Index 2)
+    Color(0xFF00008B), // Dark Blue for Chat (Index 3)
+    Colors.purple, // Profile (Index 4)
+  ];
+
+  // 2. Correctly define _onItemTapped using setState
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+
+    // Handle navigation for Bottom Navigation Bar items
+    // Using pushReplacement for simplicity in this example to replace the current screen
+    // Note: In a real app with a main navigation, you would use a controller (like PageView) or Navigator.popUntil for tab switches.
+    Widget screenToNavigate;
+
+    switch (index) {
+      case 0: // Home
+        screenToNavigate = const HomeScreen();
+        break;
+      case 1: // Browse
+        screenToNavigate = const SearchLost();
+        break;
+      case 2: // Feed
+        screenToNavigate = const CommunityFeed();
+        return;
+      case 3: // Chat
+        screenToNavigate = const MessagesListScreen();
+        break;
+      case 4: // Profile
+        screenToNavigate = const ProfileScreen();
+        break;
+      default:
+        return;
+    }
+
+    // Use widget.context if not explicitly passed, though context from build is safer
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => screenToNavigate),
+    );
+  }
+
+  // Helper function to get the icon color
+  Color _getIconColor(int index) {
+    return _selectedIndex == index ? _navItemColors[index] : Colors.grey;
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       body: CustomScrollView(
         slivers: [
           // --- Fixed Header (Community Feed) ---
@@ -15,6 +85,8 @@ class CommunityFeed extends StatelessWidget {
             pinned: true,
             automaticallyImplyLeading: false,
             titleSpacing: 0,
+            backgroundColor: primaryBlue,
+            foregroundColor: Colors.white,
             title: Padding(
               padding: const EdgeInsets.only(left: 8.0),
               child: Row(
@@ -23,7 +95,6 @@ class CommunityFeed extends StatelessWidget {
                   IconButton(
                     icon: const Icon(Icons.arrow_back),
                     onPressed: () {
-                      // Functionality to open home.dart
                       Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(
@@ -34,17 +105,20 @@ class CommunityFeed extends StatelessWidget {
                   ),
                   const Text(
                     'Community Feed',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
                   ),
                 ],
               ),
             ),
           ),
 
-          // --- Feed Content (Ordered as requested in previous prompt) ---
+          // --- Feed Content ---
           SliverList(
             delegate: SliverChildListDelegate([
-              // 1. Post by Sarah Johnson - Found: Set of Keys
               _FeedPostCard(
                 userInitials: 'SJ',
                 userName: 'Sarah Johnson',
@@ -61,8 +135,11 @@ class CommunityFeed extends StatelessWidget {
                   fit: BoxFit.cover,
                 ),
               ),
-
-              // 2. Post by Mike Chen - Lost: Blue Backpack
+              const Divider(
+                height: 1,
+                thickness: 8,
+                color: lightBlueBackground,
+              ),
               _FeedPostCard(
                 userInitials: 'MC',
                 userName: 'Mike Chen',
@@ -79,8 +156,11 @@ class CommunityFeed extends StatelessWidget {
                   fit: BoxFit.cover,
                 ),
               ),
-
-              // 3. Post by Emma Wilson - Found: Student ID
+              const Divider(
+                height: 1,
+                thickness: 8,
+                color: lightBlueBackground,
+              ),
               _FeedPostCard(
                 userInitials: 'EW',
                 userName: 'Emma Wilson',
@@ -97,8 +177,11 @@ class CommunityFeed extends StatelessWidget {
                   fit: BoxFit.cover,
                 ),
               ),
-
-              // 4. Post by Emma Wilson - Found: Wallet (from image that showed user detail)
+              const Divider(
+                height: 1,
+                thickness: 8,
+                color: lightBlueBackground,
+              ),
               _FeedPostCard(
                 userInitials: 'EW',
                 userName: 'Emma Wilson',
@@ -115,18 +198,49 @@ class CommunityFeed extends StatelessWidget {
                   fit: BoxFit.cover,
                 ),
               ),
-
-              // Add more feed posts as needed for a complete feed...
               const SizedBox(height: 20),
             ]),
           ),
         ],
       ),
+      // 3. Move BottomNavigationBar to its correct location in the Scaffold
+      bottomNavigationBar: BottomNavigationBar(
+        items: <BottomNavigationBarItem>[
+          BottomNavigationBarItem(
+            icon: Icon(Icons.favorite, color: _getIconColor(0)),
+            label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.browse_gallery, color: _getIconColor(1)),
+            label: 'Browse',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.inventory_2_outlined, color: _getIconColor(2)),
+            label: 'Feed',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.chat_bubble_outline, color: _getIconColor(3)),
+            label: 'Chat',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person_outline, color: _getIconColor(4)),
+            label: 'Profile',
+          ),
+        ],
+        currentIndex: _selectedIndex,
+        selectedItemColor: _navItemColors[_selectedIndex],
+        unselectedItemColor: Colors.grey,
+        showUnselectedLabels: true,
+        onTap: _onItemTapped,
+        type: BottomNavigationBarType.fixed,
+        backgroundColor: Colors.white,
+        elevation: 10,
+      ),
     );
   }
 }
 
-// --- Feed Post Card Widget ---
+// --- Feed Post Card Widget (No changes needed here) ---
 class _FeedPostCard extends StatelessWidget {
   final String userInitials;
   final String userName;
@@ -152,7 +266,6 @@ class _FeedPostCard extends StatelessWidget {
     required this.imageWidget,
   });
 
-  // Simple function to extract item name from the first sentence
   String _itemNameFromPostText(String text) {
     if (text.startsWith('Found these keys')) return 'Set of Keys';
     if (text.startsWith('Lost my blue')) return 'Blue Backpack';
@@ -161,7 +274,6 @@ class _FeedPostCard extends StatelessWidget {
     return 'Item';
   }
 
-  // --- NEW: Function to handle the image tap action ---
   void _openItemDescription(BuildContext context) {
     final itemName = _itemNameFromPostText(postText);
     Navigator.push(
@@ -171,21 +283,19 @@ class _FeedPostCard extends StatelessWidget {
       ),
     );
   }
-  // --- END NEW FUNCTION ---
 
   @override
   Widget build(BuildContext context) {
     final bool isLost = status == 'Lost';
-    final Color statusColor = isLost ? const Color(0xFF9932CC) : Colors.green;
-    final Color initialsColor = isLost ? Colors.purple : Colors.pink;
-    final String itemName = _itemNameFromPostText(
-      postText,
-    ); // Get item name once
+    final Color statusColor = isLost ? darkBlue : primaryBlue;
+    final Color initialsColor = primaryBlue;
+    final String itemName = _itemNameFromPostText(postText);
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 16.0),
+      margin: EdgeInsets.zero,
       elevation: 0,
       shape: const RoundedRectangleBorder(),
+      color: Colors.white,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -198,7 +308,7 @@ class _FeedPostCard extends StatelessWidget {
             child: Row(
               children: [
                 CircleAvatar(
-                  backgroundColor: initialsColor.withOpacity(0.8),
+                  backgroundColor: initialsColor,
                   child: Text(
                     userInitials,
                     style: const TextStyle(color: Colors.white),
@@ -213,20 +323,26 @@ class _FeedPostCard extends StatelessWidget {
                         children: [
                           Text(
                             userName,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: darkBlue,
+                            ),
                           ),
                           if (isVerified)
                             const Padding(
                               padding: EdgeInsets.only(left: 4.0),
                               child: Icon(
                                 Icons.check_circle,
-                                color: Colors.blue,
+                                color: primaryBlue,
                                 size: 14,
                               ),
                             ),
                         ],
                       ),
-                      Text(timeAgo, style: const TextStyle(color: Colors.grey)),
+                      Text(
+                        timeAgo,
+                        style: TextStyle(color: darkBlue.withOpacity(0.6)),
+                      ),
                     ],
                   ),
                 ),
@@ -248,18 +364,15 @@ class _FeedPostCard extends StatelessWidget {
             ),
           ),
 
-          // Post Image/Content - WRAPPED IN GESTUREDETECTOR
+          // Post Image/Content
           GestureDetector(
-            onTap: () => _openItemDescription(context), // <--- NEW
+            onTap: () => _openItemDescription(context),
             child: SizedBox(
               width: double.infinity,
-              height: 600,
-              child: ClipRRect(
-                child: imageWidget, // Placeholder or actual image
-              ),
+              height: 350,
+              child: ClipRRect(child: imageWidget),
             ),
           ),
-          // END IMAGE WRAP
 
           // Post Text
           Padding(
@@ -272,10 +385,14 @@ class _FeedPostCard extends StatelessWidget {
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
+                    color: darkBlue,
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(postText, style: const TextStyle(fontSize: 14)),
+                Text(
+                  postText,
+                  style: const TextStyle(fontSize: 14, color: darkBlue),
+                ),
               ],
             ),
           ),
@@ -291,12 +408,15 @@ class _FeedPostCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.location_on, color: Colors.grey, size: 16),
+                    const Icon(Icons.location_on, color: darkBlue, size: 16),
                     const SizedBox(width: 4),
-                    Text(location, style: const TextStyle(color: Colors.grey)),
+                    Text(
+                      location,
+                      style: TextStyle(color: darkBlue.withOpacity(0.8)),
+                    ),
                   ],
                 ),
-                const Divider(),
+                const Divider(color: lightBlueBackground),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -305,11 +425,14 @@ class _FeedPostCard extends StatelessWidget {
                       children: [
                         const Icon(
                           Icons.favorite_border,
-                          color: Colors.grey,
+                          color: darkBlue,
                           size: 24,
                         ),
                         const SizedBox(width: 4),
-                        Text('$likes', style: const TextStyle(fontSize: 16)),
+                        Text(
+                          '$likes',
+                          style: const TextStyle(fontSize: 16, color: darkBlue),
+                        ),
                       ],
                     ),
                     // Comments
@@ -317,19 +440,18 @@ class _FeedPostCard extends StatelessWidget {
                       children: [
                         const Icon(
                           Icons.chat_bubble_outline,
-                          color: Colors.grey,
+                          color: darkBlue,
                           size: 24,
                         ),
                         const SizedBox(width: 4),
-                        Text('$comments', style: const TextStyle(fontSize: 16)),
+                        Text(
+                          '$comments',
+                          style: const TextStyle(fontSize: 16, color: darkBlue),
+                        ),
                       ],
                     ),
                     // Share
-                    const Icon(
-                      Icons.share_outlined,
-                      color: Colors.grey,
-                      size: 24,
-                    ),
+                    const Icon(Icons.share_outlined, color: darkBlue, size: 24),
                   ],
                 ),
               ],
@@ -341,16 +463,12 @@ class _FeedPostCard extends StatelessWidget {
   }
 }
 
-// --- Placeholder Widget for Images (Used in the Feed) ---
+// The PlaceholderImage class remains the same
 class PlaceholderImage extends StatelessWidget {
   final Color color;
   final IconData icon;
 
-  const PlaceholderImage({
-    required this.color,
-    required this.icon,
-    super.key,
-  }); // Added super.key
+  const PlaceholderImage({required this.color, required this.icon, super.key});
 
   @override
   Widget build(BuildContext context) {

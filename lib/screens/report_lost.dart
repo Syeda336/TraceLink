@@ -1,7 +1,21 @@
 import 'package:flutter/material.dart';
-import 'home.dart'; // Import the hypothetical Home.dart screen
+import 'home.dart';
 import 'upload_image.dart';
 import 'ai_generated.dart';
+
+import 'search_lost.dart';
+import 'community_feed.dart';
+import 'profile_page.dart';
+import 'messages.dart';
+
+// --- Define the Color Palette ---
+const Color primaryBlue = Color(
+  0xFF42A5F5,
+); // Bright Blue (Header, Primary button)
+const Color darkBlue = Color(0xFF1977D2); // Dark Blue (Body text, outlines)
+const Color lightBlueBackground = Color(
+  0xFFE3F2FD,
+); // Very Light Blue (Background)
 
 class ReportLostItemScreen extends StatefulWidget {
   const ReportLostItemScreen({super.key});
@@ -11,10 +25,62 @@ class ReportLostItemScreen extends StatefulWidget {
 }
 
 class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
+  // Assuming this screen is opened from a main navigation index (like 'Home')
+  int _selectedIndex = 0;
+
+  void _navigateToScreen(BuildContext context, Widget screen) {
+    // This is generally safe for navigating to a detail page
+    Navigator.push(context, MaterialPageRoute(builder: (context) => screen));
+  }
+
+  // --- Bottom Navigation Colors ---
+  final List<Color> _navItemColors = const [
+    Colors.green,
+    Colors.pink,
+    Colors.orange,
+    Color(0xFF00008B),
+    Colors.purple,
+  ];
+
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+
+    // Handle navigation for Bottom Navigation Bar items
+    // Using pushReplacement for main tabs to prevent back-stack buildup
+    switch (index) {
+      case 0:
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => HomeScreen()),
+        );
+        break;
+      case 1: // Browse
+        _navigateToScreen(context, const SearchLost());
+        break;
+      case 2: // Feed
+        _navigateToScreen(context, const CommunityFeed());
+        break;
+      case 3: // Chat
+        _navigateToScreen(context, const MessagesListScreen());
+        break;
+      case 4: // Profile
+        _navigateToScreen(context, const ProfileScreen());
+        break;
+    }
+  }
+
+  // Helper function to get the icon color
+  Color _getIconColor(int index) {
+    return _selectedIndex == index ? _navItemColors[index] : Colors.grey;
+  }
+  // --- END BOTTOM NAV LOGIC ---
+
   // Global key for the form
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
-  // Text controllers (optional, but good practice for form data)
+  // Text controllers
   final TextEditingController _itemNameController = TextEditingController();
   final TextEditingController _colorController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
@@ -42,6 +108,18 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
       initialDate: _selectedDate ?? DateTime.now(),
       firstDate: DateTime(2000),
       lastDate: DateTime.now(),
+      builder: (context, child) {
+        return Theme(
+          data: ThemeData.light().copyWith(
+            primaryColor: primaryBlue,
+            colorScheme: const ColorScheme.light(primary: primaryBlue),
+            buttonTheme: const ButtonThemeData(
+              textTheme: ButtonTextTheme.primary,
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
     if (picked != null && picked != _selectedDate) {
       setState(() {
@@ -52,9 +130,8 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
 
   // Function to handle form submission
   void _submitReport() {
-    // Basic validation check (you would add more detailed checks for all fields)
     if (_formKey.currentState!.validate()) {
-      // If validation passes, show the success message popup
+      // Logic to save data and show the success message popup
       _showSubmissionMessage();
     }
   }
@@ -68,15 +145,16 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(15.0),
           ),
-          title: const Row(
+          title: Row(
             children: [
-              Icon(Icons.done_all, color: Colors.pink),
-              SizedBox(width: 8),
-              Text('Report Received!'),
+              const Icon(Icons.done_all, color: primaryBlue),
+              const SizedBox(width: 8),
+              Text('Report Received!', style: TextStyle(color: darkBlue)),
             ],
           ),
           content: const Text(
             'Your lost item report has been submitted successfully.',
+            style: TextStyle(color: darkBlue),
           ),
           actions: <Widget>[
             TextButton(
@@ -87,7 +165,7 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
                   MaterialPageRoute(builder: (context) => HomeScreen()),
                 );
               },
-              child: const Text('OK'),
+              child: const Text('OK', style: TextStyle(color: primaryBlue)),
             ),
           ],
         );
@@ -95,23 +173,25 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
     );
   }
 
-  // **New Functionality:** Handles navigation and waits for the result (image URL/path)
-  void _navigateAndHandleImage(
-    BuildContext context,
-    Widget screen,
-    bool isUpload,
-  ) async {
+  // **FIXED Function:** Handles navigation and waits for the result (image URL/path)
+  void _navigateAndHandleImage(BuildContext context, Widget screen) async {
     // Wait for the pushed screen to be popped and return a result
     final result = await Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => screen),
     );
 
-    // If a result (and it's a String) is returned, update the state
-    if (result != null && result is String) {
+    // **FIX:** Ensure the result is explicitly a String and not null before updating state.
+    if (result is String && result.isNotEmpty) {
       setState(() {
         _uploadedImageUrl = result;
       });
+    } else if (result == null) {
+      // Optional: If the user cancels the upload screen and returns null,
+      // you might want to reset the image URL.
+      // setState(() {
+      //   _uploadedImageUrl = null;
+      // });
     }
   }
 
@@ -126,22 +206,16 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
         : 'Upload Photo';
 
     return Scaffold(
+      backgroundColor: Colors.white,
       body: CustomScrollView(
         slivers: [
-          // --- Header Section (Dark Pinkish Gradient) ---
+          // --- Header Section (Bright Blue) ---
           SliverAppBar(
             pinned: true,
             toolbarHeight: 120,
-            automaticallyImplyLeading: false, // Handle back button custom
+            automaticallyImplyLeading: false,
             flexibleSpace: Container(
-              decoration: const BoxDecoration(
-                // Dark pinkish gradient
-                gradient: LinearGradient(
-                  colors: [Color(0xFFC70039), Color(0xFF581845)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
+              decoration: const BoxDecoration(color: primaryBlue),
               child: SafeArea(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
@@ -161,7 +235,6 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
                               color: Colors.white,
                             ),
                             onPressed: () {
-                              // Functionality to open home.dart
                               Navigator.pushReplacement(
                                 context,
                                 MaterialPageRoute(
@@ -251,14 +324,15 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
                           height: 50,
                           padding: const EdgeInsets.symmetric(horizontal: 12),
                           decoration: BoxDecoration(
-                            color: Colors.grey.shade200,
+                            color: lightBlueBackground,
                             borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: Colors.grey.shade300),
                           ),
                           child: Row(
                             children: [
                               const Icon(
                                 Icons.calendar_today_outlined,
-                                color: Colors.grey,
+                                color: darkBlue,
                               ),
                               const SizedBox(width: 10),
                               Expanded(
@@ -268,14 +342,14 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
                                       : '${_selectedDate!.toLocal().year}-${_selectedDate!.toLocal().month}-${_selectedDate!.toLocal().day}',
                                   style: TextStyle(
                                     color: _selectedDate == null
-                                        ? Colors.grey[700]
-                                        : Colors.black,
+                                        ? darkBlue.withOpacity(0.6)
+                                        : darkBlue,
                                   ),
                                 ),
                               ),
                               const Icon(
                                 Icons.keyboard_arrow_down,
-                                color: Colors.grey,
+                                color: darkBlue,
                               ),
                             ],
                           ),
@@ -286,7 +360,7 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
                       // --- Upload Image Section ---
                       _buildLabel('Upload Image'),
 
-                      // **New:** Display the uploaded image if available
+                      // Display the uploaded image if available
                       if (imageIsUploaded) ...[
                         _buildImagePreview(_uploadedImageUrl!),
                         const SizedBox(height: 16),
@@ -296,12 +370,11 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
                         children: [
                           _buildImageActionButton(
                             icon: Icons.upload_outlined,
-                            label: uploadButtonLabel, // Dynamic label
+                            label: uploadButtonLabel,
                             onTap: () {
                               _navigateAndHandleImage(
                                 context,
                                 const UploadPhotosScreen(),
-                                true,
                               );
                             },
                             isPrimary: false,
@@ -314,12 +387,11 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
                               _navigateAndHandleImage(
                                 context,
                                 const AiImageGeneratorScreen(),
-                                false,
                               );
                             },
                             isPrimary: true,
                           ),
-                          // **New:** Optional: Add a Delete button when an image is present
+                          // Optional: Add a Delete button when an image is present
                           if (imageIsUploaded) ...[
                             const SizedBox(width: 16),
                             _buildDeleteImageButton(),
@@ -330,63 +402,30 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
                       const SizedBox(height: 10),
                       const Text(
                         'Upload a photo or use AI to generate an image description',
-                        style: TextStyle(color: Colors.grey),
+                        style: TextStyle(color: darkBlue),
                       ),
                       const SizedBox(height: 40),
 
-                      // --- Submit Report Button (Pink/Purple Gradient) ---
+                      // --- Submit Report Button (Primary Blue) ---
                       ElevatedButton(
                         onPressed: _submitReport,
-                        style:
-                            ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 18),
-                              // Pink/Purple Gradient
-                              backgroundColor:
-                                  Colors.transparent, // Required for gradient
-                              shadowColor: Colors.transparent,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(15),
-                              ),
-                            ).copyWith(
-                              // Apply custom gradient to the button
-                              overlayColor: MaterialStateProperty.all(
-                                Colors.white.withOpacity(0.1),
-                              ),
-                              side: MaterialStateProperty.all(BorderSide.none),
-                              padding: MaterialStateProperty.all(
-                                const EdgeInsets.symmetric(vertical: 18),
-                              ),
-                              // Custom style to apply the gradient background
-                              shape: MaterialStateProperty.all(
-                                RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(15),
-                                ),
-                              ),
-                            ),
-                        child: Ink(
-                          decoration: const BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                Color(0xFFCC2B5E),
-                                Color(0xFF753A88),
-                              ], // Pink to Purple
-                              begin: Alignment.centerLeft,
-                              end: Alignment.centerRight,
-                            ),
-                            borderRadius: BorderRadius.all(
-                              Radius.circular(15.0),
-                            ),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 18),
+                          backgroundColor: primaryBlue,
+                          shadowColor: Colors.transparent,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(15),
                           ),
-                          child: Container(
-                            alignment: Alignment.center,
-                            constraints: const BoxConstraints(minHeight: 50.0),
-                            child: const Text(
-                              'Submit Report',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
+                        ),
+                        child: const SizedBox(
+                          width: double.infinity,
+                          child: Text(
+                            'Submit Report',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
                         ),
@@ -400,6 +439,39 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
           ),
         ],
       ),
+      // --- BOTTOM NAVIGATION BAR ---
+      bottomNavigationBar: BottomNavigationBar(
+        items: <BottomNavigationBarItem>[
+          BottomNavigationBarItem(
+            icon: Icon(Icons.favorite, color: _getIconColor(0)),
+            label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.browse_gallery, color: _getIconColor(1)),
+            label: 'Browse',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.inventory_2_outlined, color: _getIconColor(2)),
+            label: 'Feed',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.chat_bubble_outline, color: _getIconColor(3)),
+            label: 'Chat',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person_outline, color: _getIconColor(4)),
+            label: 'Profile',
+          ),
+        ],
+        currentIndex: _selectedIndex,
+        selectedItemColor: _navItemColors[_selectedIndex],
+        unselectedItemColor: Colors.grey,
+        showUnselectedLabels: true,
+        onTap: _onItemTapped,
+        type: BottomNavigationBarType.fixed,
+        backgroundColor: Colors.white,
+        elevation: 10,
+      ),
     );
   }
 
@@ -410,7 +482,11 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
       padding: const EdgeInsets.only(bottom: 8.0),
       child: Text(
         label,
-        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        style: const TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 16,
+          color: darkBlue,
+        ),
       ),
     );
   }
@@ -425,15 +501,17 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
     return TextFormField(
       controller: controller,
       maxLines: maxLines,
+      style: const TextStyle(color: darkBlue),
       decoration: InputDecoration(
         hintText: hintText,
-        prefixIcon: icon != null ? Icon(icon, color: Colors.grey) : null,
+        hintStyle: TextStyle(color: darkBlue.withOpacity(0.6)),
+        prefixIcon: icon != null ? Icon(icon, color: darkBlue) : null,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide.none,
         ),
         filled: true,
-        fillColor: Colors.grey.shade200,
+        fillColor: lightBlueBackground,
         contentPadding: EdgeInsets.symmetric(
           vertical: (maxLines > 1 ? 12 : 0) + 8.0,
           horizontal: 10.0,
@@ -452,20 +530,23 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
     required String hintText,
     required IconData icon,
   }) {
-    // This simulates the look of a dropdown without actual logic
     return Container(
       height: 50,
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        color: Colors.grey.shade200,
+        color: lightBlueBackground,
         borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey.shade300),
       ),
       child: Row(
         children: [
           Expanded(
-            child: Text(hintText, style: TextStyle(color: Colors.grey[700])),
+            child: Text(
+              hintText,
+              style: TextStyle(color: darkBlue.withOpacity(0.6)),
+            ),
           ),
-          Icon(icon, color: Colors.grey),
+          Icon(icon, color: darkBlue),
         ],
       ),
     );
@@ -477,9 +558,7 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
     required VoidCallback onTap,
     required bool isPrimary,
   }) {
-    final Color primaryColor = isPrimary
-        ? const Color(0xFF753A88)
-        : Colors.grey.shade400;
+    final Color color = darkBlue;
 
     return Expanded(
       child: InkWell(
@@ -488,32 +567,21 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
           padding: const EdgeInsets.symmetric(vertical: 20),
           decoration: BoxDecoration(
             color: isPrimary
-                ? primaryColor.withOpacity(0.1)
-                : Colors.transparent,
-            gradient: isPrimary
-                ? null
-                : null, // The AI button seems to have a subtle purple shade
+                ? lightBlueBackground.withOpacity(0.5)
+                : Colors.white,
+            // Outlined with dark blue for both
             borderRadius: BorderRadius.circular(15),
-            border: isPrimary
-                ? Border.all(
-                    color: primaryColor.withOpacity(0.5),
-                  ) // Subtle border for AI
-                : Border.all(
-                    color: Colors.grey.shade400,
-                  ), // Dashed border for Upload
+            border: Border.all(color: darkBlue, width: 1.5),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 30, color: primaryColor),
+              Icon(icon, size: 30, color: color),
               const SizedBox(height: 8),
               Text(
                 label,
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: primaryColor,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(color: color, fontWeight: FontWeight.bold),
               ),
             ],
           ),
@@ -522,53 +590,6 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
     );
   }
 
-  // **New Helper Widget:** To display the uploaded image
-  Widget _buildImagePreview(String imageUrl) {
-    return Container(
-      height: 200, // Fixed height for the image preview
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: Colors.grey.shade200,
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(15),
-        // **NOTE:** Since this is a placeholder URL/path, using a placeholder image.
-        // In a real app, you would use Image.file(File(imageUrl)) or Image.network(imageUrl)
-        // depending on whether the result is a local path or a network URL.
-        child: Image.network(
-          imageUrl, // Use the actual path/url
-          fit: BoxFit.cover,
-          loadingBuilder: (context, child, loadingProgress) {
-            if (loadingProgress == null) return child;
-            return Center(
-              child: CircularProgressIndicator(
-                value: loadingProgress.expectedTotalBytes != null
-                    ? loadingProgress.cumulativeBytesLoaded /
-                          loadingProgress.expectedTotalBytes!
-                    : null,
-              ),
-            );
-          },
-          errorBuilder: (context, error, stackTrace) => const Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.broken_image, size: 50, color: Colors.red),
-                Text(
-                  'Image Preview Failed',
-                  style: TextStyle(color: Colors.red),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  // **New Helper Widget:** To delete the image
   Widget _buildDeleteImageButton() {
     return Expanded(
       child: InkWell(
@@ -582,13 +603,14 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(15),
             border: Border.all(color: Colors.red.shade400),
+            color: Colors.red.shade50.withOpacity(0.5),
           ),
-          child: Column(
+          child: const Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(Icons.delete_forever_outlined, size: 30, color: Colors.red),
-              const SizedBox(height: 8),
-              const Text(
+              SizedBox(height: 8),
+              Text(
                 'Delete Photo',
                 textAlign: TextAlign.center,
                 style: TextStyle(
@@ -597,6 +619,50 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildImagePreview(String imageUrl) {
+    return Container(
+      height: 200,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: lightBlueBackground,
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: darkBlue),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(15),
+        child: Image.network(
+          imageUrl,
+          fit: BoxFit.cover,
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return Center(
+              child: CircularProgressIndicator(
+                value: loadingProgress.expectedTotalBytes != null
+                    ? loadingProgress.cumulativeBytesLoaded /
+                          loadingProgress.expectedTotalBytes!
+                    : null,
+                color: primaryBlue,
+              ),
+            );
+          },
+          // Error handler is crucial for network images
+          errorBuilder: (context, error, stackTrace) => const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.broken_image, size: 50, color: Colors.red),
+                Text(
+                  'Image Preview Failed. Check URL/Path.',
+                  style: TextStyle(color: Colors.red),
+                ),
+              ],
+            ),
           ),
         ),
       ),

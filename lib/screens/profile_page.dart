@@ -5,6 +5,9 @@ import 'accessibility.dart';
 import 'logout.dart';
 import 'edit_profile.dart';
 import 'rewards.dart';
+import 'messages.dart';
+import 'search_lost.dart';
+import 'community_feed.dart';
 
 // --- COLOR PALETTE ---
 const Color brightBlueStart = Color(0xFF4A90E2); // Bright Blue
@@ -18,41 +21,92 @@ class _UserData {
   final String studentId;
   final String email;
 
-  // Constructor updated to use required POSITIONAL arguments
   const _UserData(this.fullName, this.studentId, this.email);
 }
 
-class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({super.key}); // Added key for best practice
+// ----------------------------------------------------------------------
+// --- PROFILE SCREEN (CONVERTED TO STATEFULWIDGET) ---------------------
+// ----------------------------------------------------------------------
 
+class ProfileScreen extends StatefulWidget {
+  const ProfileScreen({super.key});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  // Moved state variable here
+  int _selectedIndex = 4; // Set to 4 to highlight the Profile tab initially
+
+  // --- User Data ---
   final _UserData userData = const _UserData(
     'Jane Doe',
     'STU789012',
     'jane.doe@uni.edu',
   );
 
-  // --- Helper function for navigation ---
+  // --- Bottom Navigation Colors (Can remain here) ---
+  final List<Color> _navItemColors = const [
+    Colors.green, // Home (Index 0)
+    Colors.pink, // Browse (Index 1)
+    Colors.orange, // Feed (Index 2)
+    Color(0xFF00008B), // Dark Blue for Chat (Index 3)
+    Colors.purple, // Profile (Index 4)
+  ];
+
+  // --- Navigation Functions ---
   void _navigateTo(BuildContext context, Widget page) {
     Navigator.of(context).push(MaterialPageRoute(builder: (context) => page));
   }
-  // ------------------------------------
+
+  void _onItemTapped(int index) {
+    // setState is now valid
+    setState(() {
+      _selectedIndex = index;
+    });
+
+    // Handle navigation for Bottom Navigation Bar items
+    switch (index) {
+      case 0: // Home
+        // Navigate using pushReplacement to replace the current route with the Home screen.
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
+        );
+        break;
+      case 1: // Browse
+        _navigateTo(context, const SearchLost());
+        break;
+      case 2: // Feed
+        _navigateTo(context, const CommunityFeed());
+        break;
+      case 3: // Chat
+        _navigateTo(context, const MessagesListScreen());
+        break;
+      case 4: // Profile (Already here, avoid navigation loop)
+        // If the user taps the current tab, do nothing or scroll to top
+        break;
+    }
+  }
+
+  // Helper function to get the icon color
+  Color _getIconColor(int index) {
+    // Accessing _selectedIndex is now correct within the State class
+    return _selectedIndex == index ? _navItemColors[index] : Colors.grey;
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color.fromARGB(
-        255,
-        239,
-        246,
-        250,
-      ), // Set main background to light blue
+      backgroundColor: lightBackground, // Used constant
       body: CustomScrollView(
         slivers: [
           // --- Header Section (Profile Summary) ---
           SliverAppBar(
             pinned: true,
             automaticallyImplyLeading: false,
-            expandedHeight: 300.0, // Height to accommodate profile details
+            expandedHeight: 300.0,
             flexibleSpace: FlexibleSpaceBar(
               background: Container(
                 // Bright Blue Gradient
@@ -71,13 +125,11 @@ class ProfileScreen extends StatelessWidget {
                       children: [
                         // Top Row: Back and Settings Buttons
                         Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8.0,
-                          ), // Added horizontal padding
+                          padding: const EdgeInsets.symmetric(horizontal: 8.0),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              // Back Button (Top Left Corner Button)
+                              // Back Button (Returns to Home)
                               IconButton(
                                 icon: const Icon(
                                   Icons.arrow_back,
@@ -85,8 +137,7 @@ class ProfileScreen extends StatelessWidget {
                                   size: 30,
                                 ),
                                 onPressed: () {
-                                  // Navigating back usually uses pop, but since there's a HomeScreen import,
-                                  // I'm keeping the original logic to replace the current route.
+                                  // Navigates back to home.dart
                                   Navigator.pushReplacement(
                                     context,
                                     MaterialPageRoute(
@@ -128,7 +179,7 @@ class ProfileScreen extends StatelessWidget {
                               ),
                               child: Center(
                                 child: Text(
-                                  // Safely get initials, assuming two words
+                                  // Safely get initials
                                   userData.fullName.contains(' ')
                                       ? '${userData.fullName.split(' ').first.substring(0, 1)}${userData.fullName.split(' ').last.substring(0, 1)}'
                                       : userData.fullName.substring(0, 1),
@@ -219,7 +270,7 @@ class ProfileScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    const Text(
                       'Your Status',
                       style: TextStyle(
                         fontSize: 20,
@@ -327,7 +378,7 @@ class ProfileScreen extends StatelessWidget {
                       subtitle: 'Update your information',
                       icon: Icons.edit_note,
                       iconColor: const Color.fromARGB(255, 45, 129, 224),
-                      isOutlined: true, // Use outlined style
+                      isOutlined: true,
                       onTap: () {
                         _navigateTo(context, const EditProfileScreen());
                       },
@@ -340,7 +391,7 @@ class ProfileScreen extends StatelessWidget {
                       subtitle: 'Manage your notifications',
                       icon: Icons.notifications_none,
                       iconColor: const Color.fromARGB(255, 26, 180, 147),
-                      isOutlined: true, // Use outlined style
+                      isOutlined: true,
                       onTap: () {
                         _navigateTo(context, const SettingsScreen());
                       },
@@ -353,7 +404,7 @@ class ProfileScreen extends StatelessWidget {
                       subtitle: 'Change language and accessibility options',
                       icon: Icons.language,
                       iconColor: const Color.fromARGB(255, 154, 47, 173),
-                      isOutlined: true, // Use outlined style
+                      isOutlined: true,
                       onTap: () {
                         _navigateTo(context, const AccessibilityScreen());
                       },
@@ -373,9 +424,9 @@ class ProfileScreen extends StatelessWidget {
                           borderRadius: BorderRadius.circular(15),
                         ),
                       ),
-                      child: Row(
+                      child: const Row(
                         mainAxisAlignment: MainAxisAlignment.center,
-                        children: const [
+                        children: [
                           Icon(Icons.logout, color: Colors.red),
                           SizedBox(width: 10),
                           Text(
@@ -397,11 +448,44 @@ class ProfileScreen extends StatelessWidget {
           ),
         ],
       ),
+      // --- BOTTOM NAVIGATION BAR ---
+      bottomNavigationBar: BottomNavigationBar(
+        items: <BottomNavigationBarItem>[
+          BottomNavigationBarItem(
+            icon: Icon(Icons.favorite, color: _getIconColor(0)),
+            label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.browse_gallery, color: _getIconColor(1)),
+            label: 'Browse',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.inventory_2_outlined, color: _getIconColor(2)),
+            label: 'Feed',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.chat_bubble_outline, color: _getIconColor(3)),
+            label: 'Chat',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person_outline, color: _getIconColor(4)),
+            label: 'Profile',
+          ),
+        ],
+        currentIndex: _selectedIndex,
+        selectedItemColor: _navItemColors[_selectedIndex],
+        unselectedItemColor: Colors.grey,
+        showUnselectedLabels: true,
+        onTap: _onItemTapped,
+        type: BottomNavigationBarType.fixed,
+        backgroundColor: Colors.white,
+        elevation: 10,
+      ),
     );
   }
 }
 
-// --- Helper Widgets (Updated for Outline Style) ---
+// --- Helper Widgets (Kept as StatelessWidget, they are fine) ---
 
 class _StatItem extends StatelessWidget {
   final String count;
@@ -454,7 +538,7 @@ class _SettingsItem extends StatelessWidget {
   final String subtitle;
   final IconData icon;
   final Color iconColor;
-  final bool isOutlined; // New property to trigger the outlined style
+  final bool isOutlined;
   final VoidCallback? onTap;
 
   const _SettingsItem({
@@ -533,7 +617,7 @@ class _SettingsItem extends StatelessWidget {
       );
     }
 
-    // Fallback: Default ListTile style (not used in this final version, but kept for logic safety)
+    // Fallback: Default ListTile style
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(vertical: 5, horizontal: 0),
       leading: Container(

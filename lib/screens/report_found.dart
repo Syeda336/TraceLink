@@ -1,6 +1,19 @@
 import 'package:flutter/material.dart';
-import 'home.dart'; // Import the hypothetical Home.dart screen
+import 'home.dart';
+import 'profile_page.dart';
+import 'community_feed.dart';
 import 'upload_image.dart';
+import 'search_lost.dart';
+import 'messages.dart';
+
+// --- Color Palette for Blue Theme ---
+const Color primaryBlue = Color(0xFF42A5F5); // Bright Blue
+const Color darkBlue = Color(0xFF1977D2); // Dark Blue
+const Color lightBlueBackground = Color(0xFFE3F2FD); // Very Light Blue
+
+// ----------------------------------------------------------------------
+// --- REPORT FOUND ITEM SCREEN (THE MAIN CLASS) --------------------------
+// ----------------------------------------------------------------------
 
 class ReportFoundItemScreen extends StatefulWidget {
   const ReportFoundItemScreen({super.key});
@@ -10,6 +23,57 @@ class ReportFoundItemScreen extends StatefulWidget {
 }
 
 class _ReportFoundItemScreenState extends State<ReportFoundItemScreen> {
+  int _selectedIndex = 0;
+
+  void _navigateToScreen(BuildContext context, Widget screen) {
+    // This is generally safe for navigating to a detail page
+    Navigator.push(context, MaterialPageRoute(builder: (context) => screen));
+  }
+
+  // --- Bottom Navigation Colors ---
+  final List<Color> _navItemColors = const [
+    Colors.green, // Home (Index 0)
+    Colors.pink, // Browse (Index 1)
+    Colors.orange, // Feed (Index 2)
+    Color(0xFF00008B), // Chat (Index 3)
+    Colors.purple, // Profile (Index 4)
+  ];
+
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+
+    // Handle navigation for Bottom Navigation Bar items
+    // Using pushReplacement for main tabs to prevent back-stack buildup
+    switch (index) {
+      case 0: // Home
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
+        );
+        break;
+      case 1: // Browse
+        _navigateToScreen(context, const SearchLost());
+        break;
+      case 2: // Feed
+        _navigateToScreen(context, const CommunityFeed());
+        break;
+      case 3: // Chat
+        _navigateToScreen(context, const MessagesListScreen());
+        break;
+      case 4: // Profile
+        _navigateToScreen(context, const ProfileScreen());
+        break;
+    }
+  }
+
+  // Helper function to get the icon color
+  Color _getIconColor(int index) {
+    return _selectedIndex == index ? _navItemColors[index] : Colors.grey;
+  }
+  // --- END BOTTOM NAV LOGIC ---
+
   // Global key for the form
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
@@ -21,11 +85,29 @@ class _ReportFoundItemScreenState extends State<ReportFoundItemScreen> {
   bool _reportAnonymously = false;
   bool _leftWithSecurity = false;
 
+  // Placeholder for uploaded image path (received from UploadPhotosScreen)
+  String? _uploadedImagePath;
+
   @override
   void dispose() {
     _descriptionController.dispose();
     _locationController.dispose();
     super.dispose();
+  }
+
+  // Function to handle opening the image upload screen
+  Future<void> _openImageUploadScreen() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const UploadPhotosScreen()),
+    );
+
+    if (result is String) {
+      setState(() {
+        _uploadedImagePath =
+            result; // Assuming it returns the path of the first image
+      });
+    }
   }
 
   // Function to handle form submission
@@ -49,7 +131,7 @@ class _ReportFoundItemScreenState extends State<ReportFoundItemScreen> {
           ),
           title: const Row(
             children: [
-              Icon(Icons.check_circle_outline, color: Colors.green),
+              Icon(Icons.check_circle_outline, color: primaryBlue), // Blue icon
               SizedBox(width: 8),
               Text('Thank You!'),
             ],
@@ -64,10 +146,13 @@ class _ReportFoundItemScreenState extends State<ReportFoundItemScreen> {
                 // Navigate to home.dart after closing the dialog
                 Navigator.pushReplacement(
                   context,
-                  MaterialPageRoute(builder: (context) => HomeScreen()),
+                  MaterialPageRoute(builder: (context) => const HomeScreen()),
                 );
               },
-              child: const Text('OK'),
+              child: const Text(
+                'OK',
+                style: TextStyle(color: darkBlue),
+              ), // Blue text button
             ),
           ],
         );
@@ -80,16 +165,16 @@ class _ReportFoundItemScreenState extends State<ReportFoundItemScreen> {
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          // --- Header Section (Greenish Gradient) ---
+          // --- Header Section (Blue Gradient) ---
           SliverAppBar(
             pinned: true,
             toolbarHeight: 120,
             automaticallyImplyLeading: false, // Handle back button custom
             flexibleSpace: Container(
               decoration: const BoxDecoration(
-                // Greenish gradient
+                // Blue gradient
                 gradient: LinearGradient(
-                  colors: [Color(0xFF28B463), Color(0xFF229954)],
+                  colors: [primaryBlue, darkBlue], // Blue shades
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -117,7 +202,7 @@ class _ReportFoundItemScreenState extends State<ReportFoundItemScreen> {
                               Navigator.pushReplacement(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => HomeScreen(),
+                                  builder: (context) => const HomeScreen(),
                                 ),
                               );
                             },
@@ -149,16 +234,18 @@ class _ReportFoundItemScreenState extends State<ReportFoundItemScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // --- Thank you Card ---
+                      // --- Thank you Card (Light Blue) ---
                       Card(
                         elevation: 0,
-                        color: Colors.green.shade50.withOpacity(
+                        color: lightBlueBackground.withOpacity(
                           0.5,
-                        ), // Light greenish background
+                        ), // Light bluish background
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(15),
                           side: BorderSide(
-                            color: Colors.green.shade100,
+                            color: primaryBlue.withOpacity(
+                              0.3,
+                            ), // Light blue border
                             width: 1,
                           ),
                         ),
@@ -169,7 +256,7 @@ class _ReportFoundItemScreenState extends State<ReportFoundItemScreen> {
                             children: [
                               Icon(
                                 Icons.archive_outlined,
-                                color: Colors.green,
+                                color: darkBlue, // Dark blue icon
                                 size: 30,
                               ),
                               SizedBox(width: 12),
@@ -182,13 +269,15 @@ class _ReportFoundItemScreenState extends State<ReportFoundItemScreen> {
                                       style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 16,
-                                        color: Colors.green,
+                                        color: darkBlue, // Dark blue text
                                       ),
                                     ),
                                     SizedBox(height: 4),
                                     Text(
                                       'Your report will help reunite someone with their lost item',
-                                      style: TextStyle(color: Colors.green),
+                                      style: TextStyle(
+                                        color: darkBlue,
+                                      ), // Dark blue text
                                     ),
                                   ],
                                 ),
@@ -202,23 +291,15 @@ class _ReportFoundItemScreenState extends State<ReportFoundItemScreen> {
                       // --- Upload Image Section ---
                       _buildLabel('Upload Image'),
                       GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const UploadPhotosScreen(),
-                            ),
-                          );
-                        },
+                        onTap: _openImageUploadScreen, // Use the new function
                         child: Container(
                           height: 150,
                           width: double.infinity,
                           decoration: BoxDecoration(
-                            color: Colors
-                                .transparent, // Background of photo upload seems transparent
+                            color: Colors.transparent,
                             borderRadius: BorderRadius.circular(15),
                             border: Border.all(
-                              color: Colors.green.shade400,
+                              color: primaryBlue, // Bright blue border
                               width: 1.5,
                             ),
                           ),
@@ -228,21 +309,27 @@ class _ReportFoundItemScreenState extends State<ReportFoundItemScreen> {
                               Icon(
                                 Icons.upload_outlined,
                                 size: 40,
-                                color: Colors.green,
+                                color: primaryBlue, // Bright blue icon
                               ),
                               const SizedBox(height: 8),
                               Text(
                                 'Upload Photo',
                                 style: TextStyle(
-                                  color: Colors.green[700],
+                                  color: darkBlue, // Dark blue text
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16,
                                 ),
                               ),
                               const SizedBox(height: 4),
-                              const Text(
-                                'Clear photo helps identification',
-                                style: TextStyle(color: Colors.grey),
+                              Text(
+                                _uploadedImagePath != null
+                                    ? '1 photo uploaded'
+                                    : 'Clear photo helps identification',
+                                style: TextStyle(
+                                  color: _uploadedImagePath != null
+                                      ? darkBlue
+                                      : Colors.grey,
+                                ),
                               ),
                             ],
                           ),
@@ -297,15 +384,14 @@ class _ReportFoundItemScreenState extends State<ReportFoundItemScreen> {
                       ),
                       const SizedBox(height: 40),
 
-                      // --- Submit Report Button (Green Gradient) ---
+                      // --- Submit Report Button (Blue Gradient) ---
                       ElevatedButton(
                         onPressed: _submitReport,
                         style:
                             ElevatedButton.styleFrom(
                               padding: const EdgeInsets.symmetric(vertical: 18),
-                              // Green gradient
-                              backgroundColor:
-                                  Colors.transparent, // Required for gradient
+                              // Transparent background is needed for the Ink widget's gradient
+                              backgroundColor: Colors.transparent,
                               shadowColor: Colors.transparent,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(15),
@@ -327,10 +413,7 @@ class _ReportFoundItemScreenState extends State<ReportFoundItemScreen> {
                         child: Ink(
                           decoration: const BoxDecoration(
                             gradient: LinearGradient(
-                              colors: [
-                                Color(0xFF28B463),
-                                Color(0xFF229954),
-                              ], // Green shades
+                              colors: [primaryBlue, darkBlue], // Blue shades
                               begin: Alignment.centerLeft,
                               end: Alignment.centerRight,
                             ),
@@ -340,7 +423,7 @@ class _ReportFoundItemScreenState extends State<ReportFoundItemScreen> {
                           ),
                           child: Container(
                             alignment: Alignment.center,
-                            constraints: BoxConstraints(minHeight: 50.0),
+                            constraints: const BoxConstraints(minHeight: 50.0),
                             child: const Text(
                               'Submit Report',
                               style: TextStyle(
@@ -360,6 +443,39 @@ class _ReportFoundItemScreenState extends State<ReportFoundItemScreen> {
             ]),
           ),
         ],
+      ),
+      // --- BOTTOM NAVIGATION BAR ---
+      bottomNavigationBar: BottomNavigationBar(
+        items: <BottomNavigationBarItem>[
+          BottomNavigationBarItem(
+            icon: Icon(Icons.favorite, color: _getIconColor(0)),
+            label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.browse_gallery, color: _getIconColor(1)),
+            label: 'Browse',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.inventory_2_outlined, color: _getIconColor(2)),
+            label: 'Feed',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.chat_bubble_outline, color: _getIconColor(3)),
+            label: 'Chat',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person_outline, color: _getIconColor(4)),
+            label: 'Profile',
+          ),
+        ],
+        currentIndex: _selectedIndex,
+        selectedItemColor: _navItemColors[_selectedIndex],
+        unselectedItemColor: Colors.grey,
+        showUnselectedLabels: true,
+        onTap: _onItemTapped,
+        type: BottomNavigationBarType.fixed,
+        backgroundColor: Colors.white,
+        elevation: 10,
       ),
     );
   }
@@ -426,7 +542,7 @@ class _ReportFoundItemScreenState extends State<ReportFoundItemScreen> {
             Checkbox(
               value: value,
               onChanged: onChanged,
-              activeColor: Colors.green, // Checkbox color
+              activeColor: primaryBlue, // Bright blue checkbox color
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(5),
               ),
