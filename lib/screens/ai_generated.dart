@@ -7,6 +7,15 @@ class AiImageGeneratorScreen extends StatefulWidget {
   State<AiImageGeneratorScreen> createState() => _AiImageGeneratorScreenState();
 }
 
+// --- COLOR PALETTE FOR BLUE THEME ---
+// Main Accent Blue: A vibrant blue (analogous to the original purple/pink)
+const Color _mainBlue = Color(0xFF2196F3); // Bright Blue
+const Color _darkBlue = Color(0xFF0D47A1); // Darker Blue for depth/text
+const Color _lightBlue = Color(
+  0xFFB3E5FC,
+); // Very light blue for card backgrounds
+const Color _successGreen = Color(0xFF4CAF50); // Keep success green
+
 class _AiImageGeneratorScreenState extends State<AiImageGeneratorScreen> {
   final TextEditingController _descriptionController = TextEditingController();
   bool _isDescriptionEmpty = true;
@@ -57,13 +66,7 @@ class _AiImageGeneratorScreenState extends State<AiImageGeneratorScreen> {
           'https://picsum.photos/300/200?random=${DateTime.now().millisecondsSinceEpoch}'; // Random image for demo
     });
 
-    // Scroll to the generated image section if it's not visible
-    // This is optional but improves UX
-    // Scrollable.ensureVisible(
-    //   _generatedImageKey.currentContext!,
-    //   duration: const Duration(milliseconds: 300),
-    //   alignment: 0.0,
-    // );
+    // Scroll logic remains commented out for now.
   }
 
   // Handle "Regenerate" button press
@@ -93,28 +96,28 @@ class _AiImageGeneratorScreenState extends State<AiImageGeneratorScreen> {
     // Determine button style based on text field content
     final bool isGenerateButtonActive =
         !_isDescriptionEmpty && !_isGeneratingImage;
-    final Color generateButtonColor = isGenerateButtonActive
-        ? Colors.white
-        : Colors.white60;
+    // Set text color for the gradient button to White
+    final Color generateButtonColor = Colors.white;
     final double generateButtonOpacity = isGenerateButtonActive ? 1.0 : 0.5;
 
     return Scaffold(
-      // The images suggest a purple/pink gradient background for the top of the AppBar
       appBar: AppBar(
+        toolbarHeight: 100,
         automaticallyImplyLeading: false,
         flexibleSpace: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFF8E2DE2), Color(0xFFE5397C)], // Purple to Pink
+              // Bright Blue gradient
+              colors: [_mainBlue, _darkBlue],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
           ),
         ),
         leading: IconButton(
+          // Icon is white as per theme rules
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () {
-            // Close the screen when the top left button is clicked
             Navigator.of(context).pop();
           },
         ),
@@ -144,15 +147,15 @@ class _AiImageGeneratorScreenState extends State<AiImageGeneratorScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            // 1. How It Works Card (Image 1)
+            // 1. How It Works Card
             _buildHowItWorksCard(),
             const SizedBox(height: 25),
 
-            // 2. Describe Your Item Input Field (Image 1)
+            // 2. Describe Your Item Input Field
             _buildDescriptionInput(),
             const SizedBox(height: 25),
 
-            // 3. Generate Image Button (Image 2)
+            // 3. Generate Image Button
             _buildGenerateImageButton(
               isGenerateButtonActive,
               generateButtonOpacity,
@@ -160,17 +163,17 @@ class _AiImageGeneratorScreenState extends State<AiImageGeneratorScreen> {
             ),
             const SizedBox(height: 25),
 
-            // 4. Generated Image Section (Conditionally displayed, Image 3)
+            // 4. Generated Image Section (Conditionally displayed)
             if (_imageGenerated) ...[
               _buildGeneratedImageSection(),
               const SizedBox(height: 25),
             ],
 
-            // 5. Pro Tips Card (Image 2)
+            // 5. Pro Tips Card
             _buildProTipsCard(),
             const SizedBox(height: 25),
 
-            // 6. Back Button (Image 2)
+            // 6. Back Button
             _buildBackButton(),
           ],
         ),
@@ -183,41 +186,47 @@ class _AiImageGeneratorScreenState extends State<AiImageGeneratorScreen> {
   Widget _buildHowItWorksCard() {
     return Card(
       elevation: 0,
-      color: const Color(0xFFE0BBE4), // Light purple from image
+      // Card background is light blue
+      color: _lightBlue,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       child: Padding(
         padding: const EdgeInsets.all(20.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
+            Row(
               children: [
-                Icon(
-                  Icons.edit_outlined,
-                  color: Color(0xFF8E2DE2),
-                  size: 24,
-                ), // Purple pencil icon
-                SizedBox(width: 8),
-                Text(
+                // Icon is dark blue
+                const Icon(Icons.edit_outlined, color: _darkBlue, size: 24),
+                const SizedBox(width: 8),
+                const Text(
                   'How It Works',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  // Text is dark blue
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: _darkBlue,
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 10),
             const Text(
               'Describe your lost item and our AI will generate a visual representation to help others identify it.',
-              style: TextStyle(fontSize: 15, color: Colors.black87),
+              // Text is dark blue
+              style: TextStyle(fontSize: 15, color: _darkBlue),
             ),
             const SizedBox(height: 15),
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: const Color(0xFF5C6BC0), // Darker blue example box
+                // Example box is dark blue
+                color: _darkBlue,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Text(
                 'Example: "A black leather wallet with brown stitching and a metal clasp"',
+                // Text is white
                 style: TextStyle(color: Colors.white70, fontSize: 14),
               ),
             ),
@@ -248,7 +257,18 @@ class _AiImageGeneratorScreenState extends State<AiImageGeneratorScreen> {
             fillColor: Colors.grey.shade100,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(15),
-              borderSide: BorderSide.none,
+              // Use light blue outline for white sections
+              borderSide: BorderSide(color: _lightBlue, width: 2),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(15),
+              // Use light blue outline for white sections
+              borderSide: BorderSide(color: _lightBlue, width: 2),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(15),
+              // Use bright blue for focused outline
+              borderSide: const BorderSide(color: _mainBlue, width: 2),
             ),
             contentPadding: const EdgeInsets.all(15),
           ),
@@ -286,11 +306,9 @@ class _AiImageGeneratorScreenState extends State<AiImageGeneratorScreen> {
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(15),
+          // Gradient is Blue
           gradient: const LinearGradient(
-            colors: [
-              Color(0xFF8E2DE2),
-              Color(0xFFFF4081),
-            ], // Purple to Pink Gradient
+            colors: [_mainBlue, _darkBlue],
             begin: Alignment.centerLeft,
             end: Alignment.centerRight,
           ),
@@ -319,12 +337,14 @@ class _AiImageGeneratorScreenState extends State<AiImageGeneratorScreen> {
               : Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
+                    // Icon color is white (buttonColor)
                     Icon(Icons.flash_on, color: buttonColor),
                     const SizedBox(width: 8),
                     Text(
                       'Generate Image',
                       style: TextStyle(
                         fontSize: 18,
+                        // Text color is white (buttonColor)
                         color: buttonColor,
                         fontWeight: FontWeight.bold,
                       ),
@@ -339,7 +359,11 @@ class _AiImageGeneratorScreenState extends State<AiImageGeneratorScreen> {
   Widget _buildGeneratedImageSection() {
     return Card(
       elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      // Outline white card with main blue
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+        side: const BorderSide(color: _mainBlue, width: 1),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(20.0),
         child: Column(
@@ -350,17 +374,16 @@ class _AiImageGeneratorScreenState extends State<AiImageGeneratorScreen> {
               children: [
                 const Row(
                   children: [
-                    Icon(
-                      Icons.image_outlined,
-                      color: Color(0xFF5C6BC0),
-                      size: 24,
-                    ),
+                    // Icon is dark blue
+                    Icon(Icons.image_outlined, color: _darkBlue, size: 24),
                     SizedBox(width: 8),
+                    // Text is dark blue
                     Text(
                       'Generated Image',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
+                        color: _darkBlue,
                       ),
                     ),
                   ],
@@ -371,21 +394,21 @@ class _AiImageGeneratorScreenState extends State<AiImageGeneratorScreen> {
                     vertical: 5,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.green.shade100,
+                    color: _successGreen.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: const Row(
+                  child: Row(
                     children: [
                       Icon(
                         Icons.check_circle_outline,
-                        color: Colors.green,
+                        color: _successGreen,
                         size: 16,
                       ),
-                      SizedBox(width: 4),
+                      const SizedBox(width: 4),
                       Text(
                         'Ready',
                         style: TextStyle(
-                          color: Colors.green,
+                          color: _successGreen,
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
                         ),
@@ -464,8 +487,10 @@ class _AiImageGeneratorScreenState extends State<AiImageGeneratorScreen> {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(15),
                       ),
-                      side: BorderSide(color: Colors.grey.shade400),
-                      foregroundColor: Colors.black87,
+                      // Outline button border is light blue
+                      side: const BorderSide(color: _lightBlue, width: 2),
+                      // Text is dark blue
+                      foregroundColor: _darkBlue,
                     ),
                     child: const Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -482,11 +507,9 @@ class _AiImageGeneratorScreenState extends State<AiImageGeneratorScreen> {
                   child: Container(
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(15),
+                      // Gradient is success green (kept from original)
                       gradient: const LinearGradient(
-                        colors: [
-                          Color(0xFF66BB6A),
-                          Color(0xFF43A047),
-                        ], // Green gradient
+                        colors: [Color(0xFF66BB6A), Color(0xFF43A047)],
                         begin: Alignment.centerLeft,
                         end: Alignment.centerRight,
                       ),
@@ -530,8 +553,12 @@ class _AiImageGeneratorScreenState extends State<AiImageGeneratorScreen> {
   Widget _buildProTipsCard() {
     return Card(
       elevation: 0,
-      color: Colors.grey.shade100, // Light background
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      // Card color is white, outlined with bright blue
+      color: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+        side: const BorderSide(color: _mainBlue, width: 1), // Outline
+      ),
       child: Padding(
         padding: const EdgeInsets.all(20.0),
         child: Column(
@@ -539,15 +566,17 @@ class _AiImageGeneratorScreenState extends State<AiImageGeneratorScreen> {
           children: [
             const Row(
               children: [
-                Icon(
-                  Icons.flash_on,
-                  color: Color(0xFF8E2DE2),
-                  size: 24,
-                ), // Purple flash icon
+                // Icon is bright blue
+                Icon(Icons.flash_on, color: _mainBlue, size: 24),
                 SizedBox(width: 8),
+                // Text is dark blue
                 Text(
                   'Pro Tips',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: _darkBlue,
+                  ),
                 ),
               ],
             ),
@@ -564,7 +593,11 @@ class _AiImageGeneratorScreenState extends State<AiImageGeneratorScreen> {
                       vertical: 4.0,
                       horizontal: 8.0,
                     ),
-                    child: Text('• $tip', style: const TextStyle(fontSize: 15)),
+                    // Tip text is dark blue
+                    child: Text(
+                      '• $tip',
+                      style: const TextStyle(fontSize: 15, color: _darkBlue),
+                    ),
                   ),
                 )
                 .toList(),
@@ -578,16 +611,19 @@ class _AiImageGeneratorScreenState extends State<AiImageGeneratorScreen> {
     return ElevatedButton(
       onPressed: () => Navigator.of(context).pop(),
       style: ElevatedButton.styleFrom(
+        // Background is white
         backgroundColor: Colors.white,
         padding: const EdgeInsets.symmetric(vertical: 18),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        side: BorderSide(color: Colors.grey.shade200, width: 1),
+        // Border is light blue
+        side: const BorderSide(color: _lightBlue, width: 1),
       ),
       child: const Text(
         'Back',
         style: TextStyle(
           fontSize: 18,
-          color: Colors.black87,
+          // Text is dark blue
+          color: _darkBlue,
           fontWeight: FontWeight.bold,
         ),
       ),

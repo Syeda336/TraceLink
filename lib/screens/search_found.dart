@@ -15,7 +15,7 @@ class SearchFound extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         // Set the background color to white to match the screenshot
-        backgroundColor: Colors.white,
+        backgroundColor: const Color.fromARGB(255, 14, 215, 191),
         elevation: 0, // Remove shadow
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
@@ -49,9 +49,7 @@ class SearchFound extends StatelessWidget {
                 onPressed: () {
                   // Navigate to search_bar.dart
                   Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => const SearchScreen(),
-                    ),
+                    MaterialPageRoute(builder: (context) => SearchScreen()),
                   );
                 },
               ),
@@ -114,7 +112,7 @@ class _LostFoundToggle extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 12.0),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: const Color.fromARGB(255, 155, 218, 175),
                 borderRadius: BorderRadius.circular(30.0),
                 boxShadow: [
                   BoxShadow(

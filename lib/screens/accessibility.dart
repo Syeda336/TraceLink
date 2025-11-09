@@ -1,8 +1,20 @@
 import 'package:flutter/material.dart';
-
-// Placeholder for the page to navigate to.
-// Ensure you have 'profile_page.dart' in your project.
+import 'package:provider/provider.dart';
+import 'package:tracelink/global_settings.dart';
 import 'profile_page.dart';
+
+// --- Theme Colors ---
+const Color _primaryColor = Color(0xFF00B0FF); // Bright Blue
+const Color _secondaryColor = Color(0xFFB3E5FC); // Light Blue
+
+// --- Static Icon Colors ---
+const Color _deepPurpleColor = Color(0xFF673AB7);
+const Color _blueIconColor = Color(0xFF1E88E5);
+const Color _greenIconColor = Color(0xFF43A047);
+const Color _amberIconColor = Color(0xFFFFB300);
+const Color _pinkIconColor = Color(0xFFFF80AB);
+const Color _redIconColor = Color(0xFFEF5350);
+const Color _greyTextColor = Color(0xFF757575);
 
 class AccessibilityScreen extends StatefulWidget {
   const AccessibilityScreen({super.key});
@@ -12,51 +24,47 @@ class AccessibilityScreen extends StatefulWidget {
 }
 
 class _AccessibilityScreenState extends State<AccessibilityScreen> {
-  // State variables for the switch tiles and dropdowns
+  // Local state variables for switch tiles and dropdowns
   bool _voiceModeEnabled = false;
-  bool _highContrastEnabled = false;
   bool _screenReaderEnabled = false;
   bool _reduceMotionEnabled = false;
 
-  String _selectedLanguage = 'English';
-  String _selectedTextSize = 'Medium (Default)';
+  // These variables will be initialized from the Provider in initState/build
+  String _selectedLanguage = '';
+  String _selectedTextSize = '';
+  bool _highContrastEnabled = false;
 
-  // Lists for dropdown options
-  final List<String> _languages = [
-    'English',
-    'Spanish',
-    'French',
-    'German',
-    'Chinese',
-    'Japanese',
-    'Korean',
-  ];
-
-  final List<String> _textSizes = [
-    'Small',
-    'Medium (Default)',
-    'Large',
-    'Extra Large',
-  ];
+  // Lists for dropdown options are retrieved from GlobalSettings
+  final List<String> _languages = GlobalSettings().languageLocales.keys
+      .toList();
+  final List<String> _textSizes = GlobalSettings().textSizeFactors.keys
+      .toList();
 
   @override
   Widget build(BuildContext context) {
+    // 1. Read the settings from the provider (This widget rebuilds when settings change)
+    final settings = Provider.of<GlobalSettings>(context);
+
+    // 2. Initialize or update local state from the global state
+    _selectedLanguage = settings.selectedLanguage;
+    _selectedTextSize = settings.selectedTextSize;
+    _highContrastEnabled = settings.highContrastEnabled;
+
     return Scaffold(
-      // The background color is a very light subtle color
-      backgroundColor: const Color(0xFFF5F5F9),
+      backgroundColor: const Color(0xFFE3F2FD),
 
       body: CustomScrollView(
         slivers: <Widget>[
-          // Custom AppBar with back button and title
+          // Custom AppBar
           SliverAppBar(
-            backgroundColor: Colors.white,
+            backgroundColor: _primaryColor,
+            toolbarHeight: 100,
             elevation: 0,
             pinned: true,
             leading: IconButton(
-              icon: const Icon(Icons.arrow_back, color: Colors.black),
+              icon: const Icon(Icons.arrow_back, color: Colors.white),
               onPressed: () {
-                // Navigate to 'profile_page.dart' when the back button is clicked
-                Navigator.of(context).push(
+                Navigator.of(context).pushReplacement(
                   MaterialPageRoute(
                     builder: (context) => const ProfileScreen(),
                   ),
@@ -65,11 +73,15 @@ class _AccessibilityScreenState extends State<AccessibilityScreen> {
             ),
             title: const Text(
               'Accessibility',
-              style: TextStyle(color: Colors.black, fontSize: 22),
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
 
-          // Main scrollable content using SliverList
+          // Main scrollable content
           SliverList(
             delegate: SliverChildListDelegate([
               const SizedBox(height: 16),
@@ -79,15 +91,17 @@ class _AccessibilityScreenState extends State<AccessibilityScreen> {
                 children: [
                   _buildDropdownTile<String>(
                     icon: Icons.language,
-                    iconColor: Colors.deepPurple,
+                    iconColor: _deepPurpleColor,
                     title: 'Language',
                     subtitle: 'Choose your preferred language',
                     value: _selectedLanguage,
                     items: _languages,
                     onChanged: (newValue) {
-                      setState(() {
-                        _selectedLanguage = newValue!;
-                      });
+                      // 3. WRITE the new value back to the provider (listen: false)
+                      Provider.of<GlobalSettings>(
+                        context,
+                        listen: false,
+                      ).selectedLanguage = newValue!;
                     },
                   ),
                 ],
@@ -100,9 +114,10 @@ class _AccessibilityScreenState extends State<AccessibilityScreen> {
                 children: [
                   _buildSwitchTile(
                     icon: Icons.volume_up_outlined,
-                    iconColor: Colors.blue.shade600,
+                    iconColor: _blueIconColor,
                     title: 'Voice Mode',
-                    subtitle: 'Enable voice commands and feedback',
+                    subtitle:
+                        'Enable voice commands and feedback (Activates voice typing)',
                     value: _voiceModeEnabled,
                     onChanged: (value) {
                       setState(() {
@@ -120,15 +135,17 @@ class _AccessibilityScreenState extends State<AccessibilityScreen> {
                 children: [
                   _buildDropdownTile<String>(
                     icon: Icons.text_fields,
-                    iconColor: Colors.green.shade600,
+                    iconColor: _greenIconColor,
                     title: 'Text Size',
                     subtitle: 'Adjust text size for better readability',
                     value: _selectedTextSize,
                     items: _textSizes,
                     onChanged: (newValue) {
-                      setState(() {
-                        _selectedTextSize = newValue!;
-                      });
+                      // 3. WRITE the new value back to the provider (listen: false)
+                      Provider.of<GlobalSettings>(
+                        context,
+                        listen: false,
+                      ).selectedTextSize = newValue!;
                     },
                   ),
                 ],
@@ -141,14 +158,16 @@ class _AccessibilityScreenState extends State<AccessibilityScreen> {
                 children: [
                   _buildSwitchTile(
                     icon: Icons.remove_red_eye_outlined,
-                    iconColor: Colors.amber.shade600,
+                    iconColor: _amberIconColor,
                     title: 'High Contrast Mode',
                     subtitle: 'Increase contrast for better visibility',
                     value: _highContrastEnabled,
                     onChanged: (value) {
-                      setState(() {
-                        _highContrastEnabled = value;
-                      });
+                      // 3. WRITE the new value back to the provider (listen: false)
+                      Provider.of<GlobalSettings>(
+                        context,
+                        listen: false,
+                      ).highContrastEnabled = value;
                     },
                   ),
                 ],
@@ -161,9 +180,9 @@ class _AccessibilityScreenState extends State<AccessibilityScreen> {
                 children: [
                   _buildSwitchTile(
                     icon: Icons.volume_up,
-                    iconColor: Colors.pink.shade50,
+                    iconColor: _pinkIconColor,
                     title: 'Screen Reader Support',
-                    subtitle: 'Optimize for screen readers',
+                    subtitle: 'Optimize for screen readers (Accessibility API)',
                     value: _screenReaderEnabled,
                     onChanged: (value) {
                       setState(() {
@@ -181,7 +200,7 @@ class _AccessibilityScreenState extends State<AccessibilityScreen> {
                 children: [
                   _buildSwitchTile(
                     icon: Icons.visibility_off_outlined,
-                    iconColor: Colors.red.shade400,
+                    iconColor: _redIconColor,
                     title: 'Reduce Motion',
                     subtitle: 'Minimize animations and transitions',
                     value: _reduceMotionEnabled,
@@ -203,7 +222,6 @@ class _AccessibilityScreenState extends State<AccessibilityScreen> {
 
   // --- Reusable Widget Builders ---
 
-  // Card wrapper widget for the distinct visual separation
   Widget _buildCard({required List<Widget> children}) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -215,7 +233,6 @@ class _AccessibilityScreenState extends State<AccessibilityScreen> {
     );
   }
 
-  // Widget for options with a Switch (e.g., Voice Mode)
   Widget _buildSwitchTile({
     required IconData icon,
     required Color iconColor,
@@ -228,7 +245,6 @@ class _AccessibilityScreenState extends State<AccessibilityScreen> {
       padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
       child: Row(
         children: [
-          // Custom leading icon container
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
@@ -238,7 +254,6 @@ class _AccessibilityScreenState extends State<AccessibilityScreen> {
             child: Icon(icon, color: iconColor, size: 28),
           ),
           const SizedBox(width: 16),
-          // Title and Subtitle
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -253,16 +268,16 @@ class _AccessibilityScreenState extends State<AccessibilityScreen> {
                 ),
                 Text(
                   subtitle,
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                  style: const TextStyle(color: _greyTextColor, fontSize: 13),
                 ),
               ],
             ),
           ),
-          // The Switch component
           Switch(
             value: value,
             onChanged: onChanged,
-            activeColor: Colors.black,
+            activeColor: _primaryColor,
+            activeTrackColor: _secondaryColor,
             inactiveThumbColor: Colors.grey.shade300,
             inactiveTrackColor: Colors.grey.shade200,
           ),
@@ -271,7 +286,6 @@ class _AccessibilityScreenState extends State<AccessibilityScreen> {
     );
   }
 
-  // Widget for options with a Dropdown (e.g., Language, Text Size)
   Widget _buildDropdownTile<T>({
     required IconData icon,
     required Color iconColor,
@@ -288,7 +302,6 @@ class _AccessibilityScreenState extends State<AccessibilityScreen> {
         children: [
           Row(
             children: [
-              // Custom leading icon container
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
@@ -298,7 +311,6 @@ class _AccessibilityScreenState extends State<AccessibilityScreen> {
                 child: Icon(icon, color: iconColor, size: 28),
               ),
               const SizedBox(width: 16),
-              // Title and Subtitle
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -312,8 +324,8 @@ class _AccessibilityScreenState extends State<AccessibilityScreen> {
                     ),
                     Text(
                       subtitle,
-                      style: TextStyle(
-                        color: Colors.grey.shade600,
+                      style: const TextStyle(
+                        color: _greyTextColor,
                         fontSize: 13,
                       ),
                     ),
@@ -329,13 +341,16 @@ class _AccessibilityScreenState extends State<AccessibilityScreen> {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: Colors.grey.shade200),
+              border: Border.all(color: _primaryColor.withOpacity(0.5)),
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<T>(
                 isExpanded: true,
                 value: value,
-                icon: const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
+                icon: const Icon(
+                  Icons.keyboard_arrow_down,
+                  color: _primaryColor,
+                ),
                 style: const TextStyle(color: Colors.black, fontSize: 16),
                 items: items.map<DropdownMenuItem<T>>((T item) {
                   return DropdownMenuItem<T>(
