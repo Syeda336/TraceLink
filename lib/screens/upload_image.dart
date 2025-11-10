@@ -94,6 +94,7 @@ class _UploadPhotosScreenState extends State<UploadPhotosScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
+        toolbarHeight: 100,
         automaticallyImplyLeading: false,
         backgroundColor: primaryBlue,
         elevation: 0,

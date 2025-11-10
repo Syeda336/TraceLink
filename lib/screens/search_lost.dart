@@ -1,22 +1,49 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'
+    show rootBundle; // For loading local assets/files
+import 'dart:convert'; // For JSON decoding
 
 import 'home.dart';
 import 'search_bar.dart';
-import 'search_found.dart';
-import 'item_description.dart';
+import 'item_description.dart'; // Assuming this holds ItemDetailScreen/ItemDescriptionScreen
 
-class SearchLost extends StatelessWidget {
+// --- Main Lost/Found Screen (Stateful) ---
+
+class SearchLost extends StatefulWidget {
   const SearchLost({super.key});
+
+  @override
+  State<SearchLost> createState() => _LostFoundScreenState();
+}
+
+class _LostFoundScreenState extends State<SearchLost> {
+  // State to track which tab is selected (true for Lost, false for Found)
+  bool _isLostSelected = true;
+
+  // Define the new bright blue theme color
+  static const Color _primaryColor = Color.fromARGB(
+    255,
+    0,
+    150,
+    255,
+  ); // Bright Blue
+  static const Color _accentColor = Color.fromARGB(
+    255,
+    173,
+    216,
+    230,
+  ); // Light Blue
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        // Set the background color to white to match the screenshot
-        backgroundColor: Colors.white,
+        toolbarHeight: 100,
+        // Set the background color to the bright blue theme
+        backgroundColor: _primaryColor,
         elevation: 0, // Remove shadow
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () {
             // Navigate back to home.dart
             Navigator.of(context).pushReplacement(
@@ -27,7 +54,7 @@ class SearchLost extends StatelessWidget {
         title: const Text(
           'Lost & Found',
           style: TextStyle(
-            color: Colors.black,
+            color: Colors.white,
             fontSize: 18,
             fontWeight: FontWeight.normal,
           ),
@@ -38,12 +65,12 @@ class SearchLost extends StatelessWidget {
             padding: const EdgeInsets.only(right: 8.0),
             child: Container(
               decoration: BoxDecoration(
-                // Creates the purple circle background for the search icon
-                color: Colors.deepPurple.shade100.withOpacity(0.5),
+                // Creates the light blue circle background for the search icon
+                color: _accentColor.withOpacity(0.5),
                 shape: BoxShape.circle,
               ),
               child: IconButton(
-                icon: Icon(Icons.search, color: Colors.deepPurple.shade700),
+                icon: const Icon(Icons.search, color: Colors.white),
                 onPressed: () {
                   // Navigate to search_bar.dart
                   Navigator.of(context).push(
@@ -57,22 +84,52 @@ class SearchLost extends StatelessWidget {
           ),
         ],
       ),
-      body: const Column(
+      body: Column(
         children: [
-          // Tab bar look-alike custom widget
-          _LostFoundToggle(),
-          // List of lost items
-          Expanded(child: LostItemsList()),
+          // Tab bar-like custom widget now takes the state management functions
+          _LostFoundToggle(
+            isLostSelected: _isLostSelected,
+            onLostTap: () {
+              setState(() {
+                _isLostSelected = true;
+              });
+            },
+            onFoundTap: () {
+              setState(() {
+                _isLostSelected = false;
+              });
+            },
+            activeColor: _primaryColor,
+            inactiveColor: _accentColor,
+          ),
+          // List of items changes based on the state
+          Expanded(
+            child: _isLostSelected
+                ? const LostItemsList() // Shows Lost Items
+                : const FoundItemsList(), // Shows Found Items
+          ),
         ],
       ),
     );
   }
 }
 
-// --- Custom Toggle for Lost/Found Tabs ---
+// --- Custom Toggle for Lost/Found Tabs (Stateless, receives callbacks) ---
 
 class _LostFoundToggle extends StatelessWidget {
-  const _LostFoundToggle();
+  final bool isLostSelected;
+  final VoidCallback onLostTap;
+  final VoidCallback onFoundTap;
+  final Color activeColor;
+  final Color inactiveColor;
+
+  const _LostFoundToggle({
+    required this.isLostSelected,
+    required this.onLostTap,
+    required this.onFoundTap,
+    required this.activeColor,
+    required this.inactiveColor,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -80,55 +137,87 @@ class _LostFoundToggle extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: Row(
         children: [
-          // Lost Items Button (Active)
+          // Lost Items Button
           Expanded(
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 12.0),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(30.0),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.2),
-                    spreadRadius: 1,
-                    blurRadius: 5,
-                    offset: const Offset(0, 3), // changes position of shadow
+            child: GestureDetector(
+              onTap: onLostTap, // Use the callback from the parent
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 12.0),
+                decoration: BoxDecoration(
+                  color: isLostSelected
+                      ? inactiveColor
+                      : Colors.transparent, // Highlight color based on state
+                  borderRadius: BorderRadius.circular(30.0),
+                  border: Border.all(
+                    color: isLostSelected
+                        ? inactiveColor
+                        : Colors.grey.shade300,
+                    width: 1,
                   ),
-                ],
-              ),
-              child: const Center(
-                child: Text(
-                  'Lost Items',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontWeight: FontWeight.bold,
+                  boxShadow: isLostSelected
+                      ? [
+                          BoxShadow(
+                            color: Colors.grey.withOpacity(0.2),
+                            spreadRadius: 1,
+                            blurRadius: 5,
+                            offset: const Offset(0, 3),
+                          ),
+                        ]
+                      : [],
+                ),
+                child: Center(
+                  child: Text(
+                    'Lost Items',
+                    style: TextStyle(
+                      color: isLostSelected ? activeColor : Colors.grey,
+                      fontWeight: isLostSelected
+                          ? FontWeight.bold
+                          : FontWeight.normal,
+                    ),
                   ),
                 ),
               ),
             ),
           ),
           const SizedBox(width: 10),
-          // Found Items Button (Inactive, clickable)
+          // Found Items Button
           Expanded(
-            child: TextButton(
-              onPressed: () {
-                // Navigate to search_found.dart
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(builder: (context) => const SearchFound()),
-                );
-              },
-              style: TextButton.styleFrom(
+            child: GestureDetector(
+              onTap: onFoundTap, // Use the callback from the parent
+              child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 12.0),
-                shape: RoundedRectangleBorder(
+                decoration: BoxDecoration(
+                  color: !isLostSelected
+                      ? inactiveColor
+                      : Colors.transparent, // Highlight color based on state
                   borderRadius: BorderRadius.circular(30.0),
+                  border: Border.all(
+                    color: !isLostSelected
+                        ? inactiveColor
+                        : Colors.grey.shade300,
+                    width: 1,
+                  ),
+                  boxShadow: !isLostSelected
+                      ? [
+                          BoxShadow(
+                            color: Colors.grey.withOpacity(0.2),
+                            spreadRadius: 1,
+                            blurRadius: 5,
+                            offset: const Offset(0, 3),
+                          ),
+                        ]
+                      : [],
                 ),
-                backgroundColor: Colors.transparent,
-              ),
-              child: const Text(
-                'Found Items',
-                style: TextStyle(
-                  color: Colors.grey,
-                  fontWeight: FontWeight.normal,
+                child: Center(
+                  child: Text(
+                    'Found Items',
+                    style: TextStyle(
+                      color: !isLostSelected ? activeColor : Colors.grey,
+                      fontWeight: !isLostSelected
+                          ? FontWeight.bold
+                          : FontWeight.normal,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -139,63 +228,159 @@ class _LostFoundToggle extends StatelessWidget {
   }
 }
 
-// --- Lost Items List Widget ---
+// --- JSON Data Loading Function ---
 
-class LostItemsList extends StatelessWidget {
+// Helper function to load and decode JSON data from assets
+Future<List<Map<String, dynamic>>> loadJsonData(String path) async {
+  try {
+    final String response = await rootBundle.loadString(path);
+    final List<dynamic> data = json.decode(response);
+    // Cast the list elements to the expected type
+    return data.cast<Map<String, dynamic>>();
+  } catch (e) {
+    // In a real app, you'd log this error
+    print('Error loading JSON from $path: $e');
+    return [];
+  }
+}
+
+// --- Lost Items List Widget (Now loads data asynchronously) ---
+
+class LostItemsList extends StatefulWidget {
   const LostItemsList({super.key});
 
-  final List<Map<String, String>> lostItems = const [
-    {
-      'name': 'Black Wallet',
-      'location': 'Library, 2nd Floor',
-      'date': 'Oct 10, 2025',
-      'category': 'Accessories',
-      'image': 'lib/images/black_wallet.jfif', // Asset path
-    },
-    {
-      'name': 'Blue Backpack',
-      'location': 'Science Building',
-      'date': 'Oct 11, 2025',
-      'category': 'Accessories',
-      'image': 'lib/images/blue_backpack.jfif', // Asset path
-    },
-    {
-      'name': 'MacBook Pro',
-      'location': 'Computer Lab',
-      'date': 'Oct 12, 2025',
-      'category': 'Electronics',
-      'image': 'lib/images/laptop.jfif', // Asset path
-    },
-  ];
+  @override
+  State<LostItemsList> createState() => _LostItemsListState();
+}
+
+class _LostItemsListState extends State<LostItemsList> {
+  // Future to hold the result of the JSON loading operation
+  late Future<List<Map<String, dynamic>>> _lostItemsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    // Start loading the data when the widget is created
+    _lostItemsFuture = loadJsonData('lib/databases/lost_items.json');
+  }
 
   @override
   Widget build(BuildContext context) {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16.0),
-      itemCount: lostItems.length,
-      itemBuilder: (context, index) {
-        final item = lostItems[index];
-        return ItemCard(
-          name: item['name']!,
-          location: item['location']!,
-          date: item['date']!,
-          category: item['category']!,
-          imagePath: item['image']!,
-          imageColor: index == 0
-              ? Colors
-                    .blueGrey // Simulate black wallet image
-              : index == 1
-              ? Colors
-                    .lightBlue
-                    .shade200 // Simulate backpack image
-              : Colors.grey.shade400, // Simulate laptop image
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _lostItemsFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          // Show a spinner while data is loading
+          return const Center(child: CircularProgressIndicator());
+        } else if (snapshot.hasError) {
+          // Show an error message if loading failed
+          return Center(
+            child: Text('Error loading lost items: ${snapshot.error}'),
+          );
+        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          // Handle case where file is empty or data is null
+          return const Center(child: Text('No lost items reported yet.'));
+        }
+
+        // Data successfully loaded
+        final lostItems = snapshot.data!;
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(16.0),
+          itemCount: lostItems.length,
+          itemBuilder: (context, index) {
+            final item = lostItems[index];
+            return ItemCard(
+              name: item['name']!,
+              location: item['location']!,
+              date: item['date']!,
+              category: item['category']!,
+              imagePath: item['image']!,
+              // Simple color logic based on index for variety
+              imageColor: index == 0
+                  ? Colors.blueGrey
+                  : index == 1
+                  ? Colors.lightBlue.shade200
+                  : Colors.grey.shade400,
+            );
+          },
         );
       },
     );
   }
 }
 
-// --- Item Card Widget (Updated with InkWell) ---
+// --- Found Items List Widget (Now loads data asynchronously) ---
+
+class FoundItemsList extends StatefulWidget {
+  const FoundItemsList({super.key});
+
+  @override
+  State<FoundItemsList> createState() => _FoundItemsListState();
+}
+
+class _FoundItemsListState extends State<FoundItemsList> {
+  // Future to hold the result of the JSON loading operation
+  late Future<List<Map<String, dynamic>>> _foundItemsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    // Start loading the data when the widget is created
+    _foundItemsFuture = loadJsonData('lib/databases/found_items.json');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _foundItemsFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          // Show a spinner while data is loading
+          return const Center(child: CircularProgressIndicator());
+        } else if (snapshot.hasError) {
+          // Show an error message if loading failed
+          return Center(
+            child: Text('Error loading found items: ${snapshot.error}'),
+          );
+        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          // Handle case where file is empty or data is null
+          return const Center(child: Text('No items have been found yet.'));
+        }
+
+        // Data successfully loaded
+        final foundItems = snapshot.data!;
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(16.0),
+          itemCount: foundItems.length,
+          itemBuilder: (context, index) {
+            final item = foundItems[index];
+            return ItemCard(
+              name: item['name']!,
+              location: item['location']!,
+              date: item['date']!,
+              category: item['category']!,
+              imagePath: item['image']!,
+              // Simple color logic based on index for variety
+              imageColor: index == 0
+                  ? Colors
+                        .amber
+                        .shade200 // Keys color
+                  : index == 1
+                  ? Colors
+                        .blue
+                        .shade100 // Card color
+                  : Colors.green.shade100, // Bottle color
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+// --- Item Card Widget (Remains the same) ---
 
 class ItemCard extends StatelessWidget {
   final String name;
@@ -227,11 +412,13 @@ class ItemCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Get the primary color from the main screen's defined color
+    const Color cardCategoryColor = Color.fromARGB(255, 0, 150, 255);
+
     return Card(
       margin: const EdgeInsets.only(bottom: 16.0),
       elevation: 0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15.0)),
-      // **NEW: Use InkWell to make the entire card clickable**
       child: InkWell(
         onTap: () => _onCardTap(context),
         borderRadius: BorderRadius.circular(15.0),
@@ -253,7 +440,6 @@ class ItemCard extends StatelessWidget {
                   child: Image.asset(
                     imagePath,
                     fit: BoxFit.cover, // Ensures the image fills the container
-                    // Using an errorBuilder for better debugging if the asset is missing
                     errorBuilder: (context, error, stackTrace) {
                       return Container(
                         color: Colors.red.shade100,
@@ -285,20 +471,20 @@ class ItemCard extends StatelessWidget {
                             fontSize: 16,
                           ),
                         ),
-                        // Category Tag
+                        // Category Tag (Styled with the new theme color)
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 8.0,
                             vertical: 4.0,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.purple.shade50,
+                            color: cardCategoryColor.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(15.0),
                           ),
                           child: Text(
                             category,
                             style: TextStyle(
-                              color: Colors.deepPurple.shade700,
+                              color: cardCategoryColor,
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
                             ),
