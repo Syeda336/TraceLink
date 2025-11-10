@@ -68,7 +68,7 @@ class AdminDashboardClaimViewItemScreen2State extends State<AdminDashboardClaimV
 																								mainAxisAlignment: MainAxisAlignment.spaceBetween,
 																								crossAxisAlignment: CrossAxisAlignment.start,
 																								children: [
-																									Container(
+																									SizedBox(
 																										width: 15,
 																										height: 16,
 																										child: SizedBox(),
@@ -339,7 +339,7 @@ class AdminDashboardClaimViewItemScreen2State extends State<AdminDashboardClaimV
 																										),
 																									),
 																									Expanded(
-																										child: Container(
+																										child: SizedBox(
 																											width: double.infinity,
 																											child: Text(
 																												"emma.w@university.edu",

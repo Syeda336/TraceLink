@@ -1,5 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'home.dart';
+// Import the ThemeProvider
+import '../theme_provider.dart';
+
+// --- Theme Constants for Bright Blue/Dark Indigo ---
+// Primary Bright Blue for Light Mode
+const Color _kPrimaryBrightBlue = Color(0xFF1E88E5);
+const Color _kLightEndColor = Color(0xFF42A5F5); // Lighter blue for gradient
+// Primary Deep Indigo for Dark Mode
+const Color _kDarkPrimaryColor = Color(0xFF303F9F);
+const Color _kDarkEndColor = Color(0xFF5C6BC0); // Lighter indigo for gradient
 
 class SubmittedClaimScreen extends StatefulWidget {
   const SubmittedClaimScreen({super.key});
@@ -63,14 +74,23 @@ class _SubmittedClaimScreenState extends State<SubmittedClaimScreen>
 
   @override
   Widget build(BuildContext context) {
-    // Define the gradient colors based on the image
-    const Color startColor = Color(0xFF2DCF83); // Lighter green/teal
-    const Color endColor = Color(0xFF00C6FF); // Cyan/blueish
+    // Get the current theme state using the provider
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final bool isDarkMode = themeProvider.isDarkMode;
+
+    // Dynamically set colors based on theme
+    final Color startColor = isDarkMode
+        ? _kDarkPrimaryColor
+        : _kPrimaryBrightBlue;
+    final Color endColor = isDarkMode ? _kDarkEndColor : _kLightEndColor;
+    final Color iconColor = isDarkMode
+        ? _kDarkPrimaryColor
+        : _kPrimaryBrightBlue;
 
     return Scaffold(
       // The background is the full-screen gradient
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [startColor, endColor],
             begin: Alignment.topCenter,
@@ -96,20 +116,21 @@ class _SubmittedClaimScreenState extends State<SubmittedClaimScreen>
                   width: 100,
                   height: 100,
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: Colors.white, // Icon background is always white
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
+                        color: Colors.black.withOpacity(0.15),
                         blurRadius: 10,
                         spreadRadius: 3,
                       ),
                     ],
                   ),
-                  child: const Center(
+                  child: Center(
                     child: Icon(
                       Icons.check_circle_outline,
-                      color: Color(0xFF2DCF83), // Match the primary green color
+                      color:
+                          iconColor, // Use dynamic primary color for the icon
                       size: 70,
                     ),
                   ),

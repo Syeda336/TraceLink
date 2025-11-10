@@ -1,22 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:provider/provider.dart';
 
+// Import the required theme provider
+import '../theme_provider.dart'; // ASSUMING THIS IS THE FILE YOU PROVIDED
 // --- CONDITIONAL IMPORT FIX ---
-// This imports 'dart:io' (which contains the File class) for all platforms
-// except for the web (where dart.library.html is true).
-// For web, it imports a non-existent placeholder ('dart:typed_data' is a simple
-// library that is supported on web, but the File class is not exposed).
 import 'dart:io';
 
-// If you need conditional types, sometimes using a simple
-// if (kIsWeb) { ... } else { ... } approach is clearer.
-// We will stick to the standard 'dart:io' import and check kIsWeb inside the build.
+// --- DYNAMIC COLOR PALETTE DEFINITION ---
+// Base Colors (Light Mode reference)
+const Color basePrimaryBlue = Color(0xFF42A5F5); // Bright Blue
+const Color baseDarkBlue = Color(0xFF1977D2); // Dark Blue
+const Color baseLightBlueBackground = Color(0xFFE3F2FD); // Very Light Blue
+const Color baseScaffoldBackground = Colors.white;
 
-// --- Color Palette ---
-const Color primaryBlue = Color(0xFF42A5F5); // Bright Blue
-const Color darkBlue = Color(0xFF1977D2); // Dark Blue
-const Color lightBlueBackground = Color(0xFFE3F2FD); // Very Light Blue
+// Dark Mode Colors (Example replacements for contrast)
+const Color darkPrimaryBlue = Color(0xFF64B5F6); // Lighter shade for visibility
+const Color darkDarkBlue = Color(0xFF90CAF9); // Light text color/borders
+const Color darkInputBackground = Color(
+  0xFF1E1E1E,
+); // Dark input field background
+const Color darkScaffoldBackground = Color(0xFF121212); // True dark background
+const Color darkTextColor = Colors.white;
+// --- END COLOR PALETTE DEFINITION ---
 
 class UploadPhotosScreen extends StatefulWidget {
   const UploadPhotosScreen({super.key});
@@ -83,6 +90,23 @@ class _UploadPhotosScreenState extends State<UploadPhotosScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // 1. ACCESS THEME STATE
+    final isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
+
+    // 2. DEFINE DYNAMIC COLORS BASED ON MODE
+    final primaryBlue = isDarkMode ? darkPrimaryBlue : basePrimaryBlue;
+    final darkBlue = isDarkMode ? darkDarkBlue : baseDarkBlue;
+    final lightBlueBackground = isDarkMode
+        ? darkInputBackground
+        : baseLightBlueBackground;
+    final scaffoldBackground = isDarkMode
+        ? darkScaffoldBackground
+        : baseScaffoldBackground;
+    final textColor = isDarkMode ? darkTextColor : baseDarkBlue;
+    final subtitleColor = isDarkMode
+        ? darkTextColor.withOpacity(0.7)
+        : Colors.white70;
+
     final int photoCount = _uploadedImagePaths.length;
     final bool isButtonActive = photoCount > 0;
 
@@ -92,20 +116,20 @@ class _UploadPhotosScreenState extends State<UploadPhotosScreen> {
     final double buttonOpacity = isButtonActive ? 1.0 : 0.6;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: scaffoldBackground, // Dynamic color
       appBar: AppBar(
         toolbarHeight: 100,
         automaticallyImplyLeading: false,
-        backgroundColor: primaryBlue,
+        backgroundColor: primaryBlue, // Dynamic color
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: _skipForNow,
         ),
-        title: const Column(
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
+            const Text(
               'Upload Photos',
               style: TextStyle(
                 color: Colors.white,
@@ -115,7 +139,10 @@ class _UploadPhotosScreenState extends State<UploadPhotosScreen> {
             ),
             Text(
               'Add photos of your lost item',
-              style: TextStyle(color: Colors.white70, fontSize: 14),
+              style: TextStyle(
+                color: subtitleColor,
+                fontSize: 14,
+              ), // Dynamic color
             ),
           ],
         ),
@@ -127,7 +154,7 @@ class _UploadPhotosScreenState extends State<UploadPhotosScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
             // 1. Photo Tips Card
-            _buildPhotoTipsCard(),
+            _buildPhotoTipsCard(darkBlue, textColor, lightBlueBackground),
             const SizedBox(height: 25),
 
             // 2. Gallery and Camera Cards
@@ -139,6 +166,9 @@ class _UploadPhotosScreenState extends State<UploadPhotosScreen> {
                     title: 'Gallery',
                     subtitle: 'Choose from photos',
                     onTap: () => _pickImage(ImageSource.gallery),
+                    darkBlue: darkBlue,
+                    lightBlueBackground: lightBlueBackground,
+                    textColor: textColor,
                   ),
                 ),
                 const SizedBox(width: 20),
@@ -148,6 +178,9 @@ class _UploadPhotosScreenState extends State<UploadPhotosScreen> {
                     title: 'Camera',
                     subtitle: 'Take a photo',
                     onTap: () => _pickImage(ImageSource.camera),
+                    darkBlue: darkBlue,
+                    lightBlueBackground: lightBlueBackground,
+                    textColor: textColor,
                   ),
                 ),
               ],
@@ -155,18 +188,20 @@ class _UploadPhotosScreenState extends State<UploadPhotosScreen> {
             const SizedBox(height: 25),
 
             // 3. Photo Grid (Displays uploaded photos or a placeholder)
-            _buildPhotoGrid(photoCount),
+            _buildPhotoGrid(photoCount, darkBlue, lightBlueBackground),
             const SizedBox(height: 25),
 
             // 4. Privacy Notice Card
-            _buildPrivacyNoticeCard(),
+            _buildPrivacyNoticeCard(darkBlue, lightBlueBackground, textColor),
             const SizedBox(height: 40),
           ],
         ),
       ),
 
       // --- Persistent Bottom Bar with Buttons ---
-      bottomNavigationBar: Padding(
+      bottomNavigationBar: Container(
+        // Ensure bottom bar has a background color in dark mode
+        color: scaffoldBackground,
         padding: const EdgeInsets.all(20.0),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -177,65 +212,77 @@ class _UploadPhotosScreenState extends State<UploadPhotosScreen> {
               buttonOpacity,
               buttonTextColor,
               photoCount,
+              primaryBlue, // Dynamic color
             ),
             const SizedBox(height: 15),
 
             // 6. Skip for Now Button
-            _buildSkipForNowButton(),
+            _buildSkipForNowButton(darkBlue), // Dynamic color
           ],
         ),
       ),
     );
   }
 
-  // --- Helper Widgets (Separated for clarity) ---
+  // --- Helper Widgets (Updated to accept dynamic colors) ---
 
-  Widget _buildPhotoTipsCard() {
+  Widget _buildPhotoTipsCard(
+    Color darkBlue,
+    Color textColor,
+    Color lightBlueBackground,
+  ) {
     return Card(
       elevation: 0,
+      // Use dynamic background color for the card
+      color: lightBlueBackground.withOpacity(0.5),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(15),
-        side: const BorderSide(color: darkBlue, width: 1.5),
+        side: BorderSide(color: darkBlue, width: 1.5), // Dynamic color
       ),
       child: Padding(
         padding: const EdgeInsets.all(20.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
+            Row(
               children: [
-                Icon(Icons.lightbulb_outline, color: darkBlue, size: 24),
-                SizedBox(width: 8),
+                Icon(
+                  Icons.lightbulb_outline,
+                  color: darkBlue,
+                  size: 24,
+                ), // Dynamic color
+                const SizedBox(width: 8),
                 Text(
                   'Photo Tips',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: darkBlue,
+                    color: darkBlue, // Dynamic color
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 10),
             ...[
-                  'Use clear, well-lit photos',
-                  'Show multiple angles if possible',
-                  'Include any unique features or markings',
-                  'Upload up to $_maxPhotos photos',
-                ]
-                .map(
-                  (tip) => Padding(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 4.0,
-                      horizontal: 8.0,
-                    ),
-                    child: Text(
-                      '• $tip',
-                      style: const TextStyle(fontSize: 15, color: darkBlue),
-                    ),
-                  ),
-                )
-                .toList(),
+              'Use clear, well-lit photos',
+              'Show multiple angles if possible',
+              'Include any unique features or markings',
+              'Upload up to $_maxPhotos photos',
+            ].map(
+              (tip) => Padding(
+                padding: const EdgeInsets.symmetric(
+                  vertical: 4.0,
+                  horizontal: 8.0,
+                ),
+                child: Text(
+                  '• $tip',
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: textColor,
+                  ), // Dynamic color
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -247,13 +294,16 @@ class _UploadPhotosScreenState extends State<UploadPhotosScreen> {
     required String title,
     required String subtitle,
     required VoidCallback onTap,
+    required Color darkBlue,
+    required Color lightBlueBackground,
+    required Color textColor,
   }) {
     return Card(
       elevation: 0,
-      color: lightBlueBackground,
+      color: lightBlueBackground, // Dynamic color
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(15),
-        side: const BorderSide(color: darkBlue, width: 1.5),
+        side: BorderSide(color: darkBlue, width: 1.5), // Dynamic color
       ),
       child: InkWell(
         onTap: onTap,
@@ -262,20 +312,20 @@ class _UploadPhotosScreenState extends State<UploadPhotosScreen> {
           padding: const EdgeInsets.symmetric(vertical: 30.0, horizontal: 10),
           child: Column(
             children: [
-              Icon(icon, color: darkBlue, size: 40),
+              Icon(icon, color: darkBlue, size: 40), // Dynamic color
               const SizedBox(height: 10),
               Text(
                 title,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: darkBlue,
+                  color: textColor, // Dynamic color
                 ),
               ),
               Text(
                 subtitle,
                 style: TextStyle(
-                  color: darkBlue.withOpacity(0.7),
+                  color: textColor.withOpacity(0.7), // Dynamic color
                   fontSize: 14,
                 ),
               ),
@@ -286,13 +336,21 @@ class _UploadPhotosScreenState extends State<UploadPhotosScreen> {
     );
   }
 
-  Widget _buildPhotoGrid(int photoCount) {
+  Widget _buildPhotoGrid(
+    int photoCount,
+    Color darkBlue,
+    Color lightBlueBackground,
+  ) {
+    // Determine placeholder text color based on darkBlue
+    final Color placeholderTextColor = darkBlue;
+    final Color placeholderIconColor = darkBlue.withOpacity(0.5);
+
     if (photoCount == 0) {
       return Card(
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(15),
-          side: const BorderSide(color: darkBlue, width: 1.5),
+          side: BorderSide(color: darkBlue, width: 1.5), // Dynamic color
         ),
         child: Padding(
           padding: const EdgeInsets.all(20.0),
@@ -300,25 +358,27 @@ class _UploadPhotosScreenState extends State<UploadPhotosScreen> {
             children: [
               Icon(
                 Icons.image_outlined,
-                color: darkBlue.withOpacity(0.5),
+                color: placeholderIconColor, // Dynamic color
                 size: 60,
               ),
               const SizedBox(height: 10),
-              const Text(
+              Text(
                 'No Photos Yet',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: darkBlue,
+                  color: placeholderTextColor, // Dynamic color
                 ),
               ),
               const SizedBox(height: 5),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 20.0),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20.0),
                 child: Text(
                   'Upload or capture photos to help identify your lost item',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: darkBlue),
+                  style: TextStyle(
+                    color: placeholderTextColor,
+                  ), // Dynamic color
                 ),
               ),
             ],
@@ -344,9 +404,13 @@ class _UploadPhotosScreenState extends State<UploadPhotosScreen> {
         if (kIsWeb) {
           // Placeholder for web since Image.file is not supported
           imageWidget = Container(
-            color: lightBlueBackground.withOpacity(0.7),
-            child: const Center(
-              child: Icon(Icons.image_not_supported, color: darkBlue, size: 30),
+            color: lightBlueBackground.withOpacity(0.7), // Dynamic color
+            child: Center(
+              child: Icon(
+                Icons.image_not_supported,
+                color: darkBlue,
+                size: 30,
+              ), // Dynamic color
             ),
           );
         } else {
@@ -394,21 +458,29 @@ class _UploadPhotosScreenState extends State<UploadPhotosScreen> {
     );
   }
 
-  Widget _buildPrivacyNoticeCard() {
+  Widget _buildPrivacyNoticeCard(
+    Color darkBlue,
+    Color lightBlueBackground,
+    Color textColor,
+  ) {
     return Card(
       elevation: 0,
-      color: lightBlueBackground,
+      color: lightBlueBackground, // Dynamic color
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(15),
-        side: const BorderSide(color: darkBlue, width: 1.5),
+        side: BorderSide(color: darkBlue, width: 1.5), // Dynamic color
       ),
-      child: const Padding(
-        padding: EdgeInsets.all(20.0),
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(Icons.warning_amber, color: darkBlue, size: 24),
-            SizedBox(width: 10),
+            Icon(
+              Icons.warning_amber,
+              color: darkBlue,
+              size: 24,
+            ), // Dynamic color
+            const SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -418,13 +490,16 @@ class _UploadPhotosScreenState extends State<UploadPhotosScreen> {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: darkBlue,
+                      color: textColor, // Dynamic color
                     ),
                   ),
-                  SizedBox(height: 4),
+                  const SizedBox(height: 4),
                   Text(
                     'Ensure photos don\'t contain sensitive personal information like credit cards or passwords.',
-                    style: TextStyle(fontSize: 14, color: darkBlue),
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: textColor.withOpacity(0.8),
+                    ), // Dynamic color
                   ),
                 ],
               ),
@@ -440,13 +515,14 @@ class _UploadPhotosScreenState extends State<UploadPhotosScreen> {
     double opacity,
     Color buttonTextColor,
     int photoCount,
+    Color primaryBlue,
   ) {
     return Opacity(
       opacity: opacity,
       child: ElevatedButton(
         onPressed: isButtonActive ? _continue : null,
         style: ElevatedButton.styleFrom(
-          backgroundColor: primaryBlue,
+          backgroundColor: primaryBlue, // Dynamic color
           shadowColor: Colors.transparent,
           padding: const EdgeInsets.symmetric(vertical: 18),
           shape: RoundedRectangleBorder(
@@ -472,22 +548,24 @@ class _UploadPhotosScreenState extends State<UploadPhotosScreen> {
     );
   }
 
-  Widget _buildSkipForNowButton() {
+  Widget _buildSkipForNowButton(Color darkBlue) {
     return ElevatedButton(
       onPressed: _skipForNow,
       style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(vertical: 18),
+        backgroundColor:
+            Colors.transparent, // Always transparent/white in light mode
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 30),
+        elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(15),
-          side: const BorderSide(color: darkBlue, width: 1.5),
+          borderRadius: BorderRadius.circular(10),
+          side: BorderSide(color: darkBlue, width: 3), // Dynamic color
         ),
       ),
-      child: const Text(
+      child: Text(
         'Skip for Now',
         style: TextStyle(
           fontSize: 18,
-          color: darkBlue,
+          color: darkBlue, // Dynamic color
           fontWeight: FontWeight.bold,
         ),
       ),

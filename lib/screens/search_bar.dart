@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-
+import 'package:provider/provider.dart'; // Import Provider
 import 'home.dart';
+import '../theme_provider.dart'; // Import your ThemeProvider
 
 // --- 1. DATA MODEL ---
 // Defines the structure for each item.
@@ -34,10 +35,11 @@ class SearchScreen extends StatefulWidget {
 }
 
 class _SearchScreenState extends State<SearchScreen> {
-  // --- THEME COLORS ---
+  // --- THEME COLORS (Now determined dynamically) ---
+  // Define fallback colors for the Lost/Found app style
+  final Color _lightBlueBackground = const Color(0xFFF0F8FF);
   final Color _brightBluePrimary = const Color(0xFF1E90FF);
   final Color _deepBlueBottom = const Color(0xFF007FFF);
-  final Color _lightBlueBackground = const Color(0xFFF0F8FF);
   final Color _darkBlueText = const Color(0xFF00008B);
   final Color _whiteTextColor = Colors.white;
 
@@ -110,6 +112,8 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   void initState() {
     super.initState();
+    // Delay initialization slightly to ensure Provider is available if needed
+    // However, the main logic is simple enough to run here.
     _applySearchAndFilters(); // Initialize the filtered list
   }
 
@@ -181,13 +185,24 @@ class _SearchScreenState extends State<SearchScreen> {
 
   // --- Helper Function to Open Filters as a Bottom Sheet ---
   void _openFiltersSection() {
+    // Access the current theme provider
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+
+    // Dynamic colors based on the provider state
+    final Color primaryColor = themeProvider.isDarkMode
+        ? const Color.fromARGB(255, 10, 49, 122)
+        : _brightBluePrimary;
+    final Color textColor = themeProvider.isDarkMode
+        ? Colors.white
+        : _darkBlueText;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       builder: (context) {
         return FilterSectionContent(
-          brightBluePrimary: _brightBluePrimary,
-          darkBlueText: _darkBlueText,
+          brightBluePrimary: primaryColor, // Pass dynamic color
+          darkBlueText: textColor, // Pass dynamic text color
           initialFilters: _activeFilters,
           onApplyFilters: (newFilters) {
             // Update the state with new filters and re-apply search/filters
@@ -207,6 +222,11 @@ class _SearchScreenState extends State<SearchScreen> {
     required List<String> filters,
     required String selectedFilter,
     required Function(String) onChipSelected,
+    required Color primaryColor,
+    required Color secondaryColor,
+    required Color lightBackgroundColor,
+    required Color darkTextColor,
+    required Color whiteTextColor,
   }) {
     return Padding(
       padding: const EdgeInsets.only(top: 8.0, left: 16.0, bottom: 8.0),
@@ -218,7 +238,7 @@ class _SearchScreenState extends State<SearchScreen> {
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: _darkBlueText,
+              color: darkTextColor, // Use dynamic text color
             ),
           ),
           const SizedBox(height: 8),
@@ -235,10 +255,13 @@ class _SearchScreenState extends State<SearchScreen> {
                   child: ChoiceChip(
                     label: Text(filter),
                     selected: isSelected,
-                    selectedColor: _brightBluePrimary,
-                    backgroundColor: _lightBlueBackground,
+                    selectedColor: primaryColor, // Use dynamic primary color
+                    backgroundColor:
+                        lightBackgroundColor, // Use dynamic background color
                     labelStyle: TextStyle(
-                      color: isSelected ? _whiteTextColor : _darkBlueText,
+                      color: isSelected
+                          ? whiteTextColor
+                          : darkTextColor, // Use dynamic colors
                     ),
                     onSelected: (bool selected) {
                       if (selected) {
@@ -258,18 +281,41 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ⭐️ Access the ThemeProvider state
+    final themeProvider = Provider.of<ThemeProvider>(context);
+
+    // ⭐️ Dynamically determine colors based on the theme state
+    final Color primaryColor = themeProvider.isDarkMode
+        ? Colors.green.shade700
+        : _brightBluePrimary;
+    final Color secondaryColor = themeProvider.isDarkMode
+        ? Colors.green.shade900
+        : _deepBlueBottom;
+    final Color backgroundColor = themeProvider.isDarkMode
+        ? const Color(0xFF121212)
+        : _lightBlueBackground;
+    final Color textColor = themeProvider.isDarkMode
+        ? Colors.white
+        : _darkBlueText;
+    final Color cardColor = themeProvider.isDarkMode
+        ? const Color(0xFF1E1E1E)
+        : Colors.white;
+
     return Scaffold(
-      backgroundColor: _lightBlueBackground,
+      backgroundColor: backgroundColor, // Use dynamic background color
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
             pinned: true,
-            automaticallyImplyLeading: false, // REMOVES THE BLACK BACK ARROW
+            automaticallyImplyLeading: false,
             toolbarHeight: 120,
             flexibleSpace: Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [_brightBluePrimary, _deepBlueBottom],
+                  colors: [
+                    primaryColor,
+                    secondaryColor,
+                  ], // Use dynamic gradient
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -291,10 +337,9 @@ class _SearchScreenState extends State<SearchScreen> {
                           IconButton(
                             icon: Icon(
                               Icons.arrow_back,
-                              color: _whiteTextColor, // Back arrow is white
+                              color: _whiteTextColor,
                             ),
                             onPressed: () {
-                              // Functionality to open home.dart
                               Navigator.pushReplacement(
                                 context,
                                 MaterialPageRoute(
@@ -334,10 +379,10 @@ class _SearchScreenState extends State<SearchScreen> {
                                 },
                                 decoration: InputDecoration(
                                   hintText: 'Search...',
-                                  hintStyle: TextStyle(color: _darkBlueText),
+                                  hintStyle: TextStyle(color: textColor),
                                   prefixIcon: Icon(
                                     Icons.search,
-                                    color: _darkBlueText,
+                                    color: textColor,
                                   ),
                                   border: InputBorder.none,
                                   enabledBorder: InputBorder.none,
@@ -356,7 +401,7 @@ class _SearchScreenState extends State<SearchScreen> {
                             width: 40,
                             height: 40,
                             decoration: BoxDecoration(
-                              color: _brightBluePrimary,
+                              color: primaryColor, // Use dynamic primary color
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: IconButton(
@@ -385,6 +430,12 @@ class _SearchScreenState extends State<SearchScreen> {
                 ],
                 selectedFilter: 'All',
                 onChipSelected: (newCategory) {},
+                primaryColor: primaryColor,
+                secondaryColor: secondaryColor,
+                lightBackgroundColor:
+                    cardColor, // Use card color for background
+                darkTextColor: textColor,
+                whiteTextColor: _whiteTextColor,
               ),
               _buildFilterRow(
                 title: 'Color',
@@ -398,6 +449,12 @@ class _SearchScreenState extends State<SearchScreen> {
                 ],
                 selectedFilter: 'All',
                 onChipSelected: (newColor) {},
+                primaryColor: primaryColor,
+                secondaryColor: secondaryColor,
+                lightBackgroundColor:
+                    cardColor, // Use card color for background
+                darkTextColor: textColor,
+                whiteTextColor: _whiteTextColor,
               ),
 
               // --- Results Count ---
@@ -408,7 +465,7 @@ class _SearchScreenState extends State<SearchScreen> {
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: _darkBlueText,
+                    color: textColor, // Use dynamic text color
                   ),
                 ),
               ),
@@ -435,8 +492,10 @@ class _SearchScreenState extends State<SearchScreen> {
                       date:
                           '${item.date.month}/${item.date.day}/${item.date.year}',
                       isLost: item.status == 'Lost',
-                      statusColor: _brightBluePrimary,
+                      statusColor: primaryColor, // Pass dynamic color
                       imageWidget: item.imageWidget,
+                      cardColor: cardColor, // Pass dynamic card color
+                      darkTextColor: textColor, // Pass dynamic text color
                     );
                   },
                 ),
@@ -450,7 +509,7 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 }
 
-// --- Item Card Widget (Remains the same) ---
+// --- Item Card Widget (Updated to use dynamic colors) ---
 class _ItemCard extends StatelessWidget {
   final String status;
   final String itemName;
@@ -459,6 +518,8 @@ class _ItemCard extends StatelessWidget {
   final bool isLost;
   final Widget imageWidget;
   final Color statusColor;
+  final Color cardColor;
+  final Color darkTextColor;
 
   const _ItemCard({
     required this.status,
@@ -468,19 +529,21 @@ class _ItemCard extends StatelessWidget {
     required this.isLost,
     required this.statusColor,
     required this.imageWidget,
+    required this.cardColor,
+    required this.darkTextColor,
   });
 
   @override
   Widget build(BuildContext context) {
+    // Lost items use the main statusColor (dynamic). Found items use green.
     final Color tagColor = isLost ? statusColor : Colors.green;
-    final Color darkBlueText = const Color(0xFF00008B);
 
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: cardColor, // Use dynamic card color
           borderRadius: BorderRadius.circular(15),
           boxShadow: [
             BoxShadow(
@@ -547,21 +610,25 @@ class _ItemCard extends StatelessWidget {
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
-                        color: darkBlueText,
+                        color: darkTextColor, // Use dynamic text color
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
                     Text(
                       location,
                       style: TextStyle(
-                        color: Colors.grey.shade700,
+                        color: darkTextColor.withOpacity(
+                          0.7,
+                        ), // Use dynamic text color
                         fontSize: 14,
                       ),
                     ),
                     Text(
                       date,
                       style: TextStyle(
-                        color: Colors.grey.shade700,
+                        color: darkTextColor.withOpacity(
+                          0.7,
+                        ), // Use dynamic text color
                         fontSize: 14,
                       ),
                     ),
@@ -575,6 +642,8 @@ class _ItemCard extends StatelessWidget {
     );
   }
 }
+// Note: You still need to define the FilterSectionContent widget
+// and ensure your main app is wrapped in a ChangeNotifierProvider<ThemeProvider>
 
 // -----------------------------------------------------
 // --- 3. FILTER SECTION CONTENT (MODAL) ---

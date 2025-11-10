@@ -1,4 +1,34 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+// ASSUMING theme_provider.dart IS IN THE SAME DIRECTORY
+import '../theme_provider.dart';
+
+// --- DYNAMIC COLOR PALETTE DEFINITIONS ---
+
+// Base Colors (LIGHT MODE REFERENCE)
+const Color baseMainBlue = Color(0xFF2196F3); // Bright Blue
+const Color baseDarkBlue = Color(0xFF0D47A1); // Darker Blue for depth/text
+const Color baseLightBlue = Color(
+  0xFFB3E5FC,
+); // Very light blue for card backgrounds
+const Color baseSuccessGreen = Color(0xFF4CAF50); // Success Green
+const Color baseScaffoldBackground = Colors.white;
+const Color baseInputBackground = Color(
+  0xFFF5F5F5,
+); // Light grey input background
+const Color baseTextColor = Colors.black;
+
+// Dark Mode Color Equivalents
+const Color darkMainBlue = Color(0xFF64B5F6); // Lighter blue for visibility
+const Color darkDarkBlue = Color(0xFF90CAF9); // Light blue for text/icons
+const Color darkLightBlue = Color(
+  0xFF1E1E1E,
+); // Dark background for cards/inputs
+const Color darkSuccessGreen = Color(0xFFA5D6A7); // Lighter success green
+const Color darkScaffoldBackground = Color(0xFF121212); // True dark background
+const Color darkInputBackground = Color(0xFF1E1E1E);
+const Color darkTextColor = Colors.white;
 
 class AiImageGeneratorScreen extends StatefulWidget {
   const AiImageGeneratorScreen({super.key});
@@ -6,15 +36,6 @@ class AiImageGeneratorScreen extends StatefulWidget {
   @override
   State<AiImageGeneratorScreen> createState() => _AiImageGeneratorScreenState();
 }
-
-// --- COLOR PALETTE FOR BLUE THEME ---
-// Main Accent Blue: A vibrant blue (analogous to the original purple/pink)
-const Color _mainBlue = Color(0xFF2196F3); // Bright Blue
-const Color _darkBlue = Color(0xFF0D47A1); // Darker Blue for depth/text
-const Color _lightBlue = Color(
-  0xFFB3E5FC,
-); // Very light blue for card backgrounds
-const Color _successGreen = Color(0xFF4CAF50); // Keep success green
 
 class _AiImageGeneratorScreenState extends State<AiImageGeneratorScreen> {
   final TextEditingController _descriptionController = TextEditingController();
@@ -48,7 +69,7 @@ class _AiImageGeneratorScreenState extends State<AiImageGeneratorScreen> {
 
   // Handle "Generate Image" button press
   void _generateImage() async {
-    if (_isDescriptionEmpty) return; // Do nothing if text field is empty
+    if (_isDescriptionEmpty) return;
 
     setState(() {
       _isGeneratingImage = true; // Show loading indicator
@@ -61,12 +82,10 @@ class _AiImageGeneratorScreenState extends State<AiImageGeneratorScreen> {
     setState(() {
       _isGeneratingImage = false;
       _imageGenerated = true;
-      // In a real app, you would update _generatedImageUrl here with the AI result
+      // Random image for demo
       _generatedImageUrl =
-          'https://picsum.photos/300/200?random=${DateTime.now().millisecondsSinceEpoch}'; // Random image for demo
+          'https://picsum.photos/300/200?random=${DateTime.now().millisecondsSinceEpoch}';
     });
-
-    // Scroll logic remains commented out for now.
   }
 
   // Handle "Regenerate" button press
@@ -93,6 +112,22 @@ class _AiImageGeneratorScreenState extends State<AiImageGeneratorScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // 1. ACCESS THEME STATE
+    final isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
+
+    // 2. DYNAMICALLY MAP COLORS
+    final mainBlue = isDarkMode ? darkMainBlue : baseMainBlue;
+    final darkBlue = isDarkMode ? darkDarkBlue : baseDarkBlue;
+    final lightBlue = isDarkMode ? darkInputBackground : baseLightBlue;
+    final successGreen = isDarkMode ? darkSuccessGreen : baseSuccessGreen;
+    final scaffoldBackground = isDarkMode
+        ? darkScaffoldBackground
+        : baseScaffoldBackground;
+    final inputBackground = isDarkMode
+        ? darkInputBackground
+        : baseInputBackground;
+    final primaryTextColor = isDarkMode ? darkTextColor : baseTextColor;
+
     // Determine button style based on text field content
     final bool isGenerateButtonActive =
         !_isDescriptionEmpty && !_isGeneratingImage;
@@ -101,14 +136,15 @@ class _AiImageGeneratorScreenState extends State<AiImageGeneratorScreen> {
     final double generateButtonOpacity = isGenerateButtonActive ? 1.0 : 0.5;
 
     return Scaffold(
+      backgroundColor: scaffoldBackground,
       appBar: AppBar(
         toolbarHeight: 100,
         automaticallyImplyLeading: false,
         flexibleSpace: Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
-              // Bright Blue gradient
-              colors: [_mainBlue, _darkBlue],
+              // Dynamic Blue gradient
+              colors: [mainBlue, darkBlue],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -121,17 +157,17 @@ class _AiImageGeneratorScreenState extends State<AiImageGeneratorScreen> {
             Navigator.of(context).pop();
           },
         ),
-        title: const Column(
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
+            const Text(
               'AI Image Generator',
               style: TextStyle(color: Colors.white, fontSize: 20),
             ),
             Row(
               children: [
-                Icon(Icons.flash_on, color: Colors.white70, size: 16),
-                SizedBox(width: 4),
+                const Icon(Icons.flash_on, color: Colors.white70, size: 16),
+                const SizedBox(width: 4),
                 Text(
                   'Powered by Gemini AI',
                   style: TextStyle(color: Colors.white70, fontSize: 14),
@@ -148,11 +184,17 @@ class _AiImageGeneratorScreenState extends State<AiImageGeneratorScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
             // 1. How It Works Card
-            _buildHowItWorksCard(),
+            _buildHowItWorksCard(darkBlue, lightBlue),
             const SizedBox(height: 25),
 
             // 2. Describe Your Item Input Field
-            _buildDescriptionInput(),
+            _buildDescriptionInput(
+              mainBlue,
+              lightBlue,
+              darkBlue,
+              inputBackground,
+              primaryTextColor,
+            ),
             const SizedBox(height: 25),
 
             // 3. Generate Image Button
@@ -160,21 +202,33 @@ class _AiImageGeneratorScreenState extends State<AiImageGeneratorScreen> {
               isGenerateButtonActive,
               generateButtonOpacity,
               generateButtonColor,
+              mainBlue,
+              darkBlue,
             ),
             const SizedBox(height: 25),
 
             // 4. Generated Image Section (Conditionally displayed)
             if (_imageGenerated) ...[
-              _buildGeneratedImageSection(),
+              _buildGeneratedImageSection(
+                mainBlue,
+                darkBlue,
+                lightBlue,
+                successGreen,
+              ),
               const SizedBox(height: 25),
             ],
 
             // 5. Pro Tips Card
-            _buildProTipsCard(),
+            _buildProTipsCard(
+              mainBlue,
+              darkBlue,
+              scaffoldBackground,
+              primaryTextColor,
+            ),
             const SizedBox(height: 25),
 
             // 6. Back Button
-            _buildBackButton(),
+            _buildBackButton(lightBlue, darkBlue, scaffoldBackground),
           ],
         ),
       ),
@@ -183,11 +237,11 @@ class _AiImageGeneratorScreenState extends State<AiImageGeneratorScreen> {
 
   // --- Helper Widgets ---
 
-  Widget _buildHowItWorksCard() {
+  Widget _buildHowItWorksCard(Color darkBlue, Color lightBlue) {
     return Card(
       elevation: 0,
-      // Card background is light blue
-      color: _lightBlue,
+      // Card background is light blue (dynamic)
+      color: lightBlue,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       child: Padding(
         padding: const EdgeInsets.all(20.0),
@@ -196,32 +250,32 @@ class _AiImageGeneratorScreenState extends State<AiImageGeneratorScreen> {
           children: [
             Row(
               children: [
-                // Icon is dark blue
-                const Icon(Icons.edit_outlined, color: _darkBlue, size: 24),
+                // Icon is dark blue (dynamic)
+                Icon(Icons.edit_outlined, color: darkBlue, size: 24),
                 const SizedBox(width: 8),
-                const Text(
+                Text(
                   'How It Works',
-                  // Text is dark blue
+                  // Text is dark blue (dynamic)
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: _darkBlue,
+                    color: darkBlue,
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 10),
-            const Text(
+            Text(
               'Describe your lost item and our AI will generate a visual representation to help others identify it.',
-              // Text is dark blue
-              style: TextStyle(fontSize: 15, color: _darkBlue),
+              // Text is dark blue (dynamic)
+              style: TextStyle(fontSize: 15, color: darkBlue),
             ),
             const SizedBox(height: 15),
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                // Example box is dark blue
-                color: _darkBlue,
+                // Example box is dark blue (dynamic)
+                color: darkBlue,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Text(
@@ -236,45 +290,60 @@ class _AiImageGeneratorScreenState extends State<AiImageGeneratorScreen> {
     );
   }
 
-  Widget _buildDescriptionInput() {
+  Widget _buildDescriptionInput(
+    Color mainBlue,
+    Color lightBlue,
+    Color darkBlue,
+    Color inputBackground,
+    Color primaryTextColor,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Describe Your Item',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: primaryTextColor,
+          ),
         ),
         const SizedBox(height: 15),
         TextField(
           controller: _descriptionController,
           maxLines: 5,
           minLines: 3,
+          style: TextStyle(color: primaryTextColor),
           decoration: InputDecoration(
             hintText:
                 'Describe your item in detail... Include color, material, size, brand, and any unique features.',
             hintStyle: TextStyle(color: Colors.grey.shade500),
             filled: true,
-            fillColor: Colors.grey.shade100,
+            fillColor: inputBackground, // Dynamic color
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(15),
-              // Use light blue outline for white sections
-              borderSide: BorderSide(color: _lightBlue, width: 2),
+              // Use light blue outline (dynamic)
+              borderSide: BorderSide(
+                color: darkBlue.withOpacity(0.5),
+                width: 2,
+              ),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(15),
-              // Use light blue outline for white sections
-              borderSide: BorderSide(color: _lightBlue, width: 2),
+              // Use light blue outline (dynamic)
+              borderSide: BorderSide(
+                color: darkBlue.withOpacity(0.5),
+                width: 2,
+              ),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(15),
-              // Use bright blue for focused outline
-              borderSide: const BorderSide(color: _mainBlue, width: 2),
+              // Use bright blue for focused outline (dynamic)
+              borderSide: BorderSide(color: mainBlue, width: 2),
             ),
             contentPadding: const EdgeInsets.all(15),
           ),
-          style: const TextStyle(fontSize: 16),
           onChanged: (text) {
-            // Max length 300 for character count, update state
             setState(() {});
           },
         ),
@@ -300,15 +369,17 @@ class _AiImageGeneratorScreenState extends State<AiImageGeneratorScreen> {
     bool isActive,
     double opacity,
     Color buttonColor,
+    Color mainBlue,
+    Color darkBlue,
   ) {
     return Opacity(
       opacity: opacity,
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(15),
-          // Gradient is Blue
-          gradient: const LinearGradient(
-            colors: [_mainBlue, _darkBlue],
+          // Gradient is Blue (dynamic)
+          gradient: LinearGradient(
+            colors: [mainBlue, darkBlue],
             begin: Alignment.centerLeft,
             end: Alignment.centerRight,
           ),
@@ -356,13 +427,19 @@ class _AiImageGeneratorScreenState extends State<AiImageGeneratorScreen> {
     );
   }
 
-  Widget _buildGeneratedImageSection() {
+  Widget _buildGeneratedImageSection(
+    Color mainBlue,
+    Color darkBlue,
+    Color lightBlue,
+    Color successGreen,
+  ) {
     return Card(
       elevation: 0,
-      // Outline white card with main blue
+      // Outline white/dark card with main blue (dynamic)
+      color: lightBlue,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(15),
-        side: const BorderSide(color: _mainBlue, width: 1),
+        side: BorderSide(color: mainBlue, width: 1),
       ),
       child: Padding(
         padding: const EdgeInsets.all(20.0),
@@ -372,18 +449,18 @@ class _AiImageGeneratorScreenState extends State<AiImageGeneratorScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Row(
+                Row(
                   children: [
-                    // Icon is dark blue
-                    Icon(Icons.image_outlined, color: _darkBlue, size: 24),
-                    SizedBox(width: 8),
-                    // Text is dark blue
+                    // Icon is dark blue (dynamic)
+                    Icon(Icons.image_outlined, color: darkBlue, size: 24),
+                    const SizedBox(width: 8),
+                    // Text is dark blue (dynamic)
                     Text(
                       'Generated Image',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: _darkBlue,
+                        color: darkBlue,
                       ),
                     ),
                   ],
@@ -394,21 +471,21 @@ class _AiImageGeneratorScreenState extends State<AiImageGeneratorScreen> {
                     vertical: 5,
                   ),
                   decoration: BoxDecoration(
-                    color: _successGreen.withOpacity(0.1),
+                    color: successGreen.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(
                     children: [
                       Icon(
                         Icons.check_circle_outline,
-                        color: _successGreen,
+                        color: successGreen,
                         size: 16,
                       ),
                       const SizedBox(width: 4),
                       Text(
                         'Ready',
                         style: TextStyle(
-                          color: _successGreen,
+                          color: successGreen,
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
                         ),
@@ -432,44 +509,47 @@ class _AiImageGeneratorScreenState extends State<AiImageGeneratorScreen> {
                       if (loadingProgress == null) return child;
                       return Container(
                         height: 200,
-                        color: Colors.grey.shade200,
+                        color: lightBlue.withOpacity(
+                          0.5,
+                        ), // Dynamic loading background
                         child: Center(
                           child: CircularProgressIndicator(
                             value: loadingProgress.expectedTotalBytes != null
                                 ? loadingProgress.cumulativeBytesLoaded /
                                       loadingProgress.expectedTotalBytes!
                                 : null,
+                            color: mainBlue, // Dynamic indicator color
                           ),
                         ),
                       );
                     },
                     errorBuilder: (context, error, stackTrace) => Container(
                       height: 200,
-                      color: Colors.red.shade100,
-                      child: const Center(child: Text('Failed to load image')),
+                      color: Colors.red.shade900.withOpacity(0.3),
+                      child: const Center(
+                        child: Text(
+                          'Failed to load image',
+                          style: TextStyle(color: Colors.redAccent),
+                        ),
+                      ),
                     ),
                   ),
-                  Positioned(
+                  const Positioned(
                     top: 10,
                     right: 10,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.5),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: const Row(
-                        children: [
-                          Icon(Icons.flash_on, color: Colors.white, size: 16),
-                          SizedBox(width: 4),
-                          Text(
-                            'AI Generated',
-                            style: TextStyle(color: Colors.white, fontSize: 12),
-                          ),
-                        ],
+                    child: Opacity(
+                      opacity: 0.8,
+                      child: Chip(
+                        avatar: Icon(
+                          Icons.flash_on,
+                          color: Colors.white,
+                          size: 16,
+                        ),
+                        label: Text(
+                          'AI Generated',
+                          style: TextStyle(color: Colors.white, fontSize: 12),
+                        ),
+                        backgroundColor: Colors.black54,
                       ),
                     ),
                   ),
@@ -487,16 +567,16 @@ class _AiImageGeneratorScreenState extends State<AiImageGeneratorScreen> {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(15),
                       ),
-                      // Outline button border is light blue
-                      side: const BorderSide(color: _lightBlue, width: 2),
-                      // Text is dark blue
-                      foregroundColor: _darkBlue,
+                      // Outline button border is light blue (dynamic)
+                      side: BorderSide(color: darkBlue, width: 2),
+                      // Text is dark blue (dynamic)
+                      foregroundColor: darkBlue,
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.refresh, size: 20),
-                        SizedBox(width: 8),
+                        const Icon(Icons.refresh, size: 20),
+                        const SizedBox(width: 8),
                         Text('Regenerate', style: TextStyle(fontSize: 16)),
                       ],
                     ),
@@ -550,80 +630,88 @@ class _AiImageGeneratorScreenState extends State<AiImageGeneratorScreen> {
     );
   }
 
-  Widget _buildProTipsCard() {
+  Widget _buildProTipsCard(
+    Color mainBlue,
+    Color darkBlue,
+    Color scaffoldBackground,
+    Color primaryTextColor,
+  ) {
     return Card(
       elevation: 0,
-      // Card color is white, outlined with bright blue
-      color: Colors.white,
+      // Card color is white/dark (dynamic), outlined with bright blue (dynamic)
+      color: scaffoldBackground,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(15),
-        side: const BorderSide(color: _mainBlue, width: 1), // Outline
+        side: BorderSide(color: mainBlue, width: 1), // Outline
       ),
       child: Padding(
         padding: const EdgeInsets.all(20.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
+            Row(
               children: [
-                // Icon is bright blue
-                Icon(Icons.flash_on, color: _mainBlue, size: 24),
-                SizedBox(width: 8),
-                // Text is dark blue
+                // Icon is bright blue (dynamic)
+                Icon(Icons.flash_on, color: mainBlue, size: 24),
+                const SizedBox(width: 8),
+                // Text is primary text color (dynamic)
                 Text(
                   'Pro Tips',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: _darkBlue,
+                    color: primaryTextColor,
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 10),
             ...[
-                  'Include brand names for better accuracy',
-                  'Mention distinctive features or markings',
-                  'Specify colors and materials clearly',
-                  'You can regenerate if the result isn\'t perfect',
-                ]
-                .map(
-                  (tip) => Padding(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 4.0,
-                      horizontal: 8.0,
-                    ),
-                    // Tip text is dark blue
-                    child: Text(
-                      '• $tip',
-                      style: const TextStyle(fontSize: 15, color: _darkBlue),
-                    ),
-                  ),
-                )
-                .toList(),
+              'Include brand names for better accuracy',
+              'Mention distinctive features or markings',
+              'Specify colors and materials clearly',
+              'You can regenerate if the result isn\'t perfect',
+            ].map(
+              (tip) => Padding(
+                padding: const EdgeInsets.symmetric(
+                  vertical: 4.0,
+                  horizontal: 8.0,
+                ),
+                // Tip text is dark blue (dynamic)
+                child: Text(
+                  '• $tip',
+                  style: TextStyle(fontSize: 15, color: darkBlue),
+                ),
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildBackButton() {
+  Widget _buildBackButton(
+    Color lightBlue,
+    Color darkBlue,
+    Color scaffoldBackground,
+  ) {
     return ElevatedButton(
       onPressed: () => Navigator.of(context).pop(),
       style: ElevatedButton.styleFrom(
-        // Background is white
-        backgroundColor: Colors.white,
+        // Background is white/dark (dynamic)
+        backgroundColor: scaffoldBackground,
         padding: const EdgeInsets.symmetric(vertical: 18),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        // Border is light blue
-        side: const BorderSide(color: _lightBlue, width: 1),
+        // Border is light blue (dynamic)
+        side: BorderSide(color: darkBlue, width: 1),
+        elevation: 0,
       ),
-      child: const Text(
+      child: Text(
         'Back',
         style: TextStyle(
           fontSize: 18,
-          // Text is dark blue
-          color: _darkBlue,
+          // Text is dark blue (dynamic)
+          color: darkBlue,
           fontWeight: FontWeight.bold,
         ),
       ),

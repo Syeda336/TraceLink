@@ -1,19 +1,51 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+// Import the existing ThemeProvider
+import '../theme_provider.dart';
 
 // Assume these files exist in your project structure for navigation
 import 'item_description.dart'; // Renamed to ItemDetailScreen for consistency with usage
 import 'submitted_claim.dart';
 
+// --- Theme Constants ---
+// Bright Blue Theme (Primary for Light Mode)
+const Color _kPrimaryBrightBlue = Color(0xFF1E88E5); // Bright Blue
+const Color _kDarkBlueText = Color(0xFF0D47A1); // Darker Blue for text/outline
+
+// Dark Theme (Primary for Dark Mode)
+const Color _kDarkPrimaryColor = Color(0xFF303F9F); // Deep Indigo
+const Color _kDarkBackgroundColor = Color(0xFF121212); // True black/dark grey
+const Color _kDarkCardColor = Color(0xFF1F1F1F);
+const Color _kDarkHighlightColor = Color(
+  0xFFBBDEFB,
+); // Light text color for dark mode
+
 class VerifyOwnershipScreen extends StatelessWidget {
   const VerifyOwnershipScreen({super.key});
 
   // Helper widget for the text fields
-  Widget _buildTextField({required String hintText, int maxLines = 1}) {
+  Widget _buildTextField({
+    required String hintText,
+    required bool isDarkMode, // Added isDarkMode parameter
+    int maxLines = 1,
+  }) {
+    // Colors dynamically set based on theme
+    final Color focusColor = isDarkMode ? _kDarkHighlightColor : _kDarkBlueText;
+    final Color fillColor = isDarkMode ? _kDarkCardColor : Colors.white;
+    // Using ! operator to assert non-null for Colors.grey shades
+    final Color hintColor = isDarkMode ? Colors.grey[600]! : Colors.grey;
+    final Color textColor = isDarkMode ? Colors.white : Colors.black87;
+    final Color enabledBorderColor = isDarkMode
+        ? _kDarkPrimaryColor
+        : const Color(0xFFE0E0E0);
+
     return TextFormField(
       maxLines: maxLines,
+      style: TextStyle(color: textColor),
       decoration: InputDecoration(
         hintText: hintText,
-        fillColor: Colors.white,
+        hintStyle: TextStyle(color: hintColor),
+        fillColor: fillColor,
         filled: true,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16.0,
@@ -21,20 +53,18 @@ class VerifyOwnershipScreen extends StatelessWidget {
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8.0),
-          borderSide: BorderSide.none, // Hide the border for a cleaner look
+          borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8.0),
-          borderSide: const BorderSide(
-            color: Color(0xFFE0E0E0),
-          ), // Light border
+          borderSide: BorderSide(color: enabledBorderColor),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8.0),
-          borderSide: const BorderSide(
-            color: Color(0xFF8A2387),
+          borderSide: BorderSide(
+            color: focusColor,
             width: 2.0,
-          ), // Focus color
+          ), // Dynamic Focus color
         ),
       ),
     );
@@ -60,9 +90,8 @@ class VerifyOwnershipScreen extends StatelessWidget {
       child: ElevatedButton(
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: Colors
-              .transparent, // Make the button transparent to show the gradient
-          shadowColor: Colors.transparent, // Remove shadow for a flatter look
+          backgroundColor: Colors.transparent,
+          shadowColor: Colors.transparent,
           padding: const EdgeInsets.symmetric(vertical: 15.0),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12.0),
@@ -73,7 +102,7 @@ class VerifyOwnershipScreen extends StatelessWidget {
           style: const TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
-            color: Colors.white,
+            color: Colors.white, // Text is always white on the gradient button
           ),
         ),
       ),
@@ -82,14 +111,46 @@ class VerifyOwnershipScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const Color primaryColor = Color(0xFF8A2387); // Deep purple
-    const Color secondaryColor = Color(0xFFE94057); // Reddish-pink
-    const Color tertiaryColor = Color(0xFFF27121); // Orange
+    // Get the current theme state
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final bool isDarkMode = themeProvider.isDarkMode;
 
-    // Define a constant for the button area height to add padding to the scroll view
-    const double fixedButtonHeight = 100.0;
+    // Dynamic Colors based on theme
+    const Color lightPrimaryColor = _kPrimaryBrightBlue;
+    const Color lightSecondaryColor = Color(
+      0xFF42A5F5,
+    ); // Lighter shade of blue
+    const Color lightTertiaryColor = Color(0xFF90CAF9); // Even lighter blue
+    const Color lightScaffoldBg = Color(0xFFF7F7F7);
+
+    // Dark Mode colors for AppBar Gradient (using the Deep Indigo theme)
+    final Color darkPrimaryColor = _kDarkPrimaryColor;
+    final Color darkSecondaryColor = const Color(0xFF5C6BC0);
+    final Color darkTertiaryColor = const Color(0xFF7986CB);
+    final Color darkScaffoldBg = _kDarkBackgroundColor;
+
+    // Select the colors based on theme mode
+    final Color appBarPrimary = isDarkMode
+        ? darkPrimaryColor
+        : lightPrimaryColor;
+    final Color appBarSecondary = isDarkMode
+        ? darkSecondaryColor
+        : lightSecondaryColor;
+    final Color appBarTertiary = isDarkMode
+        ? darkTertiaryColor
+        : lightTertiaryColor;
+    final Color scaffoldBg = isDarkMode ? darkScaffoldBg : lightScaffoldBg;
+    final Color cardBg = isDarkMode ? _kDarkCardColor : Colors.white;
+    final Color headingColor = isDarkMode
+        ? _kDarkHighlightColor
+        : _kDarkBlueText;
+    final Color bodyTextColor = isDarkMode ? Colors.white70 : Colors.black54;
+    final Color questionTitleColor = isDarkMode
+        ? _kDarkHighlightColor
+        : Colors.black87;
 
     return Scaffold(
+      backgroundColor: scaffoldBg,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -101,7 +162,7 @@ class VerifyOwnershipScreen extends StatelessWidget {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () {
-            // Navigate to item_description.dart
+            // Navigate back to item_description.dart
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -112,171 +173,168 @@ class VerifyOwnershipScreen extends StatelessWidget {
           },
         ),
         flexibleSpace: Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [primaryColor, secondaryColor, tertiaryColor],
+              colors: [appBarPrimary, appBarSecondary, appBarTertiary],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
           ),
         ),
       ),
-      body: Container(
-        color: const Color(0xFFF7F7F7),
-        child: Stack(
-          // <--- Use Stack to layer scrolling content and fixed button
+      // --- CHANGE: Removed Stack/Align, using SingleChildScrollView only ---
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(
+          20.0,
+          20.0,
+          20.0,
+          40.0,
+        ), // Added bottom padding
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            // 1. Scrollable Form Content
-            SingleChildScrollView(
-              // Add padding at the bottom equal to the fixed button height
-              // to prevent the last field from being hidden by the button.
-              padding: EdgeInsets.fromLTRB(20.0, 20.0, 20.0, fixedButtonHeight),
+            // Verification Required Card/Container
+            Container(
+              padding: const EdgeInsets.all(16.0),
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: BorderRadius.circular(10.0),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(isDarkMode ? 0.3 : 0.1),
+                    spreadRadius: 1,
+                    blurRadius: 5,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+                // Outline for the card in light mode (Dark Blue Text color)
+                border: isDarkMode
+                    ? null
+                    : Border.all(color: _kDarkBlueText.withOpacity(0.3)),
+              ),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: <Widget>[
-                  // Verification Required Card/Container
-                  Container(
-                    padding: const EdgeInsets.all(16.0),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(10.0),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.grey.withOpacity(0.1),
-                          spreadRadius: 1,
-                          blurRadius: 5,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: const Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Verification Required',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF003F5C),
-                          ),
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          'Please answer the following questions to verify you\'re the owner of this item.',
-                          style: TextStyle(fontSize: 16, color: Colors.black54),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // Verification Questions
-                  const Text(
-                    'What was inside the wallet?',
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Verification Required',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                      color: headingColor,
                     ),
                   ),
                   const SizedBox(height: 8),
-                  _buildTextField(hintText: 'Your answer...'),
-
-                  const SizedBox(height: 20),
-
-                  const Text(
-                    'What color is your student ID card?',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
+                  Text(
+                    'Please answer the following questions to verify you\'re the owner of this item.',
+                    style: TextStyle(fontSize: 16, color: bodyTextColor),
                   ),
-                  const SizedBox(height: 8),
-                  _buildTextField(hintText: 'Your answer...'),
-
-                  const SizedBox(height: 20),
-
-                  const Text(
-                    'Can you describe any unique features?',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  _buildTextField(
-                    hintText: 'Describe unique features, marks, or contents...',
-                    maxLines: 4,
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // Contact Information Field
-                  const Text(
-                    'Contact Information',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  _buildTextField(hintText: 'Your phone number'),
-
-                  const SizedBox(height: 20),
-
-                  // Additional Notes (Optional) Field
-                  const Text(
-                    'Additional Notes (Optional)',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  _buildTextField(
-                    hintText:
-                        'Any additional information that might help verify ownership...',
-                    maxLines: 4,
-                  ),
-
-                  // The SizedBox at the end is now much smaller or removed,
-                  // as the main padding for the button area is in the SingleChildScrollView.
-                  const SizedBox(height: 20),
                 ],
               ),
             ),
 
-            // 2. Fixed Submit Claim Button at the Bottom
-            Align(
-              // <--- Align positions the button at the bottom
-              alignment: Alignment.bottomCenter,
-              child: Padding(
-                padding: const EdgeInsets.only(
-                  left: 20.0,
-                  right: 20.0,
-                  bottom: 20.0,
-                ), // Padding from screen edges
-                child: _buildGradientButton(
-                  context: context,
-                  text: 'Submit Claim',
-                  onPressed: () {
-                    // Navigate to submitted_claim.dart when the button is pressed
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const SubmittedClaimScreen(),
-                      ),
-                    );
-                  },
-                  primaryColor: primaryColor,
-                  secondaryColor: secondaryColor,
-                ),
+            const SizedBox(height: 20),
+
+            // Verification Questions
+            Text(
+              'What was inside the wallet?',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: questionTitleColor,
               ),
+            ),
+            const SizedBox(height: 8),
+            _buildTextField(
+              hintText: 'Your answer...',
+              isDarkMode: isDarkMode, // Pass theme state
+            ),
+
+            const SizedBox(height: 20),
+
+            Text(
+              'What color is your student ID card?',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: questionTitleColor,
+              ),
+            ),
+            const SizedBox(height: 8),
+            _buildTextField(
+              hintText: 'Your answer...',
+              isDarkMode: isDarkMode, // Pass theme state
+            ),
+
+            const SizedBox(height: 20),
+
+            Text(
+              'Can you describe any unique features?',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: questionTitleColor,
+              ),
+            ),
+            const SizedBox(height: 8),
+            _buildTextField(
+              hintText: 'Describe unique features, marks, or contents...',
+              maxLines: 4,
+              isDarkMode: isDarkMode, // Pass theme state
+            ),
+
+            const SizedBox(height: 20),
+
+            // Contact Information Field
+            Text(
+              'Contact Information',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: questionTitleColor,
+              ),
+            ),
+            const SizedBox(height: 8),
+            _buildTextField(
+              hintText: 'Your phone number',
+              isDarkMode: isDarkMode, // Pass theme state
+            ),
+
+            const SizedBox(height: 20),
+
+            // Additional Notes (Optional) Field
+            Text(
+              'Additional Notes (Optional)',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: questionTitleColor,
+              ),
+            ),
+            const SizedBox(height: 8),
+            _buildTextField(
+              hintText:
+                  'Any additional information that might help verify ownership...',
+              maxLines: 4,
+              isDarkMode: isDarkMode, // Pass theme state
+            ),
+
+            const SizedBox(height: 40), // Spacing before the button
+            // --- CHANGE: Submit Claim Button placed directly in the Column (scrolls with content) ---
+            _buildGradientButton(
+              context: context,
+              text: 'Submit Claim',
+              onPressed: () {
+                // Navigate to submitted_claim.dart when the button is pressed
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const SubmittedClaimScreen(),
+                  ),
+                );
+              },
+              // Button gradient uses the dynamic primary/secondary colors
+              primaryColor: appBarPrimary,
+              secondaryColor: appBarSecondary,
             ),
           ],
         ),

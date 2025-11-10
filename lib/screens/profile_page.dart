@@ -1,4 +1,7 @@
+// profile.dart
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart'; // Import provider
+import '../theme_provider.dart'; // Import your ThemeProvider
 import 'home.dart';
 import 'settings.dart';
 import 'accessibility.dart';
@@ -10,10 +13,13 @@ import 'search_lost.dart';
 import 'community_feed.dart';
 
 // --- COLOR PALETTE ---
-const Color brightBlueStart = Color(0xFF4A90E2); // Bright Blue
-const Color brightBlueEnd = Color(0xFF50E3C2); // Teal/Cyan End
-const Color lightBackground = Color(0xFFF5F8FF); // Very Light Blue/White
-const Color darkBlueText = Color(0xFF1E3A8A); // Darker Blue for content text
+const Color brightBlueStart = Color(0xFF4A90E2);
+const Color brightBlueEnd = Color(0xFF50E3C2);
+// Define Dark Mode equivalents for static colors
+const Color lightBackground = Color(0xFFF5F8FF);
+const Color darkBackground = Color(0xFF121212); // Darker background for body
+const Color darkBlueText = Color(0xFF1E3A8A);
+const Color lightBlueText = Color(0xFFE0E0E0); // Light text for Dark Mode
 
 // --- DUMMY USER DATA MODEL ---
 class _UserData {
@@ -24,10 +30,6 @@ class _UserData {
   const _UserData(this.fullName, this.studentId, this.email);
 }
 
-// ----------------------------------------------------------------------
-// --- PROFILE SCREEN (CONVERTED TO STATEFULWIDGET) ---------------------
-// ----------------------------------------------------------------------
-
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -36,70 +38,68 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  // Moved state variable here
-  int _selectedIndex = 4; // Set to 4 to highlight the Profile tab initially
+  int _selectedIndex = 4;
 
-  // --- User Data ---
   final _UserData userData = const _UserData(
     'Jane Doe',
     'STU789012',
     'jane.doe@uni.edu',
   );
 
-  // --- Bottom Navigation Colors (Can remain here) ---
   final List<Color> _navItemColors = const [
-    Colors.green, // Home (Index 0)
-    Colors.pink, // Browse (Index 1)
-    Colors.orange, // Feed (Index 2)
-    Color(0xFF00008B), // Dark Blue for Chat (Index 3)
-    Colors.purple, // Profile (Index 4)
+    Colors.green,
+    Colors.pink,
+    Colors.orange,
+    Color(0xFF00008B),
+    Colors.purple,
   ];
 
-  // --- Navigation Functions ---
   void _navigateTo(BuildContext context, Widget page) {
     Navigator.of(context).push(MaterialPageRoute(builder: (context) => page));
   }
 
   void _onItemTapped(int index) {
-    // setState is now valid
     setState(() {
       _selectedIndex = index;
     });
 
-    // Handle navigation for Bottom Navigation Bar items
     switch (index) {
-      case 0: // Home
-        // Navigate using pushReplacement to replace the current route with the Home screen.
+      case 0:
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const HomeScreen()),
         );
         break;
-      case 1: // Browse
+      case 1:
         _navigateTo(context, const SearchLost());
         break;
-      case 2: // Feed
+      case 2:
         _navigateTo(context, const CommunityFeed());
         break;
-      case 3: // Chat
+      case 3:
         _navigateTo(context, const MessagesListScreen());
         break;
-      case 4: // Profile (Already here, avoid navigation loop)
-        // If the user taps the current tab, do nothing or scroll to top
+      case 4:
         break;
     }
   }
 
-  // Helper function to get the icon color
   Color _getIconColor(int index) {
-    // Accessing _selectedIndex is now correct within the State class
     return _selectedIndex == index ? _navItemColors[index] : Colors.grey;
   }
 
   @override
   Widget build(BuildContext context) {
+    // Access ThemeProvider state
+    final isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
+    final primaryTextColor = isDarkMode ? lightBlueText : darkBlueText;
+    final bodyBackgroundColor = isDarkMode ? darkBackground : lightBackground;
+    final cardBackgroundColor = isDarkMode
+        ? const Color(0xFF1E1E1E)
+        : Colors.white;
+
     return Scaffold(
-      backgroundColor: lightBackground, // Used constant
+      backgroundColor: bodyBackgroundColor, // Dynamic Background
       body: CustomScrollView(
         slivers: [
           // --- Header Section (Profile Summary) ---
@@ -109,7 +109,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             expandedHeight: 300.0,
             flexibleSpace: FlexibleSpaceBar(
               background: Container(
-                // Bright Blue Gradient
+                // Bright Blue Gradient (remains the same as it's the brand color)
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
                     colors: [brightBlueStart, brightBlueEnd],
@@ -129,7 +129,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              // Back Button (Returns to Home)
+                              // Back Button
                               IconButton(
                                 icon: const Icon(
                                   Icons.arrow_back,
@@ -137,7 +137,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   size: 30,
                                 ),
                                 onPressed: () {
-                                  // Navigates back to home.dart
                                   Navigator.pushReplacement(
                                     context,
                                     MaterialPageRoute(
@@ -146,7 +145,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   );
                                 },
                               ),
-                              // Settings Button (Top Right Corner Button)
+                              // Settings Button
                               IconButton(
                                 icon: const Icon(
                                   Icons.settings,
@@ -270,12 +269,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Your Status',
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
-                        color: darkBlueText,
+                        color: primaryTextColor, // Dynamic Text Color
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -288,18 +287,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           label: 'Items Found',
                           icon: Icons.inventory_2_outlined,
                           color: brightBlueStart,
+                          isDarkMode: isDarkMode, // Pass theme state
                         ),
                         _StatItem(
                           count: '8',
                           label: 'Items Returned',
                           icon: Icons.check_circle_outline,
                           color: brightBlueEnd,
+                          isDarkMode: isDarkMode, // Pass theme state
                         ),
                         _StatItem(
                           count: '4.9',
                           label: 'Rating',
                           icon: Icons.star_border,
                           color: darkBlueText,
+                          isDarkMode: isDarkMode, // Pass theme state
                         ),
                       ],
                     ),
@@ -308,7 +310,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     // --- Rewards & Badges Banner (BRIGHT BLUE) ---
                     GestureDetector(
                       onTap: () {
-                        _navigateTo(context, RewardsPage()); // Added const
+                        _navigateTo(context, const RewardsPage());
                       },
                       child: Container(
                         padding: const EdgeInsets.all(16.0),
@@ -379,6 +381,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       icon: Icons.edit_note,
                       iconColor: const Color.fromARGB(255, 45, 129, 224),
                       isOutlined: true,
+                      cardBackgroundColor: cardBackgroundColor, // Dynamic
                       onTap: () {
                         _navigateTo(context, const EditProfileScreen());
                       },
@@ -392,6 +395,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       icon: Icons.notifications_none,
                       iconColor: const Color.fromARGB(255, 26, 180, 147),
                       isOutlined: true,
+                      cardBackgroundColor: cardBackgroundColor, // Dynamic
                       onTap: () {
                         _navigateTo(context, const SettingsScreen());
                       },
@@ -405,6 +409,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       icon: Icons.language,
                       iconColor: const Color.fromARGB(255, 154, 47, 173),
                       isOutlined: true,
+                      cardBackgroundColor: cardBackgroundColor, // Dynamic
                       onTap: () {
                         _navigateTo(context, const AccessibilityScreen());
                       },
@@ -478,30 +483,42 @@ class _ProfileScreenState extends State<ProfileScreen> {
         showUnselectedLabels: true,
         onTap: _onItemTapped,
         type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
+        // The background and text color should ideally be managed by `MaterialApp`'s theme data
+        backgroundColor: Theme.of(
+          context,
+        ).bottomNavigationBarTheme.backgroundColor,
         elevation: 10,
       ),
     );
   }
 }
 
-// --- Helper Widgets (Kept as StatelessWidget, they are fine) ---
+// --- Helper Widgets (Updated with dynamic colors) ---
 
 class _StatItem extends StatelessWidget {
   final String count;
   final String label;
   final IconData icon;
   final Color color;
+  final bool isDarkMode; // New parameter
 
   const _StatItem({
     required this.count,
     required this.label,
     required this.icon,
     required this.color,
+    required this.isDarkMode,
   });
 
   @override
   Widget build(BuildContext context) {
+    final textColor = isDarkMode
+        ? lightBlueText
+        : const Color.fromARGB(255, 16, 46, 129);
+    final secondaryTextColor = isDarkMode
+        ? lightBlueText.withOpacity(0.7)
+        : const Color.fromARGB(255, 17, 44, 121).withOpacity(0.7);
+
     return Column(
       children: [
         Container(
@@ -515,16 +532,16 @@ class _StatItem extends StatelessWidget {
         const SizedBox(height: 8),
         Text(
           count,
-          style: const TextStyle(
+          style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 18,
-            color: Color.fromARGB(255, 16, 46, 129),
+            color: textColor, // Dynamic Text Color
           ),
         ),
         Text(
           label,
           style: TextStyle(
-            color: const Color.fromARGB(255, 17, 44, 121).withOpacity(0.7),
+            color: secondaryTextColor, // Dynamic Text Color
             fontSize: 14,
           ),
         ),
@@ -539,6 +556,7 @@ class _SettingsItem extends StatelessWidget {
   final IconData icon;
   final Color iconColor;
   final bool isOutlined;
+  final Color cardBackgroundColor; // New parameter
   final VoidCallback? onTap;
 
   const _SettingsItem({
@@ -547,28 +565,38 @@ class _SettingsItem extends StatelessWidget {
     required this.icon,
     required this.iconColor,
     this.isOutlined = false,
+    required this.cardBackgroundColor,
     this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    // Determine text colors dynamically based on the card background
+    final mainTextColor = cardBackgroundColor == Colors.white
+        ? const Color.fromARGB(255, 17, 48, 134)
+        : Colors.white;
+    final subTextColor = mainTextColor.withOpacity(0.7);
+
+    // The dark blue outline color
+    final outlineColor = const Color.fromARGB(
+      255,
+      20,
+      51,
+      134,
+    ).withOpacity(0.6);
+
     if (isOutlined) {
-      // Outlined Card Style (for Edit Profile, Notifications, Language)
+      // Outlined Card Style
       return InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(15),
         child: Container(
           padding: const EdgeInsets.all(15),
           decoration: BoxDecoration(
-            color: Colors.white, // White background for the card
+            color: cardBackgroundColor, // Dynamic background
             borderRadius: BorderRadius.circular(15),
             border: Border.all(
-              color: const Color.fromARGB(
-                255,
-                20,
-                51,
-                134,
-              ).withOpacity(0.6), // Dark Blue Outline
+              color: outlineColor, // Static outline, or could be dynamic
               width: 1.5,
             ),
           ),
@@ -589,21 +617,16 @@ class _SettingsItem extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: Color.fromARGB(255, 17, 48, 134),
+                        color: mainTextColor, // Dynamic Text Color
                         fontSize: 16,
                       ),
                     ),
                     Text(
                       subtitle,
                       style: TextStyle(
-                        color: const Color.fromARGB(
-                          255,
-                          19,
-                          51,
-                          139,
-                        ).withOpacity(0.7),
+                        color: subTextColor, // Dynamic Text Color
                         fontSize: 13,
                       ),
                     ),
@@ -617,7 +640,7 @@ class _SettingsItem extends StatelessWidget {
       );
     }
 
-    // Fallback: Default ListTile style
+    // Fallback: Default ListTile style (not used in the current screen but kept for safety)
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(vertical: 5, horizontal: 0),
       leading: Container(
@@ -630,15 +653,9 @@ class _SettingsItem extends StatelessWidget {
       ),
       title: Text(
         title,
-        style: const TextStyle(
-          fontWeight: FontWeight.bold,
-          color: darkBlueText,
-        ),
+        style: TextStyle(fontWeight: FontWeight.bold, color: mainTextColor),
       ),
-      subtitle: Text(
-        subtitle,
-        style: TextStyle(color: darkBlueText.withOpacity(0.7)),
-      ),
+      subtitle: Text(subtitle, style: TextStyle(color: subTextColor)),
       trailing: const Icon(
         Icons.arrow_forward_ios,
         color: Colors.grey,

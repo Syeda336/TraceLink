@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../theme_provider.dart'; // Import the ThemeProvider
 
-import 'logout.dart'; // Import the file containing LogoutConfirmationScreen
-
-// Import the new destination pages (ensure these files exist)
+import 'logout.dart';
 import 'change_password.dart';
 import 'privacy_security.dart';
 import 'help_support.dart';
 import 'terms_privacy.dart';
+
+// --- Theme Color Definitions (used for Light Mode) ---
+// Note: In a full app, these would be defined in theme_provider.dart
+const brightBlueAccent = Color(0xFF1976D2); // Colors.blue.shade700
+const darkBlueTextColor = Color(0xFF0D47A1); // Colors.blue.shade900
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -16,21 +21,26 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  // Example state variables for the SwitchListTiles
   bool _pushNotifications = true;
   bool _emailNotifications = true;
   bool _emergencyAlerts = false;
-  bool _darkMode = false;
 
   void _navigateTo(BuildContext context, Widget screen) {
-    // Using push replacement for the back arrow (to go back to ProfileScreen)
-    // Using push for all other navigation tiles
     Navigator.of(context).push(MaterialPageRoute(builder: (context) => screen));
   }
 
-  // --- Widget Builders (Your existing helpers) ---
+  // --- Widget Builders ---
 
-  Widget _buildSectionHeader(BuildContext context, String title, Color color) {
+  // Refactored to dynamically determine text color
+  Widget _buildSectionHeader(
+    BuildContext context,
+    String title,
+    bool isDarkMode,
+  ) {
+    final Color color = isDarkMode
+        ? Colors.lightBlue.shade300
+        : brightBlueAccent;
+
     return Padding(
       padding: const EdgeInsets.only(left: 20.0, bottom: 8.0, top: 8.0),
       child: Text(
@@ -44,12 +54,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildCard({required List<Widget> children}) {
+  // Refactored to dynamically determine card background and border
+  Widget _buildCard({
+    required List<Widget> children,
+    required bool isDarkMode,
+  }) {
+    final Color cardColor = isDarkMode ? Colors.grey.shade800 : Colors.white;
+    final Color borderColor = isDarkMode
+        ? Colors.grey.shade700
+        : brightBlueAccent;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: Card(
         elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        color: cardColor, // Dynamic Card Background
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+          side: BorderSide(color: borderColor, width: 1.5), // Dynamic Outline
+        ),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 8.0),
           child: Column(children: children),
@@ -58,33 +81,48 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  // Refactored to dynamically determine text colors
   Widget _buildNavigationTile({
     required IconData icon,
     required Color iconColor,
     required String title,
     required String subtitle,
     required VoidCallback onTap,
+    required bool isDarkMode,
   }) {
+    // Dynamic text color based on mode.
+    final Color primaryTextColor = isDarkMode
+        ? Colors.white
+        : darkBlueTextColor;
+    final Color secondaryTextColor = primaryTextColor.withOpacity(
+      isDarkMode ? 0.7 : 0.6,
+    );
+
     return ListTile(
       leading: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
+          // Use iconColor (brightBlueAccent or LightBlue equivalent)
           color: iconColor.withOpacity(0.1),
           borderRadius: BorderRadius.circular(10),
         ),
         child: Icon(icon, color: iconColor),
       ),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-      subtitle: Text(subtitle),
-      trailing: const Icon(
+      title: Text(
+        title,
+        style: TextStyle(fontWeight: FontWeight.w600, color: primaryTextColor),
+      ),
+      subtitle: Text(subtitle, style: TextStyle(color: secondaryTextColor)),
+      trailing: Icon(
         Icons.arrow_forward_ios,
         size: 16,
-        color: Colors.grey,
+        color: secondaryTextColor,
       ),
       onTap: onTap,
     );
   }
 
+  // Refactored to dynamically determine text colors and use theme accent for switch
   Widget _buildSwitchTile({
     required IconData icon,
     required Color iconColor,
@@ -92,13 +130,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required String subtitle,
     required bool value,
     required ValueChanged<bool> onChanged,
+    required bool isDarkMode,
   }) {
+    // Dynamic text color based on mode.
+    final Color primaryTextColor = isDarkMode
+        ? Colors.white
+        : darkBlueTextColor;
+    final Color secondaryTextColor = primaryTextColor.withOpacity(
+      isDarkMode ? 0.7 : 0.6,
+    );
+    final Color activeSwitchColor = isDarkMode
+        ? Colors.lightBlue.shade300
+        : brightBlueAccent; // Dynamic Active Color
+
     return SwitchListTile(
       value: value,
       onChanged: onChanged,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-      subtitle: Text(subtitle),
+      title: Text(
+        title,
+        style: TextStyle(fontWeight: FontWeight.w600, color: primaryTextColor),
+      ),
+      subtitle: Text(subtitle, style: TextStyle(color: secondaryTextColor)),
       secondary: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
@@ -107,7 +160,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
         child: Icon(icon, color: iconColor),
       ),
-      activeColor: Colors.black, // Color for the 'on' state of the switch
+      activeColor: activeSwitchColor,
+      activeTrackColor: activeSwitchColor.withOpacity(0.5),
+      inactiveThumbColor: isDarkMode
+          ? Colors.grey.shade600
+          : Colors.grey.shade400,
+      inactiveTrackColor: isDarkMode
+          ? Colors.grey.shade700
+          : Colors.grey.shade200,
     );
   }
 
@@ -115,66 +175,83 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
+
+    // Use dynamic colors for UI elements
+    final Color accentColor = isDarkMode
+        ? Colors.lightBlue.shade300
+        : brightBlueAccent;
+    final Color appBarAndCardColor = isDarkMode
+        ? Colors.grey.shade900
+        : Colors.white;
+    final Color backgroundCanvasColor = isDarkMode
+        ? Colors.black
+        : Colors.grey.shade50;
+    final Color appBarIconColor = isDarkMode ? Colors.white : darkBlueTextColor;
+    final Color bodyTextColor = isDarkMode ? Colors.white : darkBlueTextColor;
+
     return Scaffold(
-      backgroundColor:
-          Colors.grey[50], // Add a slight background color for card contrast
+      backgroundColor: backgroundCanvasColor,
       body: CustomScrollView(
         slivers: <Widget>[
-          // Custom AppBar with a back button and title
+          // Custom AppBar with dynamic colors
           SliverAppBar(
-            backgroundColor: Colors.white,
+            backgroundColor: appBarAndCardColor,
             elevation: 0,
             pinned: true,
             leading: IconButton(
-              icon: const Icon(Icons.arrow_back, color: Colors.black),
+              icon: Icon(Icons.arrow_back, color: appBarIconColor),
               onPressed: () {
-                // Navigate to 'profile_page.dart'
-                Navigator.of(
-                  context,
-                ).pop(); // Simple pop, assuming Settings was pushed from ProfileScreen
-                // If you want to force navigate to ProfileScreen (as in your original logic):
-                // _navigateTo(context, const ProfileScreen());
+                Navigator.of(context).pop();
               },
             ),
-            title: const Text(
+            title: Text(
               'Settings',
               style: TextStyle(
-                color: Colors.black,
+                color: appBarIconColor,
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
               ),
             ),
           ),
 
-          // Use SliverList for the rest of the content
           SliverList(
             delegate: SliverChildListDelegate([
               const SizedBox(height: 16),
 
               // --- Account Section ---
-              _buildSectionHeader(context, 'Account', Colors.deepPurple),
+              _buildSectionHeader(context, 'Account', isDarkMode),
               _buildCard(
+                isDarkMode: isDarkMode,
                 children: [
                   _buildNavigationTile(
                     icon: Icons.lock_outline,
-                    iconColor: Colors.deepPurple.shade300,
+                    iconColor: accentColor,
                     title: 'Change Password',
                     subtitle: 'Update your password',
                     onTap: () {
-                      // **NAVIGATION ADDED: Change Password**
-                      _navigateTo(context, ChangePasswordScreen());
+                      _navigateTo(context, const ChangePasswordScreen());
                     },
+                    isDarkMode: isDarkMode,
                   ),
-                  const Divider(height: 0, indent: 20, endIndent: 20),
+                  Divider(
+                    height: 0,
+                    indent: 20,
+                    endIndent: 20,
+                    color: isDarkMode
+                        ? Colors.grey.shade700
+                        : Colors.grey.shade300,
+                  ),
                   _buildNavigationTile(
                     icon: Icons.security,
-                    iconColor: Colors.blue.shade300,
+                    iconColor: accentColor,
                     title: 'Privacy & Security',
                     subtitle: 'Manage your privacy settings',
                     onTap: () {
-                      // **NAVIGATION ADDED: Privacy & Security**
-                      _navigateTo(context, PrivacySecurityScreen());
+                      _navigateTo(context, const PrivacySecurityScreen());
                     },
+                    isDarkMode: isDarkMode,
                   ),
                 ],
               ),
@@ -182,12 +259,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const SizedBox(height: 24),
 
               // --- Notifications Section ---
-              _buildSectionHeader(context, 'Notifications', Colors.deepPurple),
+              _buildSectionHeader(context, 'Notifications', isDarkMode),
               _buildCard(
+                isDarkMode: isDarkMode,
                 children: [
                   _buildSwitchTile(
                     icon: Icons.notifications_none,
-                    iconColor: Colors.deepPurple.shade300,
+                    iconColor: accentColor,
                     title: 'Push Notifications',
                     subtitle: 'Receive push notifications',
                     value: _pushNotifications,
@@ -196,11 +274,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         _pushNotifications = value;
                       });
                     },
+                    isDarkMode: isDarkMode,
                   ),
-                  const Divider(height: 0, indent: 20, endIndent: 20),
+                  Divider(
+                    height: 0,
+                    indent: 20,
+                    endIndent: 20,
+                    color: isDarkMode
+                        ? Colors.grey.shade700
+                        : Colors.grey.shade300,
+                  ),
                   _buildSwitchTile(
                     icon: Icons.email_outlined,
-                    iconColor: Colors.green.shade300,
+                    iconColor: accentColor,
                     title: 'Email Notifications',
                     subtitle: 'Receive email updates',
                     value: _emailNotifications,
@@ -209,11 +295,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         _emailNotifications = value;
                       });
                     },
+                    isDarkMode: isDarkMode,
                   ),
-                  const Divider(height: 0, indent: 20, endIndent: 20),
+                  Divider(
+                    height: 0,
+                    indent: 20,
+                    endIndent: 20,
+                    color: isDarkMode
+                        ? Colors.grey.shade700
+                        : Colors.grey.shade300,
+                  ),
                   _buildSwitchTile(
                     icon: Icons.notifications_active_outlined,
-                    iconColor: Colors.red.shade300,
+                    iconColor: accentColor,
                     title: 'Emergency Alerts',
                     subtitle: 'High priority notifications',
                     value: _emergencyAlerts,
@@ -222,6 +316,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         _emergencyAlerts = value;
                       });
                     },
+                    isDarkMode: isDarkMode,
                   ),
                 ],
               ),
@@ -229,20 +324,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const SizedBox(height: 24),
 
               // --- Appearance Section ---
-              _buildSectionHeader(context, 'Appearance', Colors.deepPurple),
+              _buildSectionHeader(context, 'Appearance', isDarkMode),
               _buildCard(
+                isDarkMode: isDarkMode,
                 children: [
                   _buildSwitchTile(
                     icon: Icons.dark_mode_outlined,
-                    iconColor: Colors.blueGrey.shade300,
+                    iconColor: accentColor,
                     title: 'Dark Mode',
                     subtitle: 'Use dark theme',
-                    value: _darkMode,
+                    value: themeProvider.isDarkMode,
                     onChanged: (value) {
-                      setState(() {
-                        _darkMode = value;
-                      });
+                      themeProvider.toggleTheme(value);
                     },
+                    isDarkMode: isDarkMode,
                   ),
                 ],
               ),
@@ -250,29 +345,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const SizedBox(height: 24),
 
               // --- Support Section ---
-              _buildSectionHeader(context, 'Support', Colors.green),
+              _buildSectionHeader(context, 'Support', isDarkMode),
               _buildCard(
+                isDarkMode: isDarkMode,
                 children: [
                   _buildNavigationTile(
                     icon: Icons.help_outline,
-                    iconColor: Colors.green.shade300,
+                    iconColor: accentColor,
                     title: 'Help & Support',
                     subtitle: 'Get help with the app',
                     onTap: () {
-                      // **NAVIGATION ADDED: Help & Support**
                       _navigateTo(context, const HelpSupportScreen());
                     },
+                    isDarkMode: isDarkMode,
                   ),
-                  const Divider(height: 0, indent: 20, endIndent: 20),
+                  Divider(
+                    height: 0,
+                    indent: 20,
+                    endIndent: 20,
+                    color: isDarkMode
+                        ? Colors.grey.shade700
+                        : Colors.grey.shade300,
+                  ),
                   _buildNavigationTile(
                     icon: Icons.article_outlined,
-                    iconColor: Colors.amber.shade300,
+                    iconColor: accentColor,
                     title: 'Terms & Privacy',
                     subtitle: 'Read our policies',
                     onTap: () {
-                      // **NAVIGATION ADDED: Terms & Privacy**
                       _navigateTo(context, const TermsPrivacyScreen());
                     },
+                    isDarkMode: isDarkMode,
                   ),
                 ],
               ),
@@ -284,7 +387,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 20.0),
                 child: ElevatedButton.icon(
                   onPressed: () {
-                    // NAVIGATION TO LOGOUT.DART
                     _navigateTo(context, const LogoutConfirmationScreen());
                   },
                   icon: const Icon(Icons.logout, color: Colors.red),
@@ -293,11 +395,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     style: TextStyle(color: Colors.red, fontSize: 18),
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
+                    backgroundColor:
+                        appBarAndCardColor, // Dynamic button background
                     minimumSize: const Size(double.infinity, 50),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(15),
-                      side: const BorderSide(color: Colors.red, width: 0.5),
+                      // Use Dynamic accent color for the border
+                      side: BorderSide(color: accentColor, width: 1.5),
                     ),
                     elevation: 0,
                   ),
@@ -307,10 +411,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const SizedBox(height: 32),
 
               // Version Number
-              const Center(
+              Center(
                 child: Text(
                   'Version 1.0.0',
-                  style: TextStyle(color: Colors.grey, fontSize: 16),
+                  style: TextStyle(
+                    color: bodyTextColor.withOpacity(0.5),
+                    fontSize: 16,
+                  ),
                 ),
               ),
               const SizedBox(height: 40),

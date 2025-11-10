@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../theme_provider.dart';
 import 'messages.dart';
 import 'profile_page.dart';
 import 'community_feed.dart';
 import 'search_lost.dart';
-import 'home.dart'; // Add original HomeScreen if needed
+import 'home.dart';
 
-// Define the new color palette
-const Color _brightBlue = Color(0xFF1E88E5); // A vibrant, bright blue
-const Color _lightBlueBackground = Color(
-  0xFFE3F2FD,
-); // A very light blue for the body
-const Color _darkBlueText = Color(
-  0xFF0D47A1,
-); // A dark blue for text on light background
+// --- Theme Color Definitions (Now Dynamic) ---
+
+// Base colors (Used as a reference, actual theme colors are pulled from Theme.of(context))
+const Color _brightBlueBase = Color(0xFF1E88E5);
+const Color _darkBlueTextBase = Color(0xFF0D47A1);
+const Color _lightBlueBackgroundBase = Color(0xFFE3F2FD);
 
 class EmergencyAlerts extends StatefulWidget {
   const EmergencyAlerts({super.key});
@@ -25,11 +25,14 @@ class EmergencyAlerts extends StatefulWidget {
 class _EmergencyAlertsState extends State<EmergencyAlerts> {
   // --- BOTTOM NAV STATE/LOGIC INCLUDED ---
   // 0: Home (this screen), 1: Browse/Search, 2: Feed, 3: Chat, 4: Profile
-  int _selectedIndex =
-      0; // Set to 0 initially, or choose an appropriate index for Alerts screen
+  int _selectedIndex = 0;
 
   void _navigateToScreen(BuildContext context, Widget screen) {
-    Navigator.push(context, MaterialPageRoute(builder: (context) => screen));
+    // Using push replacement for navigation bar items to avoid deep stack
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => screen),
+    );
   }
 
   // --- Bottom Navigation Colors ---
@@ -46,11 +49,9 @@ class _EmergencyAlertsState extends State<EmergencyAlerts> {
       _selectedIndex = index;
     });
 
-    // Handle navigation for Bottom Navigation Bar items (using placeholder navigation for context)
+    // Handle navigation for Bottom Navigation Bar items
     switch (index) {
       case 0:
-        // Navigating back to the original HomeScreen
-        // Note: You should generally use Navigator.popUntil for main tab switches
         _navigateToScreen(context, HomeScreen());
         break;
       case 1: // Browse
@@ -74,7 +75,7 @@ class _EmergencyAlertsState extends State<EmergencyAlerts> {
   }
   // --- END BOTTOM NAV LOGIC ---
 
-  // Data structure for an alert item
+  // Data structure for an alert item (UNCHANGED)
   final List<Map<String, dynamic>> _alerts = [
     // Item 1: Student ID - John Martinez (High Priority)
     {
@@ -111,24 +112,23 @@ class _EmergencyAlertsState extends State<EmergencyAlerts> {
     },
   ];
 
-  // Functionality for "Mark as Seen"
+  // Functionality for "Mark as Seen" (UNCHANGED)
   void _markAsSeen(int index) {
-    // Check if the index is valid before removal
     if (index >= 0 && index < _alerts.length) {
       String itemName = _alerts[index]['itemName'];
       setState(() {
         _alerts.removeAt(index);
       });
-      // Optionally show a confirmation
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('$itemName marked as seen and removed.')),
       );
     }
   }
 
-  // Functionality for "Report Sighting"
+  // Functionality for "Report Sighting" (Modified to use Theme colors)
   void _reportSighting(String itemName) {
-    // Implement navigation or a dialog here for the reporting process
+    final brightBlue = Theme.of(context).primaryColor;
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -140,7 +140,7 @@ class _EmergencyAlertsState extends State<EmergencyAlerts> {
           actions: <Widget>[
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('OK', style: TextStyle(color: _brightBlue)),
+              child: Text('OK', style: TextStyle(color: brightBlue)),
             ),
           ],
         );
@@ -150,9 +150,20 @@ class _EmergencyAlertsState extends State<EmergencyAlerts> {
 
   @override
   Widget build(BuildContext context) {
+    // Get theme colors from Theme.of(context)
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final brightBlue = Theme.of(context).primaryColor;
+    final isDarkMode = themeProvider.isDarkMode;
+
+    // Dynamic colors for content
+    final darkBlueText = isDarkMode ? Colors.white : _darkBlueTextBase;
+    final lightBackground = Theme.of(context).scaffoldBackgroundColor;
+    final cardColor = Theme.of(
+      context,
+    ).cardColor; // Card color is now theme-aware
+
     return Scaffold(
-      backgroundColor:
-          _lightBlueBackground, // Light blue background for the body
+      backgroundColor: lightBackground,
       body: CustomScrollView(
         slivers: [
           // --- SliverAppBar: Header (Bright Blue) ---
@@ -161,13 +172,15 @@ class _EmergencyAlertsState extends State<EmergencyAlerts> {
             automaticallyImplyLeading: false,
             toolbarHeight: 180,
             flexibleSpace: Container(
-              decoration: const BoxDecoration(
-                // Use a single bright blue color for a clean look, or a gradient for depth
+              decoration: BoxDecoration(
+                // Use brightBlue/primaryColor in the gradient
                 gradient: LinearGradient(
                   colors: [
-                    _brightBlue,
-                    Color(0xFF42A5F5),
-                  ], // Bright Blue with a slight variation
+                    brightBlue,
+                    isDarkMode
+                        ? const Color(0xFF0D47A1)
+                        : const Color(0xFF42A5F5),
+                  ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -184,8 +197,7 @@ class _EmergencyAlertsState extends State<EmergencyAlerts> {
                           IconButton(
                             icon: const Icon(
                               Icons.arrow_back,
-                              color: Colors
-                                  .white, // Text/Icon on bright blue should be white
+                              color: Colors.white,
                             ),
                             onPressed: () {
                               Navigator.pop(context);
@@ -195,7 +207,7 @@ class _EmergencyAlertsState extends State<EmergencyAlerts> {
                           const Text(
                             'Emergency Alerts',
                             style: TextStyle(
-                              color: Colors.white, // White text on bright blue
+                              color: Colors.white,
                               fontSize: 24,
                               fontWeight: FontWeight.bold,
                             ),
@@ -205,10 +217,7 @@ class _EmergencyAlertsState extends State<EmergencyAlerts> {
                       const SizedBox(height: 16),
                       const Text(
                         'High-priority lost items that need urgent attention',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 16,
-                        ), // Sub-text in white70
+                        style: TextStyle(color: Colors.white70, fontSize: 16),
                       ),
                     ],
                   ),
@@ -217,7 +226,7 @@ class _EmergencyAlertsState extends State<EmergencyAlerts> {
             ),
           ),
 
-          // --- SliverList: Alert Cards (Light Blue Section) ---
+          // --- SliverList: Alert Cards (Dynamic Background) ---
           SliverList(
             delegate: SliverChildBuilderDelegate((context, index) {
               final alert = _alerts[index];
@@ -230,24 +239,23 @@ class _EmergencyAlertsState extends State<EmergencyAlerts> {
                   timeAgo: alert['timeAgo'],
                   views: alert['views'],
                   isHighPriority: alert['isHighPriority'],
-                  // Pass the functions to handle button actions
                   onMarkAsSeen: () => _markAsSeen(index),
                   onReportSighting: () => _reportSighting(alert['itemName']),
-                  // Using PlaceholderImage with dynamic icon
                   imageWidget: PlaceholderImage(
-                    color: _darkBlueText,
+                    color: darkBlueText, // Use theme-aware color
+                    backgroundColor: lightBackground,
                     icon: alert['imageIcon'],
                   ),
+                  cardColor: cardColor,
                 ),
               );
             }, childCount: _alerts.length),
           ),
-          // Add padding to the very bottom
           const SliverToBoxAdapter(child: SizedBox(height: 20)),
         ],
       ),
 
-      // --- BOTTOM NAVIGATION BAR ADDED ---
+      // --- BOTTOM NAVIGATION BAR ADDED (Minor modification) ---
       bottomNavigationBar: BottomNavigationBar(
         items: <BottomNavigationBarItem>[
           BottomNavigationBarItem(
@@ -273,11 +281,15 @@ class _EmergencyAlertsState extends State<EmergencyAlerts> {
         ],
         currentIndex: _selectedIndex,
         selectedItemColor: _navItemColors[_selectedIndex],
-        unselectedItemColor: Colors.grey,
+        unselectedItemColor: isDarkMode
+            ? Colors.white60
+            : Colors.grey, // Theme-aware unselected color
         showUnselectedLabels: true,
         onTap: _onItemTapped,
         type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
+        backgroundColor: isDarkMode
+            ? Theme.of(context).cardColor
+            : Colors.white, // Theme-aware background
         elevation: 10,
       ),
       // --- END BOTTOM NAVIGATION BAR ADDED ---
@@ -285,7 +297,7 @@ class _EmergencyAlertsState extends State<EmergencyAlerts> {
   }
 }
 
-// --- Alert Item Card Widget ---
+// --- Alert Item Card Widget (Modified) ---
 class _AlertItemCard extends StatelessWidget {
   final String itemName;
   final String description;
@@ -294,8 +306,9 @@ class _AlertItemCard extends StatelessWidget {
   final String views;
   final bool isHighPriority;
   final Widget imageWidget;
-  final VoidCallback onMarkAsSeen; // New callback for Mark as Seen
-  final VoidCallback onReportSighting; // New callback for Report Sighting
+  final VoidCallback onMarkAsSeen;
+  final VoidCallback onReportSighting;
+  final Color cardColor; // Added to make the card background theme-aware
 
   const _AlertItemCard({
     required this.itemName,
@@ -305,17 +318,24 @@ class _AlertItemCard extends StatelessWidget {
     required this.views,
     required this.isHighPriority,
     required this.imageWidget,
-    required this.onMarkAsSeen, // Required in constructor
-    required this.onReportSighting, // Required in constructor
+    required this.onMarkAsSeen,
+    required this.onReportSighting,
+    required this.cardColor, // Required in constructor
   });
 
   @override
   Widget build(BuildContext context) {
+    final brightBlue = Theme.of(context).primaryColor;
+    final isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
+
+    // Theme-aware dark text color
+    final darkBlueText = isDarkMode ? Colors.white : _darkBlueTextBase;
+
     // Determine the priority tag text and color
     final String priorityText = isHighPriority ? 'High Priority' : 'Priority';
     final Color priorityColor = isHighPriority
-        ? const Color(0xFFDC3545) // Keep a distinct red for High Priority
-        : Colors.orange; // Keep orange for regular Priority
+        ? const Color(0xFFDC3545) // Red for High Priority
+        : Colors.orange; // Orange for regular Priority
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -324,13 +344,13 @@ class _AlertItemCard extends StatelessWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: cardColor, // Use the passed-in theme-aware card color
             borderRadius: BorderRadius.circular(15),
             boxShadow: [
               BoxShadow(
                 color: Colors.grey.withOpacity(
-                  0.2,
-                ), // Increased shadow opacity for separation
+                  isDarkMode ? 0.1 : 0.2, // Less shadow in dark mode
+                ),
                 spreadRadius: 2,
                 blurRadius: 8,
                 offset: const Offset(0, 4),
@@ -350,8 +370,9 @@ class _AlertItemCard extends StatelessWidget {
                       height: 100,
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(10),
-                        color:
-                            _lightBlueBackground, // Use light blue as background for placeholder
+                        color: Theme.of(
+                          context,
+                        ).scaffoldBackgroundColor, // Background for placeholder is theme's scaffold bg
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(10),
@@ -363,7 +384,7 @@ class _AlertItemCard extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Priority Tag
+                          // Priority Tag (UNCHANGED)
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 8,
@@ -394,19 +415,23 @@ class _AlertItemCard extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 8),
+                          // Item Name
                           Text(
                             itemName,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 18,
-                              color: _darkBlueText, // Dark blue text
+                              color: darkBlueText,
                             ),
                           ),
                           const SizedBox(height: 4),
+                          // Description
                           Text(
                             description,
                             style: TextStyle(
-                              color: Colors.grey[600],
+                              color: isDarkMode
+                                  ? Colors.grey[400]
+                                  : Colors.grey[600],
                               fontSize: 14,
                             ),
                             maxLines: 2,
@@ -440,32 +465,29 @@ class _AlertItemCard extends StatelessWidget {
                   children: [
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: onMarkAsSeen, // Use the callback
+                        onPressed: onMarkAsSeen,
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 12),
-                          side: const BorderSide(
-                            color: _darkBlueText,
-                          ), // Dark blue outline
+                          side: BorderSide(
+                            color: darkBlueText, // Dark blue/white outline
+                          ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
                           ),
                         ),
-                        child: const Text(
+                        child: Text(
                           'Mark as Seen',
-                          style: TextStyle(
-                            color: _darkBlueText,
-                            fontSize: 16,
-                          ), // Dark blue text
+                          style: TextStyle(color: darkBlueText, fontSize: 16),
                         ),
                       ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: onReportSighting, // Use the callback
+                        onPressed: onReportSighting,
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 12),
-                          backgroundColor: _brightBlue, // Bright blue fill
+                          backgroundColor: brightBlue, // Bright blue fill
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
                           ),
@@ -473,10 +495,7 @@ class _AlertItemCard extends StatelessWidget {
                         ),
                         child: const Text(
                           'Report Sighting',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                          ), // White text
+                          style: TextStyle(color: Colors.white, fontSize: 16),
                         ),
                       ),
                     ),
@@ -491,7 +510,7 @@ class _AlertItemCard extends StatelessWidget {
   }
 }
 
-// Helper Widget for Info Rows
+// Helper Widget for Info Rows (Modified)
 class _InfoRow extends StatelessWidget {
   final IconData icon;
   final String text;
@@ -500,20 +519,23 @@ class _InfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
+    final darkBlueText = isDarkMode ? Colors.white : _darkBlueTextBase;
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(
           icon,
           size: 16,
-          color: _darkBlueText.withOpacity(0.7), // Subtle dark blue icon
+          color: darkBlueText.withOpacity(0.7), // Subtle icon
         ),
         const SizedBox(width: 4),
         Flexible(
           child: Text(
             text,
             style: TextStyle(
-              color: _darkBlueText.withOpacity(0.8), // Dark blue text
+              color: darkBlueText.withOpacity(0.8), // Dark/light text
               fontSize: 13,
             ),
             overflow: TextOverflow.ellipsis,
@@ -524,24 +546,24 @@ class _InfoRow extends StatelessWidget {
   }
 }
 
-// --- Placeholder Widget for Images ---
+// --- Placeholder Widget for Images (Modified) ---
 class PlaceholderImage extends StatelessWidget {
   final Color color;
   final IconData icon;
+  final Color backgroundColor;
 
-  const PlaceholderImage({required this.color, required this.icon});
+  const PlaceholderImage({
+    super.key,
+    required this.color,
+    required this.icon,
+    required this.backgroundColor,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: _lightBlueBackground,
-      child: Center(
-        child: Icon(
-          icon,
-          size: 40,
-          color: color, // Icon color is dark blue
-        ),
-      ),
+      color: backgroundColor,
+      child: Center(child: Icon(icon, size: 40, color: color)),
     );
   }
 }

@@ -31,7 +31,6 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _messageController = TextEditingController();
-  // Ensure the ListView scrolls to the bottom when a new message is added or keyboard pops up
   final ScrollController _scrollController = ScrollController();
   final List<Map<String, dynamic>> _messages = []; // To store chat messages
 
@@ -60,6 +59,20 @@ class _ChatScreenState extends State<ChatScreen> {
       'isMe': true,
       'time': '10:35 AM',
     });
+
+    // Add listener to automatically scroll to bottom when a new message is added
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+  }
+
+  // Helper function to scroll to the bottom
+  void _scrollToBottom() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
   }
 
   // Clean up controllers
@@ -81,17 +94,18 @@ class _ChatScreenState extends State<ChatScreen> {
       });
       _messageController.clear();
       // Scroll to the latest message after sending
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
+      _scrollToBottom();
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    // ⚠️ CRITICAL: Get the height of the keyboard and system navigation bar
+    final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
+
     return Scaffold(
+      // ✅ MODIFICATION 1: Ensure Scaffold body resizes when keyboard pops up
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         // THEME CHANGE: AppBar background set to Primary Blue
         backgroundColor: primaryBlue,
@@ -159,7 +173,6 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
         ],
       ),
-      // --- Ensures Input Field is Responsive on Keyboard Pop-up ---
       body: Column(
         children: [
           Expanded(
@@ -180,23 +193,26 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ),
           // Message Input Area
-          Container(
-            padding: const EdgeInsets.all(8.0),
-            decoration: BoxDecoration(
-              // THEME CHANGE: Input container color (White)
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withOpacity(0.2),
-                  spreadRadius: 1,
-                  blurRadius: 5,
-                ),
-              ],
-            ),
-            // Wrap in SingleChildScrollView to make TextField responsive
-            child: SingleChildScrollView(
-              reverse: true,
+          // ✅ MODIFICATION 2: Remove fixed height and use Padding for responsiveness
+          Padding(
+            padding: EdgeInsets.only(bottom: bottomPadding),
+            child: Container(
+              // REMOVED fixed height: 150
+              padding: const EdgeInsets.all(18.0),
+              decoration: BoxDecoration(
+                // THEME CHANGE: Input container color (White)
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.2),
+                    spreadRadius: 1,
+                    blurRadius: 5,
+                  ),
+                ],
+              ),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment
+                    .end, // Align contents to the bottom of the row
                 children: [
                   Expanded(
                     child: Container(
@@ -209,10 +225,13 @@ class _ChatScreenState extends State<ChatScreen> {
                         controller: _messageController,
                         onSubmitted: (_) =>
                             _sendMessage(), // Allows sending on enter
+                        // Added maxLines and minLines to allow the text field to grow vertically
+                        minLines: 1,
+                        maxLines: 5,
+                        keyboardType: TextInputType.multiline,
                         decoration: InputDecoration(
                           hintText: 'Type a message...',
                           hintStyle: const TextStyle(color: Colors.grey),
-                          // THEME CHANGE: Input text is Dark Blue
                           border: InputBorder.none,
                           contentPadding: const EdgeInsets.symmetric(
                             horizontal: 20,
@@ -259,6 +278,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 }
 
+// MessageBubble class remains unchanged as it doesn't affect keyboard handling
 class _MessageBubble extends StatelessWidget {
   final String message;
   final bool isMe;

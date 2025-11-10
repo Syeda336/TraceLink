@@ -3,10 +3,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ThemeProvider extends ChangeNotifier {
   bool isDarkMode = false;
+
   ThemeProvider() {
     loadTheme();
   }
-  void toggleTheme() {
+
+  get themeMode => null;
+
+  void toggleTheme(bool value) {
     isDarkMode = !isDarkMode;
     saveTheme();
     notifyListeners();

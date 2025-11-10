@@ -20,6 +20,8 @@ class FigmaToCodeApp extends StatelessWidget {
 }
 
 class EmailSentToTheAdmin extends StatelessWidget {
+  const EmailSentToTheAdmin({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -53,7 +55,7 @@ class EmailSentToTheAdmin extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Container(
+                      SizedBox(
                         width: 345.22,
                         height: 203.85,
                         child: Stack(
@@ -99,7 +101,7 @@ class EmailSentToTheAdmin extends StatelessWidget {
                             Positioned(
                               left: 0,
                               top: 119.97,
-                              child: Container(
+                              child: SizedBox(
                                 width: 345.22,
                                 height: 23.96,
                                 child: Row(
@@ -128,7 +130,7 @@ class EmailSentToTheAdmin extends StatelessWidget {
                             Positioned(
                               left: 0,
                               top: 155.93,
-                              child: Container(
+                              child: SizedBox(
                                 width: 345.22,
                                 height: 47.93,
                                 child: Stack(

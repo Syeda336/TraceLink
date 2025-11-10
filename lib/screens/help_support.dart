@@ -1,8 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // For SystemChrome
+import 'package:provider/provider.dart'; // Required for ThemeProvider integration
 import 'package:url_launcher/url_launcher.dart'; // REQUIRED for canLaunchUrl and launchUrl
 
 import 'settings.dart'; // Import your settings.dart file
+import '../theme_provider.dart'; // Import the ThemeProvider
+
+// Define the new color palette based on your request
+const Color _kPrimaryBrightBlue = Colors.blue;
+const Color _kSecondaryBrightBlue = Color(
+  0xFF42A5F5,
+); // A lighter blue for the gradient end
+const Color _kDarkBlueText = Color(
+  0xFF0D47A1,
+); // Dark blue for contrast on light background
+const Color _kLightBackground = Colors.white;
+const Color _kOutlineColor = _kDarkBlueText;
 
 class HelpSupportScreen extends StatefulWidget {
   const HelpSupportScreen({super.key});
@@ -108,14 +121,14 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
       margin: const EdgeInsets.only(bottom: 20),
       elevation: 0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15.0)),
-      color: isGradient ? Colors.transparent : (cardColor ?? Colors.white),
+      color: isGradient ? Colors.transparent : (cardColor ?? _kLightBackground),
       child: Container(
         decoration: isGradient
             ? BoxDecoration(
                 gradient: const LinearGradient(
                   colors: [
-                    Color(0xFF8B42F8),
-                    Color(0xFFE94B8A),
+                    _kPrimaryBrightBlue,
+                    _kSecondaryBrightBlue,
                   ], // Your gradient colors
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
@@ -143,7 +156,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: titleColor ?? Colors.black87,
+                    color: titleColor ?? _kDarkBlueText,
                   ),
                 ),
               ],
@@ -189,6 +202,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
+                      color: _kDarkBlueText,
                     ),
                   ),
                   Text(value, style: TextStyle(color: Colors.grey[800])),
@@ -223,8 +237,14 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
         ),
         child: Icon(icon, color: iconColor),
       ),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-      subtitle: Text(subtitle),
+      title: Text(
+        title,
+        style: const TextStyle(
+          fontWeight: FontWeight.w600,
+          color: _kDarkBlueText,
+        ),
+      ),
+      subtitle: Text(subtitle, style: TextStyle(color: Colors.grey[700])),
       trailing: const Icon(
         Icons.arrow_forward_ios,
         size: 16,
@@ -274,18 +294,36 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Access the theme provider to potentially adjust styles based on dark/light mode
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final bool isDarkMode = themeProvider.isDarkMode;
+
+    // Adjust the light background color based on the current mode
+    final Color scaffoldBgColor = isDarkMode
+        ? Colors.grey[900]!
+        : Colors.grey[50]!;
+    final Color cardBgColor = isDarkMode
+        ? Colors.grey[800]!
+        : _kLightBackground;
+    final Color accentBgColor = isDarkMode
+        ? Colors.blueGrey[900]!
+        : const Color(0xFFF0F5FF);
+    final Color darkTextColor = isDarkMode ? Colors.white70 : _kDarkBlueText;
+    final Color subtleTextColor = isDarkMode
+        ? Colors.grey[400]!
+        : Colors.grey[700]!;
+
     // Set status bar color for consistent look with your design
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
-        statusBarColor: Colors
-            .transparent, // Making it transparent to use appbar's gradient
-        statusBarIconBrightness:
-            Brightness.light, // For dark icons on light status bar content
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness
+            .light, // Icons should be light on a dark/gradient status bar
       ),
     );
 
     return Scaffold(
-      backgroundColor: Colors.grey[50], // Consistent light background
+      backgroundColor: scaffoldBgColor, // Consistent light background
       body: CustomScrollView(
         slivers: [
           // Gradient Header Bar
@@ -296,6 +334,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
               icon: const Icon(Icons.arrow_back, color: Colors.white),
               onPressed: () {
                 // Navigate back to SettingsPage
+                // Note: The original used pushReplacement, maintaining that logic.
                 Navigator.of(context).pushReplacement(
                   MaterialPageRoute(
                     builder: (context) => const SettingsScreen(),
@@ -308,9 +347,9 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
-                      Color(0xFF8B42F8),
-                      Color(0xFFE94B8A),
-                    ], // Your gradient colors
+                      _kPrimaryBrightBlue,
+                      _kSecondaryBrightBlue,
+                    ], // New bright blue gradient
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
@@ -321,12 +360,13 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
               title: Column(
                 mainAxisAlignment: MainAxisAlignment.end,
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
+                children: const [
+                  Text(
                     'Help & Support',
                     style: TextStyle(
                       fontSize: 18.0,
                       fontWeight: FontWeight.bold,
+                      color: Colors.white, // White text on blue gradient
                     ),
                   ),
                   Text(
@@ -347,11 +387,13 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                 _buildSectionCard(
                   title: 'Quick Help',
                   icon: Icons.help_outline,
-                  iconColor: const Color(0xFFE94B8A), // Pink icon
+                  iconColor: _kPrimaryBrightBlue, // Bright blue icon
+                  cardColor: cardBgColor,
+                  titleColor: darkTextColor,
                   children: [
                     Text(
                       'Need immediate assistance? Check out our quick help resources below.',
-                      style: TextStyle(color: Colors.grey[700], fontSize: 14),
+                      style: TextStyle(color: subtleTextColor, fontSize: 14),
                     ),
                     const SizedBox(height: 15),
 
@@ -364,16 +406,16 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
                             colors: [
-                              Color(0xFF8B42F8),
-                              Color(0xFFE94B8A),
-                            ], // Your gradient colors
+                              _kPrimaryBrightBlue,
+                              _kSecondaryBrightBlue,
+                            ], // Bright blue gradient
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
                           borderRadius: BorderRadius.circular(15.0),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF8B42F8).withOpacity(0.3),
+                              color: _kPrimaryBrightBlue.withOpacity(0.3),
                               blurRadius: 10,
                               offset: const Offset(0, 5),
                             ),
@@ -391,7 +433,8 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                               'View FAQs',
                               style: TextStyle(
                                 fontSize: 16,
-                                color: Colors.white,
+                                color:
+                                    Colors.white, // White text on blue gradient
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -406,34 +449,39 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                 _buildSectionCard(
                   title: 'Contact Us',
                   icon: Icons.chat_bubble_outline,
-                  iconColor: Colors.blueAccent, // Blue icon
+                  iconColor: _kSecondaryBrightBlue, // Blue icon
+                  cardColor: cardBgColor,
+                  titleColor: darkTextColor,
                   children: [
                     // Live Chat
                     ListTile(
                       leading: Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: Colors.blueAccent.withOpacity(0.1),
+                          color: _kSecondaryBrightBlue.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: const Icon(
                           Icons.chat_outlined,
-                          color: Colors.blueAccent,
+                          color: _kSecondaryBrightBlue,
                         ),
                       ),
                       title: const Text(
                         'Live Chat',
-                        style: TextStyle(fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: _kDarkBlueText,
+                        ),
                       ),
                       subtitle: Row(
                         children: [
                           Text(
                             'Chat with our support team',
-                            style: TextStyle(color: Colors.grey[700]),
+                            style: TextStyle(color: subtleTextColor),
                           ),
                           const SizedBox(width: 8),
-                          Chip(
-                            label: const Text(
+                          const Chip(
+                            label: Text(
                               'Online now',
                               style: TextStyle(
                                 color: Colors.white,
@@ -455,17 +503,27 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                       ),
                       onTap: _startLiveChat,
                     ),
-                    const Divider(height: 1, indent: 20, endIndent: 20),
+                    Divider(
+                      height: 1,
+                      indent: 20,
+                      endIndent: 20,
+                      color: Colors.grey[300],
+                    ),
                     // Email Support
                     _buildContactTile(
                       icon: Icons.email_outlined,
-                      iconColor: const Color(0xFF8B42F8), // Purple icon
+                      iconColor: _kPrimaryBrightBlue, // Blue icon
                       title: 'Email Support',
                       value: 'support@lostandfound.edu',
                       info: 'Response within 24 hours',
                       onTap: () => _launchEmail('support@lostandfound.edu'),
                     ),
-                    const Divider(height: 1, indent: 20, endIndent: 20),
+                    Divider(
+                      height: 1,
+                      indent: 20,
+                      endIndent: 20,
+                      color: Colors.grey[300],
+                    ),
                     // Phone Support
                     _buildContactTile(
                       icon: Icons.phone_outlined,
@@ -482,34 +540,45 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                 _buildSectionCard(
                   title: 'Help Resources',
                   icon: Icons.menu_book_outlined,
-                  iconColor: Colors.green, // Green icon
-                  cardColor: Colors.green.withOpacity(
-                    0.05,
-                  ), // Light green background
-                  titleColor: Colors.green,
+                  iconColor:
+                      Colors.orange, // Use a contrasting color (e.g., Orange)
+                  cardColor:
+                      cardBgColor, // Use regular card background for consistency
+                  titleColor: darkTextColor,
                   children: [
                     // User Guide
                     _buildResourceTile(
                       icon: Icons.bookmark_outline,
-                      iconColor: Colors.blueAccent,
+                      iconColor: _kPrimaryBrightBlue,
                       title: 'User Guide',
                       subtitle: 'Complete guide to using the app',
                       onTap: _viewUserGuide,
                     ),
-                    const Divider(height: 1, indent: 20, endIndent: 20),
+                    Divider(
+                      height: 1,
+                      indent: 20,
+                      endIndent: 20,
+                      color: Colors.grey[300],
+                    ),
                     // Video Tutorials
                     _buildResourceTile(
                       icon: Icons.play_circle_outline,
-                      iconColor: const Color(0xFF8B42F8), // Purple icon
+                      iconColor: _kSecondaryBrightBlue, // Blue icon
                       title: 'Video Tutorials',
                       subtitle: 'Step-by-step video guides',
                       onTap: _viewVideoTutorials,
                     ),
-                    const Divider(height: 1, indent: 20, endIndent: 20),
+                    Divider(
+                      height: 1,
+                      indent: 20,
+                      endIndent: 20,
+                      color: Colors.grey[300],
+                    ),
                     // Documentation
                     _buildResourceTile(
                       icon: Icons.assignment_outlined,
-                      iconColor: const Color(0xFFE94B8A), // Pink icon
+                      iconColor: Colors
+                          .pinkAccent, // Use a contrasting color (e.g., Pink)
                       title: 'Documentation',
                       subtitle: 'Technical documentation',
                       onTap: _viewDocumentation,
@@ -550,11 +619,13 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                 _buildSectionCard(
                   title: 'Send Feedback',
                   icon: Icons.feedback_outlined,
-                  iconColor: Colors.orange, // Orange icon
+                  iconColor: Colors.amber, // Amber icon
+                  cardColor: cardBgColor,
+                  titleColor: darkTextColor,
                   children: [
                     Text(
                       'Help us improve! Share your thoughts and suggestions.',
-                      style: TextStyle(color: Colors.grey[700], fontSize: 14),
+                      style: TextStyle(color: subtleTextColor, fontSize: 14),
                     ),
                     const SizedBox(height: 15),
                     SizedBox(
@@ -563,19 +634,26 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                         onPressed: _shareFeedback,
                         icon: const Icon(
                           Icons.chat_bubble_outline,
-                          color: Colors.black87,
+                          color: _kDarkBlueText, // Dark blue icon
                         ),
                         label: const Text(
                           'Share Feedback',
-                          style: TextStyle(fontSize: 16, color: Colors.black87),
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: _kDarkBlueText,
+                          ), // Dark blue text
                         ),
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 15),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(15.0),
                           ),
-                          side: BorderSide(color: Colors.grey.shade300),
-                          backgroundColor: Colors.grey[100],
+                          side: const BorderSide(
+                            color: _kOutlineColor,
+                          ), // Dark blue outline
+                          backgroundColor:
+                              Colors.transparent, // Transparent background
+                          foregroundColor: _kDarkBlueText,
                         ),
                       ),
                     ),
@@ -585,10 +663,11 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                 // --- Version Info Section ---
                 Card(
                   elevation: 0,
+                  margin: const EdgeInsets.only(top: 10),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(15.0),
                   ),
-                  color: const Color(0xFFF0F5FF), // Light blue background
+                  color: accentBgColor,
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: Column(
@@ -598,19 +677,19 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: Colors.blueGrey[700],
+                            color: darkTextColor,
                           ),
                         ),
                         const SizedBox(height: 5),
                         Text(
                           'Version 1.0.0',
-                          style: TextStyle(color: Colors.grey[600]),
+                          style: TextStyle(color: subtleTextColor),
                         ),
                         const SizedBox(height: 5),
                         Text(
                           '© 2025 University. All rights reserved.',
                           style: TextStyle(
-                            color: Colors.grey[600],
+                            color: subtleTextColor,
                             fontSize: 12,
                           ),
                         ),

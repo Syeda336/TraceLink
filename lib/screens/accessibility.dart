@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:tracelink/global_settings.dart';
 import 'profile_page.dart';
 
 // --- Theme Colors ---
@@ -24,32 +22,28 @@ class AccessibilityScreen extends StatefulWidget {
 }
 
 class _AccessibilityScreenState extends State<AccessibilityScreen> {
-  // Local state variables for switch tiles and dropdowns
+  // Local state variables for ALL settings (since GlobalSettings is removed)
   bool _voiceModeEnabled = false;
   bool _screenReaderEnabled = false;
   bool _reduceMotionEnabled = false;
-
-  // These variables will be initialized from the Provider in initState/build
-  String _selectedLanguage = '';
-  String _selectedTextSize = '';
   bool _highContrastEnabled = false;
 
-  // Lists for dropdown options are retrieved from GlobalSettings
-  final List<String> _languages = GlobalSettings().languageLocales.keys
-      .toList();
-  final List<String> _textSizes = GlobalSettings().textSizeFactors.keys
-      .toList();
+  // Initial values for settings that were previously in GlobalSettings
+  String _selectedLanguage = 'English'; // Default
+  String _selectedTextSize = 'Medium'; // Default
+
+  // Mock data for dropdown options (since we can no longer get them from GlobalSettings)
+  final List<String> _languages = [
+    'English',
+    'Spanish',
+    'French',
+    'German',
+    'Chinese',
+  ];
+  final List<String> _textSizes = ['Small', 'Medium', 'Large', 'Extra Large'];
 
   @override
   Widget build(BuildContext context) {
-    // 1. Read the settings from the provider (This widget rebuilds when settings change)
-    final settings = Provider.of<GlobalSettings>(context);
-
-    // 2. Initialize or update local state from the global state
-    _selectedLanguage = settings.selectedLanguage;
-    _selectedTextSize = settings.selectedTextSize;
-    _highContrastEnabled = settings.highContrastEnabled;
-
     return Scaffold(
       backgroundColor: const Color(0xFFE3F2FD),
 
@@ -97,11 +91,9 @@ class _AccessibilityScreenState extends State<AccessibilityScreen> {
                     value: _selectedLanguage,
                     items: _languages,
                     onChanged: (newValue) {
-                      // 3. WRITE the new value back to the provider (listen: false)
-                      Provider.of<GlobalSettings>(
-                        context,
-                        listen: false,
-                      ).selectedLanguage = newValue!;
+                      setState(() {
+                        _selectedLanguage = newValue!;
+                      });
                     },
                   ),
                 ],
@@ -141,11 +133,9 @@ class _AccessibilityScreenState extends State<AccessibilityScreen> {
                     value: _selectedTextSize,
                     items: _textSizes,
                     onChanged: (newValue) {
-                      // 3. WRITE the new value back to the provider (listen: false)
-                      Provider.of<GlobalSettings>(
-                        context,
-                        listen: false,
-                      ).selectedTextSize = newValue!;
+                      setState(() {
+                        _selectedTextSize = newValue!;
+                      });
                     },
                   ),
                 ],
@@ -163,11 +153,9 @@ class _AccessibilityScreenState extends State<AccessibilityScreen> {
                     subtitle: 'Increase contrast for better visibility',
                     value: _highContrastEnabled,
                     onChanged: (value) {
-                      // 3. WRITE the new value back to the provider (listen: false)
-                      Provider.of<GlobalSettings>(
-                        context,
-                        listen: false,
-                      ).highContrastEnabled = value;
+                      setState(() {
+                        _highContrastEnabled = value;
+                      });
                     },
                   ),
                 ],
@@ -220,7 +208,7 @@ class _AccessibilityScreenState extends State<AccessibilityScreen> {
     );
   }
 
-  // --- Reusable Widget Builders ---
+  // --- Reusable Widget Builders (Unchanged) ---
 
   Widget _buildCard({required List<Widget> children}) {
     return Padding(
@@ -276,7 +264,7 @@ class _AccessibilityScreenState extends State<AccessibilityScreen> {
           Switch(
             value: value,
             onChanged: onChanged,
-            activeColor: _primaryColor,
+            activeThumbColor: _primaryColor,
             activeTrackColor: _secondaryColor,
             inactiveThumbColor: Colors.grey.shade300,
             inactiveTrackColor: Colors.grey.shade200,

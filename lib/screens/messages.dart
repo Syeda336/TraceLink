@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
-import 'home.dart'; // Import the hypothetical Home.dart screen
-import 'chat.dart'; // Import the ChatScreen
+import 'package:provider/provider.dart';
+import 'package:tracelink/theme_provider.dart';
+
+// Import the hypothetical screens
+import 'home.dart';
+import 'chat.dart';
 import 'profile_page.dart';
 import 'search_lost.dart';
 import 'community_feed.dart';
@@ -9,6 +13,13 @@ import 'community_feed.dart';
 const Color primaryBlue = Color(0xFF42A5F5); // Bright Blue
 const Color darkBlue = Color(0xFF1977D2); // Dark Blue
 const Color lightBlueBackground = Color(0xFFE3F2FD); // Very Light Blue
+
+// --- Define Dark Theme Colors (New) ---
+const Color darkBackgroundColor = Color(0xFF121212); // Deep Dark
+const Color darkSurfaceColor = Color(0xFF1E1E1E); // Darker surface
+const Color darkPrimaryColor = Color(0xFF90CAF9); // Light Blue for accents
+const Color darkTextColor = Colors.white;
+const Color darkHintColor = Color(0xFFB0B0B0); // Light Grey for hints
 
 // 1. CONVERTED TO STATEFULWIDGET
 class MessagesListScreen extends StatefulWidget {
@@ -27,12 +38,14 @@ class _MessagesListScreenState extends State<MessagesListScreen> {
     Colors.green, // Home (Index 0)
     Colors.pink, // Browse (Index 1)
     Colors.orange, // Feed (Index 2)
-    Color(0xFF00008B), // Dark Blue for Chat (Index 3) - kept to distinguish tab
+    Color(0xFF00008B), // Dark Blue for Chat (Index 3)
     Colors.purple, // Profile (Index 4)
   ];
 
   // 2. CORRECTLY DEFINED NAVIGATION LOGIC
   void _onItemTapped(int index) {
+    if (_selectedIndex == index) return;
+
     setState(() {
       _selectedIndex = index;
     });
@@ -49,7 +62,7 @@ class _MessagesListScreenState extends State<MessagesListScreen> {
       case 2: // Feed
         screenToNavigate = const CommunityFeed();
         break;
-      case 3: // Chat (Current Screen) - Prevent navigation to self
+      case 3: // Chat (Current Screen) - Should be handled by the check above
         return;
       case 4: // Profile
         screenToNavigate = const ProfileScreen();
@@ -71,17 +84,29 @@ class _MessagesListScreenState extends State<MessagesListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // 3. CONSUME THE THEME PROVIDER
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
+
+    // Define colors based on the current theme mode
+    final appbarColor = isDarkMode ? darkSurfaceColor : primaryBlue;
+    final iconTextColor = isDarkMode ? darkTextColor : Colors.white;
+    final backgroundColor = isDarkMode ? darkBackgroundColor : Colors.white;
+    final searchBoxColor = isDarkMode ? darkSurfaceColor : lightBlueBackground;
+    final searchIconColor = isDarkMode ? darkPrimaryColor : darkBlue;
+    final inputTextColor = isDarkMode ? darkTextColor : darkBlue;
+    final unselectedIconColor = isDarkMode ? darkHintColor : Colors.grey;
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: backgroundColor, // THEME CHANGE
       appBar: AppBar(
-        // THEME CHANGE: AppBar background set to Primary Blue
-        backgroundColor: primaryBlue,
+        backgroundColor: appbarColor, // THEME CHANGE
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(
+          icon: Icon(
             Icons.arrow_back,
-            color: Colors.white,
-          ), // THEME CHANGE: Icon set to White
+            color: iconTextColor, // THEME CHANGE
+          ),
           onPressed: () {
             Navigator.pushReplacement(
               context,
@@ -89,15 +114,27 @@ class _MessagesListScreenState extends State<MessagesListScreen> {
             );
           },
         ),
-        title: const Text(
+        title: Text(
           'Messages',
           style: TextStyle(
-            color: Colors.white, // THEME CHANGE: Text set to White
+            color: iconTextColor, // THEME CHANGE
             fontWeight: FontWeight.bold,
             fontSize: 20,
           ),
         ),
         centerTitle: false,
+        actions: [
+          // Added a theme switch button for demonstration
+          IconButton(
+            icon: Icon(
+              isDarkMode ? Icons.wb_sunny : Icons.nights_stay,
+              color: iconTextColor,
+            ),
+            onPressed: () {
+              themeProvider.toggleTheme(isDarkMode);
+            },
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -106,22 +143,23 @@ class _MessagesListScreenState extends State<MessagesListScreen> {
             child: Container(
               height: 50,
               decoration: BoxDecoration(
-                // THEME CHANGE: Search box background set to Light Blue
-                color: lightBlueBackground,
+                color: searchBoxColor, // THEME CHANGE
                 borderRadius: BorderRadius.circular(25),
               ),
-              child: const TextField(
+              child: TextField(
                 decoration: InputDecoration(
                   hintText: 'Search conversations...',
-                  hintStyle: TextStyle(color: Colors.grey),
-                  // THEME CHANGE: Search icon set to Dark Blue
-                  prefixIcon: Icon(Icons.search, color: darkBlue),
+                  hintStyle: TextStyle(color: darkHintColor), // THEME CHANGE
+                  prefixIcon: Icon(
+                    Icons.search,
+                    color: searchIconColor,
+                  ), // THEME CHANGE
                   border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(vertical: 12),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 12),
                 ),
                 style: TextStyle(
-                  color: darkBlue,
-                ), // THEME CHANGE: Input text color
+                  color: inputTextColor, // THEME CHANGE
+                ),
               ),
             ),
           ),
@@ -129,7 +167,7 @@ class _MessagesListScreenState extends State<MessagesListScreen> {
             child: ListView(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               children: [
-                // Conversation list items using Dark Blue for body text
+                // Pass theme-aware colors to list items
                 _ConversationListItem(
                   userInitials: 'SJ',
                   userName: 'Sarah Johnson',
@@ -137,10 +175,11 @@ class _MessagesListScreenState extends State<MessagesListScreen> {
                   timeAgo: '2m ago',
                   unreadCount: 2,
                   isOnline: true,
-                  avatarColor: primaryBlue.withOpacity(0.2),
-                  initialsColor: darkBlue,
                 ),
-                const Divider(height: 1, color: lightBlueBackground),
+                Divider(
+                  height: 1,
+                  color: isDarkMode ? darkSurfaceColor : lightBlueBackground,
+                ), // THEME CHANGE
                 _ConversationListItem(
                   userInitials: 'MC',
                   userName: 'Mike Chen',
@@ -148,10 +187,11 @@ class _MessagesListScreenState extends State<MessagesListScreen> {
                   timeAgo: '1h ago',
                   unreadCount: 0,
                   isOnline: false,
-                  avatarColor: primaryBlue.withOpacity(0.2),
-                  initialsColor: darkBlue,
                 ),
-                const Divider(height: 1, color: lightBlueBackground),
+                Divider(
+                  height: 1,
+                  color: isDarkMode ? darkSurfaceColor : lightBlueBackground,
+                ), // THEME CHANGE
                 _ConversationListItem(
                   userInitials: 'EW',
                   userName: 'Emma Wilson',
@@ -159,10 +199,11 @@ class _MessagesListScreenState extends State<MessagesListScreen> {
                   timeAgo: '3h ago',
                   unreadCount: 1,
                   isOnline: true,
-                  avatarColor: primaryBlue.withOpacity(0.2),
-                  initialsColor: darkBlue,
                 ),
-                const Divider(height: 1, color: lightBlueBackground),
+                Divider(
+                  height: 1,
+                  color: isDarkMode ? darkSurfaceColor : lightBlueBackground,
+                ), // THEME CHANGE
                 _ConversationListItem(
                   userInitials: 'AB',
                   userName: 'Alex Brown',
@@ -170,10 +211,11 @@ class _MessagesListScreenState extends State<MessagesListScreen> {
                   timeAgo: '1d ago',
                   unreadCount: 0,
                   isOnline: false,
-                  avatarColor: primaryBlue.withOpacity(0.2),
-                  initialsColor: darkBlue,
                 ),
-                const Divider(height: 1, color: lightBlueBackground),
+                Divider(
+                  height: 1,
+                  color: isDarkMode ? darkSurfaceColor : lightBlueBackground,
+                ), // THEME CHANGE
                 _ConversationListItem(
                   userInitials: 'JR',
                   userName: 'John Ryan',
@@ -181,10 +223,11 @@ class _MessagesListScreenState extends State<MessagesListScreen> {
                   timeAgo: '2d ago',
                   unreadCount: 0,
                   isOnline: false,
-                  avatarColor: primaryBlue.withOpacity(0.2),
-                  initialsColor: darkBlue,
                 ),
-                const Divider(height: 1, color: lightBlueBackground),
+                Divider(
+                  height: 1,
+                  color: isDarkMode ? darkSurfaceColor : lightBlueBackground,
+                ), // THEME CHANGE
                 _ConversationListItem(
                   userInitials: 'KP',
                   userName: 'Kate Perry',
@@ -192,8 +235,6 @@ class _MessagesListScreenState extends State<MessagesListScreen> {
                   timeAgo: '3d ago',
                   unreadCount: 3,
                   isOnline: true,
-                  avatarColor: primaryBlue.withOpacity(0.2),
-                  initialsColor: darkBlue,
                 ),
               ],
             ),
@@ -225,11 +266,13 @@ class _MessagesListScreenState extends State<MessagesListScreen> {
         ],
         currentIndex: _selectedIndex,
         selectedItemColor: _navItemColors[_selectedIndex],
-        unselectedItemColor: Colors.grey,
+        unselectedItemColor: unselectedIconColor, // THEME CHANGE
         showUnselectedLabels: true,
         onTap: _onItemTapped,
         type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
+        backgroundColor: isDarkMode
+            ? darkSurfaceColor
+            : Colors.white, // THEME CHANGE
         elevation: 10,
       ),
     );
@@ -243,8 +286,6 @@ class _ConversationListItem extends StatelessWidget {
   final String timeAgo;
   final int unreadCount;
   final bool isOnline;
-  final Color avatarColor;
-  final Color initialsColor;
 
   const _ConversationListItem({
     required this.userInitials,
@@ -253,18 +294,28 @@ class _ConversationListItem extends StatelessWidget {
     required this.timeAgo,
     required this.unreadCount,
     required this.isOnline,
-    // Removed unused avatarColor and initialsColor since we're using theme colors
-    required this.avatarColor, // Now uses theme-based opacity
-    required this.initialsColor, // Now uses theme-based dark blue
+    // Removed avatarColor and initialsColor from constructor since they are theme-derived now
   });
 
   @override
   Widget build(BuildContext context) {
+    // 4. CONSUME THE THEME PROVIDER IN LIST ITEM
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
+
+    // Define colors based on the current theme mode
+    final avatarBg = isDarkMode ? darkSurfaceColor : lightBlueBackground;
+    final initialsColor = isDarkMode ? darkPrimaryColor : darkBlue;
+    final userNameColor = isDarkMode ? darkTextColor : darkBlue;
+    final messageColor = isDarkMode ? darkHintColor : darkBlue.withOpacity(0.7);
+    final timeColor = isDarkMode
+        ? darkHintColor.withOpacity(0.6)
+        : darkBlue.withOpacity(0.6);
+    final unreadColor = isDarkMode ? darkPrimaryColor : primaryBlue;
+
     return InkWell(
       onTap: () {
         // When clicking on a message, navigate to the ChatScreen
-        // Note: You must define ChatScreen in chat.dart for this to work fully.
-        // Using temporary default colors for the ChatScreen arguments
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -272,7 +323,8 @@ class _ConversationListItem extends StatelessWidget {
               chatPartnerName: userName,
               chatPartnerInitials: userInitials,
               isOnline: isOnline,
-              avatarColor: avatarColor,
+              // Pass theme-aware colors to the ChatScreen for consistency
+              avatarColor: avatarBg,
             ),
           ),
         );
@@ -285,13 +337,11 @@ class _ConversationListItem extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 28,
-                  // THEME CHANGE: Avatar background is light blue
-                  backgroundColor: lightBlueBackground,
+                  backgroundColor: avatarBg, // THEME CHANGE
                   child: Text(
                     userInitials,
-                    style: const TextStyle(
-                      // THEME CHANGE: Initials color is Dark Blue
-                      color: darkBlue,
+                    style: TextStyle(
+                      color: initialsColor, // THEME CHANGE
                       fontWeight: FontWeight.bold,
                       fontSize: 18,
                     ),
@@ -307,7 +357,12 @@ class _ConversationListItem extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: Colors.green, // Standard online indicator color
                         shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 2),
+                        border: Border.all(
+                          color: isDarkMode
+                              ? darkBackgroundColor
+                              : Colors.white,
+                          width: 2,
+                        ), // THEME CHANGE
                       ),
                     ),
                   ),
@@ -320,19 +375,19 @@ class _ConversationListItem extends StatelessWidget {
                 children: [
                   Text(
                     userName,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
-                      color: darkBlue, // THEME CHANGE: Dark Blue for user name
+                      color: userNameColor, // THEME CHANGE
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     lastMessage,
                     style: TextStyle(
-                      color: darkBlue.withOpacity(0.7),
+                      color: messageColor, // THEME CHANGE
                       fontSize: 14,
-                    ), // THEME CHANGE: Dark Blue opacity for message
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -345,17 +400,16 @@ class _ConversationListItem extends StatelessWidget {
                 Text(
                   timeAgo,
                   style: TextStyle(
-                    color: darkBlue.withOpacity(0.6),
+                    color: timeColor, // THEME CHANGE
                     fontSize: 12,
-                  ), // THEME CHANGE: Dark Blue opacity for time
+                  ),
                 ),
                 if (unreadCount > 0) ...[
                   const SizedBox(height: 4),
                   Container(
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      color:
-                          primaryBlue, // THEME CHANGE: Bright Blue count bubble
+                      color: unreadColor, // THEME CHANGE
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(

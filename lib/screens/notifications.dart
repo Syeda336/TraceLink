@@ -1,18 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'warning_admin.dart';
 import 'alerts.dart';
 import 'home.dart';
-import 'chat.dart'; // Import for New Message navigation
-import 'community_feed.dart'; // Import for Item Update navigation
-import 'dart:async'; // Import for the timer logic
+import 'chat.dart';
+import 'community_feed.dart';
+import 'dart:async';
+import '../theme_provider.dart'; // Import your ThemeProvider
 
-// Define the new Bright Blue theme color
-const Color kBrightBlue = Color(0xFF007AFF); // A standard vibrant blue
-const Color kLightBlueBackground = Color(
-  0xFFE3F2FD,
-); // A very light blue background
+// Define the new Bright Blue theme color (used for consistency)
+const Color kBrightBlue = Color(0xFF007AFF);
 
-// Data structure for a single notification item
+// Data structure for a single notification item (unchanged)
 class NotificationItem {
   final IconData icon;
   final Color iconColor;
@@ -20,7 +19,7 @@ class NotificationItem {
   final String title;
   final String message;
   final String time;
-  final DateTime creationTime; // Added for auto-removal logic
+  final DateTime creationTime;
   bool isRead;
 
   NotificationItem({
@@ -30,7 +29,7 @@ class NotificationItem {
     required this.title,
     required this.message,
     required this.time,
-    required this.creationTime, // Must be initialized
+    required this.creationTime,
     this.isRead = false,
   });
 }
@@ -50,16 +49,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   void initState() {
     super.initState();
 
-    // Use a fixed time for initial items for simple removal logic demonstration
     final now = DateTime.now();
     final fiveMinutesAgo = now.subtract(const Duration(minutes: 5));
-    now.subtract(const Duration(minutes: 50));
     final oneHourAgo = now.subtract(const Duration(hours: 1));
     final threeHoursAgo = now.subtract(const Duration(hours: 3));
     final oneDayAgo = now.subtract(const Duration(days: 1));
 
+    // NOTE: Initialization logic remains the same
     _notifications = [
-      // Warning Notice
       NotificationItem(
         icon: Icons.warning_amber_rounded,
         iconColor: const Color(0xFFF39C12),
@@ -67,12 +64,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         title: 'Warning Notice',
         message: 'Admin has issued a warning regarding your reported item',
         time: 'Just now',
-        creationTime: now.subtract(
-          const Duration(seconds: 30),
-        ), // ~30 seconds old
+        creationTime: now.subtract(const Duration(seconds: 30)),
         isRead: false,
       ),
-      // Item Claimed!
       NotificationItem(
         icon: Icons.check_circle_outline,
         iconColor: const Color(0xFF2ecc71),
@@ -80,15 +74,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         title: 'Item Claimed!',
         message: 'Your lost wallet has been claimed successfully',
         time: '5 min ago',
-        creationTime: fiveMinutesAgo.add(
-          const Duration(seconds: 1),
-        ), // Just under 5 min
+        creationTime: fiveMinutesAgo.add(const Duration(seconds: 1)),
         isRead: false,
       ),
-      // New Message - Navigates to ChatScreen
       NotificationItem(
         icon: Icons.chat_bubble_outline,
-        iconColor: kBrightBlue, // Blue theme color
+        iconColor: kBrightBlue,
         iconBgColor: kBrightBlue.withOpacity(0.1),
         title: 'New Message',
         message: 'Sarah sent you a message about the keys',
@@ -96,7 +87,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         creationTime: oneHourAgo,
         isRead: false,
       ),
-      // Possible Match
       NotificationItem(
         icon: Icons.inventory_2_outlined,
         iconColor: const Color(0xFF9b59b6),
@@ -107,7 +97,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         creationTime: threeHoursAgo,
         isRead: false,
       ),
-      // Emergency Alert
       NotificationItem(
         icon: Icons.error_outline,
         iconColor: const Color(0xFFe74c3c),
@@ -118,10 +107,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         creationTime: now.subtract(const Duration(hours: 5)),
         isRead: true,
       ),
-      // Item Update - Navigates to CommunityFeed
       NotificationItem(
         icon: Icons.notifications_none,
-        iconColor: kBrightBlue, // Blue theme color
+        iconColor: kBrightBlue,
         iconBgColor: kBrightBlue.withOpacity(0.1),
         title: 'Item Update',
         message: 'Someone commented on your post',
@@ -131,19 +119,17 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       ),
     ];
 
-    // Start the timer for auto-removal
     _startAutoRemovalTimer();
   }
 
   @override
   void dispose() {
-    _timer?.cancel(); // Cancel the timer when the screen is disposed
+    _timer?.cancel();
     super.dispose();
   }
 
-  // --- Auto-Removal Logic ---
+  // --- Auto-Removal Logic (Unchanged) ---
   void _startAutoRemovalTimer() {
-    // Check and remove every 60 seconds (1 minute) for efficiency
     _timer = Timer.periodic(const Duration(seconds: 60), (timer) {
       _removeOldNotifications();
     });
@@ -152,14 +138,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   void _removeOldNotifications() {
     final now = DateTime.now();
     setState(() {
-      // Remove notifications older than 5 minutes (300 seconds)
       _notifications.removeWhere(
         (item) => now.difference(item.creationTime).inSeconds > 300,
       );
     });
   }
 
-  // --- Mark as Read/All Logic ---
+  // --- Mark as Read/All Logic (Unchanged) ---
   void _markAsRead(int index) {
     if (!_notifications[index].isRead) {
       setState(() {
@@ -176,7 +161,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     });
   }
 
-  // --- Navigation Logic ---
+  // --- Navigation Logic (Unchanged) ---
   void _handleNotificationTap(
     BuildContext context,
     NotificationItem item,
@@ -195,7 +180,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         MaterialPageRoute(builder: (context) => const EmergencyAlerts()),
       );
     } else if (item.title == 'New Message') {
-      // Navigate to ChatScreen with specific user details
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -203,41 +187,56 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             chatPartnerName: 'Sarah',
             chatPartnerInitials: 'S',
             isOnline: true,
-            avatarColor: kBrightBlue, // Using the new theme color
+            avatarColor: kBrightBlue,
           ),
         ),
       );
     } else if (item.title == 'Item Update') {
-      // Navigate to CommunityFeed
       Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const CommunityFeed()),
       );
     }
-    // Other notifications (Item Claimed, Possible Match) just mark as read
   }
 
-  // --- Widget for a single notification card ---
+  // --- Dynamic Widget for a single notification card ---
   Widget _buildNotificationCard(
     BuildContext context,
     NotificationItem item,
     int index,
+    bool isDarkMode, // Added isDarkMode parameter
   ) {
+    // Dynamic Colors
+    final Color cardColor = Theme.of(context).cardColor;
+    final Color titleColor = isDarkMode ? Colors.white : Colors.black87;
+    final Color messageColor = isDarkMode
+        ? Colors.grey.shade400
+        : Colors.grey.shade700;
+    final Color timeColor = isDarkMode
+        ? Colors.grey.shade600
+        : Colors.grey.shade500;
+    final Color borderColor = isDarkMode
+        ? kBrightBlue.withOpacity(0.5)
+        : kBrightBlue;
+
     return GestureDetector(
       onTap: () => _handleNotificationTap(context, item, index),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 15.0, horizontal: 10),
         margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 20.0),
         decoration: BoxDecoration(
-          color: Colors.white,
+          // Dynamic Card Color
+          color: cardColor,
           borderRadius: BorderRadius.circular(15),
           border: Border.all(
-            color: kBrightBlue, // Bright blue outline
+            color: borderColor, // Dynamic Border Color
             width: 1.0,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.grey.withOpacity(0.1),
+              color: isDarkMode
+                  ? Colors.transparent
+                  : Colors.grey.withOpacity(0.1),
               blurRadius: 5,
               offset: const Offset(0, 3),
             ),
@@ -246,7 +245,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Icon Container
+            // Icon Container (Icon colors are fixed in the data structure)
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
@@ -263,26 +262,32 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 children: [
                   Text(
                     item.title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                      color: titleColor, // Dynamic Title Color
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     item.message,
-                    style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: messageColor,
+                    ), // Dynamic Message Color
                   ),
                   const SizedBox(height: 4),
                   Text(
                     item.time,
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: timeColor,
+                    ), // Dynamic Time Color
                   ),
                 ],
               ),
             ),
-            // Unread Dot (Bright Blue)
+            // Unread Dot (Bright Blue - fixed color)
             if (!item.isRead)
               Padding(
                 padding: const EdgeInsets.only(left: 8.0, top: 5),
@@ -290,7 +295,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   width: 8,
                   height: 8,
                   decoration: const BoxDecoration(
-                    color: kBrightBlue, // Bright blue dot
+                    color: kBrightBlue, // Fixed bright blue dot
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -303,29 +308,48 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // 1. Access the ThemeProvider state
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final bool isDarkMode = themeProvider.isDarkMode;
+
+    // Dynamic Colors based on theme
+    final Color backgroundCanvasColor = Theme.of(
+      context,
+    ).scaffoldBackgroundColor;
+    final Color appBarColor = isDarkMode ? Colors.black45 : kBrightBlue;
+    final Color backIconBgColor = isDarkMode
+        ? Colors.grey.shade800
+        : Colors.white;
+    final Color backIconColor = isDarkMode ? kBrightBlue : kBrightBlue;
+
     return Scaffold(
-      backgroundColor: kLightBlueBackground, // Light blue background
+      // Dynamic Background Color
+      backgroundColor: backgroundCanvasColor,
       appBar: AppBar(
-        backgroundColor: kBrightBlue, // Bright blue AppBar
+        // Dynamic AppBar Color
+        backgroundColor: appBarColor,
         toolbarHeight: 120.0,
         elevation: 0,
         leading: IconButton(
           icon: Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.white,
+              // Dynamic Back Button BG Color
+              color: backIconBgColor,
               borderRadius: BorderRadius.circular(10),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
+                  color: isDarkMode
+                      ? Colors.transparent
+                      : Colors.black.withOpacity(0.1),
                   blurRadius: 5,
                   offset: const Offset(0, 3),
                 ),
               ],
             ),
-            child: const Icon(
+            child: Icon(
               Icons.arrow_back_ios_new,
-              color: kBrightBlue, // Deep blue color for icon
+              color: backIconColor, // Dynamic Back Button Icon Color
               size: 20,
             ),
           ),
@@ -337,21 +361,23 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             );
           },
         ),
-        title: const Text(
+        title: Text(
           'Notifications',
           style: TextStyle(
-            color: Colors.white, // White text on bright blue background
+            // White text on both dark and bright blue backgrounds
+            color: Colors.white,
             fontWeight: FontWeight.bold,
           ),
         ),
         centerTitle: false,
         actions: [
           TextButton(
-            onPressed: _markAllAsRead, // Functionality to mark all as read
+            onPressed: _markAllAsRead,
             child: const Text(
               'Mark all read',
               style: TextStyle(
-                color: Colors.white, // White link color on bright blue
+                // White link color on both dark and bright blue
+                color: Colors.white,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -362,10 +388,15 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // Map the list data to the _buildNotificationCard widget
+            // Map the list data to the dynamic _buildNotificationCard widget
             ..._notifications.asMap().entries.map((entry) {
-              return _buildNotificationCard(context, entry.value, entry.key);
-            }).toList(),
+              return _buildNotificationCard(
+                context,
+                entry.value,
+                entry.key,
+                isDarkMode, // Pass the mode state
+              );
+            }),
             const SizedBox(height: 20),
           ],
         ),

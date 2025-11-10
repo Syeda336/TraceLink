@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../theme_provider.dart';
 
 // Placeholders for navigation
 import 'profile_page.dart';
@@ -7,92 +9,140 @@ import 'login_screen.dart';
 class LogoutConfirmationScreen extends StatelessWidget {
   const LogoutConfirmationScreen({super.key});
 
-  // --- New Color Definitions for the Blue Theme ---
-  // Background: Very Light Blue
+  // --- Theme Color Definitions ---
+  // Background: Very Light Blue (Light Mode)
   static const Color _lightBlueBackground = Color(0xFFE3F2FD); // Light Blue 50
-  // Primary Gradient: Bright Blue
-  static const List<Color> _brightBlueGradient = [
+
+  // Primary Gradient: Bright Blue (Light Mode)
+  static const List<Color> _brightBlueGradientLight = [
     Color(0xFF42A5F5), // Mid-light Blue
     Color(0xFF1565C0), // Darker Blue
   ];
-  // Secondary Color: Dark Blue (for text and outlines)
+  // Primary Gradient: Lighter Blue (Dark Mode)
+  static const List<Color> _brightBlueGradientDark = [
+    Color(0xFF81D4FA), // Lighter Blue
+    Color(0xFF039BE5), // Mid Blue
+  ];
+
+  // Secondary Color: Dark Blue (Light Mode)
   static const Color _darkBlue = Color(0xFF0D47A1); // Very Dark Blue
+  // Secondary Color: Light Blue (Dark Mode)
+  static const Color _lightBlue = Color(0xFF4FC3F7); // Light Blue 300
+
+  // Helper to get dynamic colors based on theme
+  List<Color> _getGradient(bool isDarkMode) =>
+      isDarkMode ? _brightBlueGradientDark : _brightBlueGradientLight;
+
+  Color _getPrimaryColor(bool isDarkMode) =>
+      isDarkMode ? _lightBlue : _darkBlue;
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _lightBlueBackground, // Updated: Light Blue Background
-      body: SingleChildScrollView(
-        child: Column(
-          children: <Widget>[
-            // --- Gradient Header Section ---
-            _buildGradientHeader(context),
+    // 1. Use Consumer to react to theme changes
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, child) {
+        final bool isDarkMode = themeProvider.isDarkMode;
+        final Color primaryColor = _getPrimaryColor(isDarkMode);
 
-            const SizedBox(height: 24),
+        return Scaffold(
+          // Use system background in dark mode, or light blue in light mode
+          backgroundColor: isDarkMode
+              ? Theme.of(context).colorScheme.background
+              : _lightBlueBackground,
+          body: SingleChildScrollView(
+            child: Column(
+              children: <Widget>[
+                // --- Gradient Header Section ---
+                _buildGradientHeader(context, isDarkMode, themeProvider),
 
-            // --- Your Impact Card ---
-            _buildImpactCard(),
+                const SizedBox(height: 24),
 
-            const SizedBox(height: 16),
+                // --- Your Impact Card ---
+                _buildImpactCard(context, primaryColor, isDarkMode),
 
-            // --- Warning Card ---
-            _buildWarningCard(),
+                const SizedBox(height: 16),
 
-            const SizedBox(height: 40),
+                // --- Warning Card ---
+                _buildWarningCard(context, primaryColor),
 
-            // --- Yes, Logout Button ---
-            _buildLogoutButton(context),
+                const SizedBox(height: 40),
 
-            const SizedBox(height: 16),
+                // --- Yes, Logout Button ---
+                _buildLogoutButton(context, isDarkMode),
 
-            // --- Stay Logged In Button ---
-            _buildStayLoggedInButton(context),
+                const SizedBox(height: 16),
 
-            const SizedBox(height: 40),
-          ],
-        ),
-      ),
+                // --- Stay Logged In Button ---
+                _buildStayLoggedInButton(context, isDarkMode),
+
+                const SizedBox(height: 40),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
   // --- Widget Builders ---
 
-  Widget _buildGradientHeader(BuildContext context) {
-    // Defines the bright blue gradient
-    const gradient = LinearGradient(
-      colors: _brightBlueGradient, // Bright Blue Gradient
+  Widget _buildGradientHeader(
+    BuildContext context,
+    bool isDarkMode,
+    ThemeProvider themeProvider,
+  ) {
+    final gradient = LinearGradient(
+      colors: _getGradient(isDarkMode), // Dynamic Gradient
       begin: Alignment.topCenter,
       end: Alignment.bottomCenter,
     );
+    final Color primaryColor = _getPrimaryColor(isDarkMode);
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.only(top: 60, bottom: 40, left: 20, right: 20),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: gradient,
-        borderRadius: BorderRadius.only(
+        borderRadius: const BorderRadius.only(
           bottomLeft: Radius.circular(30),
           bottomRight: Radius.circular(30),
         ),
       ),
       child: Column(
         children: [
-          // Top Left Corner Button (Navigates to profile_page.dart)
-          Align(
-            alignment: Alignment.topLeft,
-            child: IconButton(
-              icon: const Icon(
-                Icons.arrow_back,
-                color: Colors.white,
-              ), // Text is White
-              onPressed: () {
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(
-                    builder: (context) => const ProfileScreen(),
+          // Top Row: Back Button and Theme Toggle
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // Back Button (Navigates to profile_page.dart)
+              IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                onPressed: () {
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(
+                      builder: (context) => const ProfileScreen(),
+                    ),
+                  );
+                },
+              ),
+
+              // Theme Toggle Switch
+              Row(
+                children: [
+                  const Text(
+                    'Dark Mode',
+                    style: TextStyle(color: Colors.white, fontSize: 14),
                   ),
-                );
-              },
-            ),
+                  Switch(
+                    value: isDarkMode,
+                    onChanged: themeProvider.toggleTheme,
+                    activeColor: Colors.white,
+                    inactiveThumbColor: Colors.white70,
+                    inactiveTrackColor: Colors.white38,
+                  ),
+                ],
+              ),
+            ],
           ),
 
           const SizedBox(height: 20),
@@ -112,10 +162,9 @@ class LogoutConfirmationScreen extends StatelessWidget {
                 ),
               ],
             ),
-            child: const Icon(
+            child: Icon(
               Icons.logout,
-              color:
-                  _darkBlue, // Dark Blue for the icon inside the white circle
+              color: primaryColor, // Dynamic Primary Color
               size: 50,
             ),
           ),
@@ -126,7 +175,7 @@ class LogoutConfirmationScreen extends StatelessWidget {
           const Text(
             'Leaving Already? 🥺',
             style: TextStyle(
-              color: Colors.white, // Text is White
+              color: Colors.white,
               fontSize: 26,
               fontWeight: FontWeight.bold,
             ),
@@ -135,28 +184,33 @@ class LogoutConfirmationScreen extends StatelessWidget {
           const Text(
             "We'll miss you! Are you sure you want to logout? ✨",
             textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: 16,
-            ), // Text is White
+            style: TextStyle(color: Colors.white70, fontSize: 16),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildImpactCard() {
+  // FIXED: Added BuildContext context as the first argument
+  Widget _buildImpactCard(
+    BuildContext context,
+    Color primaryColor,
+    bool isDarkMode,
+  ) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: Card(
         elevation: 0,
-        color: Colors.white,
+        // CORRECTED LINE: Using the passed 'context' argument
+        color: isDarkMode
+            ? Theme.of(context).colorScheme.surface
+            : Colors.white,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(15),
-          side: const BorderSide(
-            color: _darkBlue,
+          side: BorderSide(
+            color: primaryColor, // Dynamic Primary Color Outline
             width: 1.5,
-          ), // Dark Blue Outline
+          ),
         ),
         child: Padding(
           padding: const EdgeInsets.all(20.0),
@@ -165,14 +219,12 @@ class LogoutConfirmationScreen extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: _darkBlue.withOpacity(
-                    0.1,
-                  ), // Dark Blue opacity background
+                  color: primaryColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.star,
-                  color: _darkBlue, // Dark Blue Icon
+                  color: primaryColor, // Dynamic Primary Color Icon
                   size: 30,
                 ),
               ),
@@ -181,18 +233,18 @@ class LogoutConfirmationScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Your Impact',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 18,
-                        color: _darkBlue, // Dark Blue Text
+                        color: primaryColor, // Dynamic Primary Color Text
                       ),
                     ),
                     Text(
                       "You've helped return 8 items and earned a 4.9⭐ rating from the community!",
                       style: TextStyle(
-                        color: _darkBlue.withOpacity(0.8), // Dark Blue Text
+                        color: primaryColor.withOpacity(isDarkMode ? 1.0 : 0.8),
                         fontSize: 14,
                       ),
                     ),
@@ -206,37 +258,44 @@ class LogoutConfirmationScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildWarningCard() {
+  // FIXED: Added BuildContext context as the first argument
+  Widget _buildWarningCard(BuildContext context, Color primaryColor) {
+    // Distinct colors for the warning card background
+    const Color cardBg = Color(0xFFBBDEFB);
+    const Color cardBgDark = Color(0xFF03224C);
+
+    bool isDarkMode = primaryColor == _lightBlue;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: Card(
         elevation: 0,
-        color: const Color(0xFFBBDEFB), // Distinct Light Blue background
+        color: isDarkMode ? cardBgDark : cardBg, // Dynamic Warning Card Color
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(15),
-          side: const BorderSide(
-            color: _darkBlue,
+          side: BorderSide(
+            color: primaryColor, // Dynamic Primary Color Outline
             width: 1.5,
-          ), // Dark Blue Outline
+          ),
         ),
         child: Padding(
           padding: const EdgeInsets.all(20.0),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(
+              Icon(
                 Icons.warning_amber_rounded,
-                color: _darkBlue, // Dark Blue Icon
+                color: primaryColor, // Dynamic Primary Color Icon
                 size: 24,
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: const Text(
+                child: Text(
                   "You'll need to login again to access your account and continue helping the community.",
                   style: TextStyle(
-                    color: _darkBlue,
+                    color: primaryColor, // Dynamic Primary Color Text
                     fontSize: 14,
-                  ), // Dark Blue Text
+                  ),
                 ),
               ),
             ],
@@ -246,19 +305,20 @@ class LogoutConfirmationScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildLogoutButton(BuildContext context) {
+  Widget _buildLogoutButton(BuildContext context, bool isDarkMode) {
+    final gradient = LinearGradient(
+      colors: _getGradient(isDarkMode), // Dynamic Gradient
+      begin: Alignment.centerLeft,
+      end: Alignment.centerRight,
+    );
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: Container(
         width: double.infinity,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(15),
-          // Gradient for 'Yes, Logout' button (Bright Blue)
-          gradient: const LinearGradient(
-            colors: _brightBlueGradient,
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-          ),
+          gradient: gradient, // Dynamic Gradient for button
         ),
         child: ElevatedButton.icon(
           onPressed: () {
@@ -271,13 +331,13 @@ class LogoutConfirmationScreen extends StatelessWidget {
           label: const Text(
             'Yes, Logout',
             style: TextStyle(
-              color: Colors.white, // Text is White
+              color: Colors.white,
               fontSize: 18,
               fontWeight: FontWeight.bold,
             ),
           ),
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.transparent, // Important for gradient
+            backgroundColor: Colors.transparent,
             shadowColor: Colors.transparent,
             padding: const EdgeInsets.symmetric(vertical: 18),
             shape: RoundedRectangleBorder(
@@ -289,19 +349,20 @@ class LogoutConfirmationScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildStayLoggedInButton(BuildContext context) {
+  Widget _buildStayLoggedInButton(BuildContext context, bool isDarkMode) {
+    final gradient = LinearGradient(
+      colors: _getGradient(isDarkMode), // Dynamic Gradient
+      begin: Alignment.centerLeft,
+      end: Alignment.centerRight,
+    );
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: Container(
         width: double.infinity,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(15),
-          // Gradient for 'Stay Logged In' button (Bright Blue)
-          gradient: const LinearGradient(
-            colors: _brightBlueGradient,
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-          ),
+          gradient: gradient, // Dynamic Gradient for button
         ),
         child: ElevatedButton.icon(
           onPressed: () {
@@ -314,13 +375,13 @@ class LogoutConfirmationScreen extends StatelessWidget {
           label: const Text(
             'Stay Logged In',
             style: TextStyle(
-              color: Colors.white, // Text is White
+              color: Colors.white,
               fontSize: 18,
               fontWeight: FontWeight.bold,
             ),
           ),
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.transparent, // Important for gradient
+            backgroundColor: Colors.transparent,
             shadowColor: Colors.transparent,
             padding: const EdgeInsets.symmetric(vertical: 18),
             shape: RoundedRectangleBorder(

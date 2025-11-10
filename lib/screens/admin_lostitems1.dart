@@ -85,7 +85,7 @@ class AdminDashboard1LostItemsState extends State<AdminDashboard1LostItems> {
                                             ),
                                           ),
                                           Expanded(
-                                            child: Container(
+                                            child: SizedBox(
                                               width: double.infinity,
                                               child: SizedBox(),
                                             ),
@@ -124,7 +124,7 @@ class AdminDashboard1LostItemsState extends State<AdminDashboard1LostItems> {
                                                 ),
                                               );
                                             },
-                                            child: Container(
+                                            child: SizedBox(
                                               width: 39,
                                               height: 39,
                                               child: Image.network(
@@ -138,7 +138,7 @@ class AdminDashboard1LostItemsState extends State<AdminDashboard1LostItems> {
                                     ),
                                   ),
                                   IntrinsicHeight(
-                                    child: Container(
+                                    child: SizedBox(
                                       width: double.infinity,
                                       child: Column(
                                         children: [
@@ -429,7 +429,7 @@ class AdminDashboard1LostItemsState extends State<AdminDashboard1LostItems> {
                                           ),
                                           Expanded(
                                             child: IntrinsicHeight(
-                                              child: Container(
+                                              child: SizedBox(
                                                 width: double.infinity,
                                                 child: Column(
                                                   crossAxisAlignment:
@@ -953,7 +953,7 @@ class AdminDashboard1LostItemsState extends State<AdminDashboard1LostItems> {
                                                   ),
                                                   Expanded(
                                                     child: IntrinsicHeight(
-                                                      child: Container(
+                                                      child: SizedBox(
                                                         width: double.infinity,
                                                         child: Column(
                                                           crossAxisAlignment:
@@ -1445,7 +1445,7 @@ class AdminDashboard1LostItemsState extends State<AdminDashboard1LostItems> {
                                                   ),
                                                   Expanded(
                                                     child: IntrinsicHeight(
-                                                      child: Container(
+                                                      child: SizedBox(
                                                         width: double.infinity,
                                                         child: Column(
                                                           crossAxisAlignment:

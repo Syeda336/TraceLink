@@ -1,5 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import '../theme_provider.dart';
+
+// --- Light Theme Colors (Bright Blue) ---
+const Color _kPrimaryBrightBlue = Color(0xFF1E88E5); // Bright Blue
+const Color _kDarkBlueText = Color(0xFF0D47A1); // Darker Blue for text
+const Color _kLightBackgroundColor = Colors.white;
+
+// --- Dark Theme Colors (Dark/Grey) ---
+const Color _kDarkPrimaryColor = Color(
+  0xFF303F9F,
+); // A deep indigo for dark mode
+const Color _kDarkBackgroundColor = Color(0xFF121212); // True black/dark grey
+const Color _kDarkCardColor = Color(0xFF1F1F1F);
+const Color _kDarkHighlightColor = Color(
+  0xFFBBDEFB,
+); // Light text color for dark mode
 
 class TermsPrivacyScreen extends StatefulWidget {
   const TermsPrivacyScreen({super.key});
@@ -19,7 +36,14 @@ class _TermsPrivacyScreenState extends State<TermsPrivacyScreen> {
     required Color iconColor,
     required String title,
     required String description,
+    required bool isDarkMode, // Pass dark mode status
   }) {
+    final Color titleColor = isDarkMode ? _kDarkHighlightColor : _kDarkBlueText;
+    // FIX: Added '!' for null safety assertion
+    final Color descriptionColor = isDarkMode
+        ? Colors.grey[400]!
+        : Colors.grey[700]!;
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
@@ -40,14 +64,18 @@ class _TermsPrivacyScreenState extends State<TermsPrivacyScreen> {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
+                    color: titleColor, // Dynamic title color
                   ),
                 ),
                 Text(
                   description,
-                  style: TextStyle(color: Colors.grey[700], fontSize: 14),
+                  style: TextStyle(
+                    color: descriptionColor,
+                    fontSize: 14,
+                  ), // Dynamic description color
                 ),
               ],
             ),
@@ -58,7 +86,31 @@ class _TermsPrivacyScreenState extends State<TermsPrivacyScreen> {
   }
 
   // Content for the "Terms" tab
-  Widget _buildTermsContent() {
+  Widget _buildTermsContent(bool isDarkMode) {
+    final Color lastUpdatedBg = isDarkMode
+        ? _kDarkCardColor
+        : _kPrimaryBrightBlue.withOpacity(0.05);
+    final Color lastUpdatedText = isDarkMode
+        ? _kDarkHighlightColor
+        : _kDarkBlueText;
+    final Color cardOutlineColor = isDarkMode
+        ? _kDarkPrimaryColor
+        : _kDarkBlueText;
+    final Color primaryColor = isDarkMode
+        ? _kDarkPrimaryColor
+        : _kPrimaryBrightBlue;
+    final Color cardTitleColor = isDarkMode
+        ? _kDarkHighlightColor
+        : _kDarkBlueText;
+    final Color cardBackground = isDarkMode
+        ? _kDarkCardColor
+        : _kLightBackgroundColor;
+
+    // FIX: Added '!' for null safety assertion
+    final Color cardBodyColor = isDarkMode
+        ? Colors.grey[400]!
+        : Colors.grey[700]!;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -67,14 +119,14 @@ class _TermsPrivacyScreenState extends State<TermsPrivacyScreen> {
           width: double.infinity,
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.blue.withOpacity(0.05), // Light blue background
+            color: lastUpdatedBg,
             borderRadius: BorderRadius.circular(15),
           ),
           child: Text(
             'Last Updated: November 2, 2025',
             style: TextStyle(
               fontWeight: FontWeight.bold,
-              color: Colors.blue[700],
+              color: lastUpdatedText,
             ),
           ),
         ),
@@ -83,8 +135,10 @@ class _TermsPrivacyScreenState extends State<TermsPrivacyScreen> {
         // Introduction
         Card(
           elevation: 0,
+          color: cardBackground,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(15),
+            side: BorderSide(color: cardOutlineColor), // Dynamic outline color
           ),
           child: Padding(
             padding: const EdgeInsets.all(16.0),
@@ -96,20 +150,21 @@ class _TermsPrivacyScreenState extends State<TermsPrivacyScreen> {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF8B42F8).withOpacity(0.1),
+                        color: primaryColor.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.description_outlined,
-                        color: Color(0xFF8B42F8),
+                        color: primaryColor,
                       ),
                     ),
                     const SizedBox(width: 10),
-                    const Text(
+                    Text(
                       'Introduction',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 18,
+                        color: cardTitleColor,
                       ),
                     ),
                   ],
@@ -117,7 +172,7 @@ class _TermsPrivacyScreenState extends State<TermsPrivacyScreen> {
                 const SizedBox(height: 10),
                 Text(
                   'Welcome to Lost & Found. By accessing or using our application, you agree to be bound by these Terms of Service. Please read them carefully.',
-                  style: TextStyle(color: Colors.grey[700], fontSize: 15),
+                  style: TextStyle(color: cardBodyColor, fontSize: 15),
                 ),
               ],
             ),
@@ -128,22 +183,28 @@ class _TermsPrivacyScreenState extends State<TermsPrivacyScreen> {
         // 1. Acceptance of Terms
         Card(
           elevation: 0,
+          color: cardBackground,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(15),
+            side: BorderSide(color: cardOutlineColor), // Dynamic outline color
           ),
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   '1. Acceptance of Terms',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    color: cardTitleColor,
+                  ),
                 ),
                 const SizedBox(height: 10),
                 Text(
                   'By creating an account and using Lost & Found, you agree to comply with and be bound by these Terms. If you do not agree to these Terms, you may not use the application.',
-                  style: TextStyle(color: Colors.grey[700], fontSize: 15),
+                  style: TextStyle(color: cardBodyColor, fontSize: 15),
                 ),
               ],
             ),
@@ -152,22 +213,28 @@ class _TermsPrivacyScreenState extends State<TermsPrivacyScreen> {
         const SizedBox(height: 20),
         Card(
           elevation: 0,
+          color: cardBackground,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(15),
+            side: BorderSide(color: cardOutlineColor), // Dynamic outline color
           ),
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   '2. User Responsibilities',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    color: cardTitleColor,
+                  ),
                 ),
                 const SizedBox(height: 10),
                 Text(
                   'Users are responsible for maintaining the confidentiality of their account information and for all activities that occur under their account.',
-                  style: TextStyle(color: Colors.grey[700], fontSize: 15),
+                  style: TextStyle(color: cardBodyColor, fontSize: 15),
                 ),
               ],
             ),
@@ -178,7 +245,31 @@ class _TermsPrivacyScreenState extends State<TermsPrivacyScreen> {
   }
 
   // Content for the "Privacy" tab
-  Widget _buildPrivacyContent() {
+  Widget _buildPrivacyContent(bool isDarkMode) {
+    final Color lastUpdatedBg = isDarkMode
+        ? _kDarkCardColor
+        : _kPrimaryBrightBlue.withOpacity(0.05);
+    final Color lastUpdatedText = isDarkMode
+        ? _kDarkHighlightColor
+        : _kDarkBlueText;
+    final Color cardOutlineColor = isDarkMode
+        ? _kDarkPrimaryColor
+        : _kDarkBlueText;
+    final Color primaryColor = isDarkMode
+        ? _kDarkPrimaryColor
+        : _kPrimaryBrightBlue;
+    final Color cardTitleColor = isDarkMode
+        ? _kDarkHighlightColor
+        : _kDarkBlueText;
+    final Color cardBackground = isDarkMode
+        ? _kDarkCardColor
+        : _kLightBackgroundColor;
+
+    // FIX: Added '!' for null safety assertion
+    final Color cardBodyColor = isDarkMode
+        ? Colors.grey[400]!
+        : Colors.grey[700]!;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -187,14 +278,14 @@ class _TermsPrivacyScreenState extends State<TermsPrivacyScreen> {
           width: double.infinity,
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.blue.withOpacity(0.05), // Light blue background
+            color: lastUpdatedBg,
             borderRadius: BorderRadius.circular(15),
           ),
           child: Text(
             'Last Updated: November 2, 2025',
             style: TextStyle(
               fontWeight: FontWeight.bold,
-              color: Colors.blue[700],
+              color: lastUpdatedText,
             ),
           ),
         ),
@@ -203,8 +294,10 @@ class _TermsPrivacyScreenState extends State<TermsPrivacyScreen> {
         // Data We Collect
         Card(
           elevation: 0,
+          color: cardBackground,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(15),
+            side: BorderSide(color: cardOutlineColor), // Dynamic outline color
           ),
           child: Padding(
             padding: const EdgeInsets.all(16.0),
@@ -216,20 +309,18 @@ class _TermsPrivacyScreenState extends State<TermsPrivacyScreen> {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: Colors.blue.withOpacity(0.1),
+                        color: primaryColor.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: const Icon(
-                        Icons.storage_outlined,
-                        color: Colors.blue,
-                      ),
+                      child: Icon(Icons.storage_outlined, color: primaryColor),
                     ),
                     const SizedBox(width: 10),
-                    const Text(
+                    Text(
                       'Data We Collect',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 18,
+                        color: cardTitleColor,
                       ),
                     ),
                   ],
@@ -237,26 +328,29 @@ class _TermsPrivacyScreenState extends State<TermsPrivacyScreen> {
                 const SizedBox(height: 10),
                 _buildPolicyPoint(
                   icon: Icons.person_outline,
-                  iconColor: Colors.deepPurple,
+                  iconColor: primaryColor,
                   title: 'Personal Information',
                   description:
                       'Name, email, student ID, and profile information you provide',
+                  isDarkMode: isDarkMode,
                 ),
                 const Divider(height: 1, indent: 20, endIndent: 20),
                 _buildPolicyPoint(
                   icon: Icons.inventory_outlined,
-                  iconColor: const Color(0xFFE94B8A), // Pink
+                  iconColor: primaryColor,
                   title: 'Item Information',
                   description:
                       'Details about items reported, including photos and descriptions',
+                  isDarkMode: isDarkMode,
                 ),
                 const Divider(height: 1, indent: 20, endIndent: 20),
                 _buildPolicyPoint(
                   icon: Icons.notifications_none,
-                  iconColor: Colors.blueGrey,
+                  iconColor: primaryColor,
                   title: 'Usage Data',
                   description:
                       'App interactions, preferences, and device information',
+                  isDarkMode: isDarkMode,
                 ),
               ],
             ),
@@ -266,22 +360,28 @@ class _TermsPrivacyScreenState extends State<TermsPrivacyScreen> {
         const SizedBox(height: 20),
         Card(
           elevation: 0,
+          color: cardBackground,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(15),
+            side: BorderSide(color: cardOutlineColor), // Dynamic outline color
           ),
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'How We Use Data',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    color: cardTitleColor,
+                  ),
                 ),
                 const SizedBox(height: 10),
                 Text(
                   'We use your data to provide, maintain, and improve our services, communicate with you, and ensure security.',
-                  style: TextStyle(color: Colors.grey[700], fontSize: 15),
+                  style: TextStyle(color: cardBodyColor, fontSize: 15),
                 ),
               ],
             ),
@@ -296,10 +396,25 @@ class _TermsPrivacyScreenState extends State<TermsPrivacyScreen> {
     required String label,
     required IconData icon,
     required int index,
+    required bool isDarkMode, // Pass dark mode status
   }) {
     final bool isSelected = _selectedIndex == index;
-    final Color iconColor = isSelected ? Colors.white : Colors.black87;
-    final Color textColor = isSelected ? Colors.white : Colors.black87;
+
+    // Dynamic tab colors
+    final Color primaryColor = isDarkMode
+        ? _kDarkPrimaryColor
+        : _kPrimaryBrightBlue;
+    final Color selectedBg = primaryColor;
+    final Color unselectedBg = isDarkMode
+        ? _kDarkCardColor
+        : _kLightBackgroundColor;
+
+    final Color iconColor = isSelected
+        ? Colors.white
+        : (isDarkMode ? _kDarkHighlightColor : _kDarkBlueText);
+    final Color textColor = isSelected
+        ? Colors.white
+        : (isDarkMode ? _kDarkHighlightColor : _kDarkBlueText);
 
     return Expanded(
       child: GestureDetector(
@@ -311,14 +426,7 @@ class _TermsPrivacyScreenState extends State<TermsPrivacyScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 15),
           decoration: BoxDecoration(
-            gradient: isSelected
-                ? const LinearGradient(
-                    colors: [Color(0xFF8B42F8), Color(0xFFE94B8A)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  )
-                : null,
-            color: isSelected ? null : Colors.white,
+            color: isSelected ? selectedBg : unselectedBg,
             borderRadius: BorderRadius.horizontal(
               left: index == 0 ? const Radius.circular(15.0) : Radius.zero,
               right: index == 1 ? const Radius.circular(15.0) : Radius.zero,
@@ -348,36 +456,47 @@ class _TermsPrivacyScreenState extends State<TermsPrivacyScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Set status bar color to transparent
+    // 1. Get the theme state
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final bool isDarkMode = themeProvider.isDarkMode;
+
+    // 2. Define dynamic main colors based on theme
+    final Color primaryColor = isDarkMode
+        ? _kDarkPrimaryColor
+        : _kPrimaryBrightBlue;
+    final Color scaffoldBg = isDarkMode
+        ? _kDarkBackgroundColor
+        : Colors.grey[50]!;
+    final Color tabBorderColor = isDarkMode
+        ? _kDarkPrimaryColor
+        : _kDarkBlueText;
+
+    // Set status bar icon brightness
     SystemChrome.setSystemUIOverlayStyle(
-      const SystemUiOverlayStyle(
+      SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.light,
+        statusBarIconBrightness: isDarkMode
+            ? Brightness.light
+            : Brightness.light,
       ),
     );
 
     return Scaffold(
-      backgroundColor: Colors.grey[50], // Consistent light background
+      backgroundColor: scaffoldBg, // Dynamic background
       body: CustomScrollView(
         slivers: [
-          // Gradient Header Bar (SliverAppBar)
+          // Header Bar (SliverAppBar)
           SliverAppBar(
-            expandedHeight: 200.0, // Adjusted height
+            expandedHeight: 200.0,
             pinned: true,
-            backgroundColor:
-                Colors.transparent, // Required for gradient to show
-            leadingWidth: 80.0, // Give more space for the custom leading widget
+            backgroundColor: primaryColor, // Dynamic primary color background
+            leadingWidth: 80.0,
             leading: Padding(
-              padding: const EdgeInsets.only(
-                left: 16.0,
-                top: 8.0,
-              ), // Padding to match screenshot
+              padding: const EdgeInsets.only(left: 16.0, top: 8.0),
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(
-                    0.2,
-                  ), // Semi-transparent white background
-                  borderRadius: BorderRadius.circular(12), // Rounded corners
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: IconButton(
                   icon: const Icon(Icons.arrow_back, color: Colors.white),
@@ -389,69 +508,60 @@ class _TermsPrivacyScreenState extends State<TermsPrivacyScreen> {
             ),
             flexibleSpace: FlexibleSpaceBar(
               background: Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      Color(0xFF8B42F8),
-                      Color(0xFFE94B8A),
-                    ], // Your gradient colors
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                ),
+                color: primaryColor, // Dynamic color background
               ),
-              // Adjust titlePadding to move text higher
               titlePadding: const EdgeInsets.only(
                 left: 100.0,
                 top: kToolbarHeight + 20,
-              ), // Adjusted top padding
+              ),
               centerTitle: false,
-              title: Column(
-                mainAxisAlignment:
-                    MainAxisAlignment.start, // Align to start (top)
+              title: const Column(
+                mainAxisAlignment: MainAxisAlignment.start,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Terms & Privacy',
                     style: TextStyle(
-                      fontSize: 22.0, // Slightly larger font
+                      fontSize: 22.0,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
                     ),
                   ),
                   Text(
                     'Your rights and our policies',
-                    style: TextStyle(
-                      fontSize: 14.0,
-                      color: Colors.white70,
-                    ), // Slightly larger font
+                    style: TextStyle(fontSize: 14.0, color: Colors.white70),
                   ),
                 ],
               ),
             ),
-            // Tabs Section (Terms / Privacy) placed at the bottom of the AppBar
+            // Tabs Section (Terms / Privacy)
             bottom: PreferredSize(
-              preferredSize: const Size.fromHeight(
-                80.0,
-              ), // Height of the tabs container
+              preferredSize: const Size.fromHeight(80.0),
               child: Padding(
                 padding: const EdgeInsets.only(
                   left: 20.0,
                   right: 20.0,
-                  bottom: 20.0, // Push tabs up onto the header
+                  bottom: 20.0,
                 ),
                 child: Container(
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: isDarkMode
+                        ? _kDarkCardColor
+                        : _kLightBackgroundColor, // Dynamic tab background
                     borderRadius: BorderRadius.circular(15.0),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.15),
+                        color: Colors.black.withOpacity(
+                          isDarkMode ? 0.3 : 0.15,
+                        ),
                         spreadRadius: 0,
                         blurRadius: 10,
                         offset: const Offset(0, 5),
                       ),
                     ],
+                    border: Border.all(
+                      color: tabBorderColor,
+                    ), // Dynamic border color
                   ),
                   child: Row(
                     children: [
@@ -459,11 +569,13 @@ class _TermsPrivacyScreenState extends State<TermsPrivacyScreen> {
                         label: 'Terms',
                         icon: Icons.description_outlined,
                         index: 0,
+                        isDarkMode: isDarkMode,
                       ),
                       _buildTabButton(
                         label: 'Privacy',
                         icon: Icons.security_outlined,
                         index: 1,
+                        isDarkMode: isDarkMode,
                       ),
                     ],
                   ),
@@ -472,7 +584,7 @@ class _TermsPrivacyScreenState extends State<TermsPrivacyScreen> {
             ),
           ),
 
-          // Main Content Area (Dynamically changes based on selected tab)
+          // Main Content Area
           SliverPadding(
             padding: const EdgeInsets.symmetric(
               horizontal: 20.0,
@@ -481,8 +593,8 @@ class _TermsPrivacyScreenState extends State<TermsPrivacyScreen> {
             sliver: SliverList(
               delegate: SliverChildListDelegate([
                 _selectedIndex == 0
-                    ? _buildTermsContent()
-                    : _buildPrivacyContent(),
+                    ? _buildTermsContent(isDarkMode) // Pass theme state
+                    : _buildPrivacyContent(isDarkMode), // Pass theme state
               ]),
             ),
           ),

@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+// Assuming the theme_provider.dart is in the same directory or accessible
+import '../theme_provider.dart';
 
 // Assuming these are defined in their respective files
 import 'home.dart';
@@ -8,7 +11,7 @@ import 'search_lost.dart';
 import 'community_feed.dart';
 import 'profile_page.dart';
 
-// Define the new color palette
+// Define the new color palette (Base for Light Mode)
 const Color primaryBlue = Color(
   0xFF42A5F5,
 ); // Bright Blue (A light-medium blue)
@@ -32,6 +35,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
       0; // Set to 0 initially, or choose an appropriate index for Alerts screen
 
   // --- Bottom Navigation Colors ---
+  // These will be used for the selected icons regardless of light/dark mode for high visibility
   final List<Color> _navItemColors = const [
     Colors
         .green, // Home (Index 0) - Using favorite icon, but navigating to home.dart
@@ -81,93 +85,170 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
     return _selectedIndex == index ? _navItemColors[index] : Colors.grey;
   }
 
+  // --- Theme-Adaptive Color Helpers ---
+  Color _getPrimaryTextColor(bool isDarkMode) {
+    return isDarkMode ? Colors.white : darkBlue;
+  }
+
+  Color _getSecondaryTextColor(bool isDarkMode) {
+    return isDarkMode ? Colors.grey.shade300 : Colors.grey.shade800;
+  }
+
+  Color _getBackgroundColor(bool isDarkMode) {
+    return isDarkMode ? const Color(0xFF121212) : Colors.white;
+  }
+
+  Color _getCardColor(bool isDarkMode) {
+    return isDarkMode ? const Color(0xFF1E1E1E) : lightBlueBackground;
+  }
+
+  Color _getCardOutlineColor(bool isDarkMode) {
+    return isDarkMode ? primaryBlue : darkBlue;
+  }
+
+  Color _getAppBarIconBackground(bool isDarkMode) {
+    return isDarkMode
+        ? primaryBlue.withOpacity(0.8)
+        : Colors.white.withOpacity(0.8);
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white, // Default screen background
-      // The body is wrapped in a Stack to place the content and action buttons
-      body: Stack(
-        children: [
-          // Screen Content (Scrollable)
-          SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // --- Image 4: Item Header with Image, Title, Location, Date ---
-                _buildItemImageHeader(context),
-                // This Padding helps to align the content below the image
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(
-                        height: 20,
-                      ), // Spacing after the image header card
-                      // --- Image 1: Posted By Section ---
-                      _buildPostedBySection(),
-                      const SizedBox(height: 20),
+    // Use Consumer to react to theme changes
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, child) {
+        final isDarkMode = themeProvider.isDarkMode;
+        final primaryTextColor = _getPrimaryTextColor(isDarkMode);
+        final secondaryTextColor = _getSecondaryTextColor(isDarkMode);
+        final backgroundColor = _getBackgroundColor(isDarkMode);
+        final cardColor = _getCardColor(isDarkMode);
+        final cardOutlineColor = _getCardOutlineColor(isDarkMode);
 
-                      // --- Image 2: Description Section ---
-                      _buildDescriptionSection(),
-                      const SizedBox(height: 20),
+        // Define a base text style for dark/light mode
+        final baseTextStyle = TextStyle(
+          color: secondaryTextColor,
+          fontSize: 16,
+        );
 
-                      // --- Image 3: Additional Details Section ---
-                      _buildAdditionalDetailsSection(),
-                      const SizedBox(
-                        height: 100,
-                      ), // Space for the floating action buttons to overlap
-                    ],
-                  ),
+        return Scaffold(
+          backgroundColor: backgroundColor, // Dynamic screen background
+          // The body is wrapped in a Stack to place the content and action buttons
+          body: Stack(
+            children: [
+              // Screen Content (Scrollable)
+              SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // --- Image 4: Item Header with Image, Title, Location, Date ---
+                    _buildItemImageHeader(
+                      context,
+                      isDarkMode,
+                      primaryTextColor,
+                      secondaryTextColor,
+                    ),
+                    // This Padding helps to align the content below the image
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(
+                            height: 20,
+                          ), // Spacing after the image header card
+                          // --- Image 1: Posted By Section ---
+                          _buildPostedBySection(
+                            primaryTextColor,
+                            cardColor,
+                            cardOutlineColor,
+                          ),
+                          const SizedBox(height: 20),
+
+                          // --- Image 2: Description Section ---
+                          _buildDescriptionSection(
+                            primaryTextColor,
+                            cardColor,
+                            cardOutlineColor,
+                            baseTextStyle,
+                          ),
+                          const SizedBox(height: 20),
+
+                          // --- Image 3: Additional Details Section ---
+                          _buildAdditionalDetailsSection(
+                            primaryTextColor,
+                            cardColor,
+                            cardOutlineColor,
+                          ),
+                          const SizedBox(
+                            height: 100,
+                          ), // Space for the floating action buttons to overlap
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              // --- Floating Action Buttons (Message & Claim Item) ---
+              _buildBottomActionButtons(
+                context,
+                isDarkMode,
+                backgroundColor,
+                primaryTextColor,
+              ),
+            ],
           ),
-          // --- Floating Action Buttons (Message & Claim Item) ---
-          _buildBottomActionButtons(context),
-        ],
-      ),
-      // --- Bottom Navigation Bar (Moved here) ---
-      bottomNavigationBar: BottomNavigationBar(
-        items: <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(
-              Icons.home_outlined,
-              color: _getIconColor(0),
-            ), // Changed to home icon
-            label: 'Home',
+          // --- Bottom Navigation Bar (Moved here) ---
+          bottomNavigationBar: BottomNavigationBar(
+            items: <BottomNavigationBarItem>[
+              BottomNavigationBarItem(
+                icon: Icon(
+                  Icons.home_outlined,
+                  color: _getIconColor(0),
+                ), // Changed to home icon
+                label: 'Home',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.browse_gallery, color: _getIconColor(1)),
+                label: 'Browse',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.inventory_2_outlined, color: _getIconColor(2)),
+                label: 'Feed',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.chat_bubble_outline, color: _getIconColor(3)),
+                label: 'Chat',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.person_outline, color: _getIconColor(4)),
+                label: 'Profile',
+              ),
+            ],
+            currentIndex: _selectedIndex,
+            selectedItemColor: _navItemColors[_selectedIndex],
+            unselectedItemColor: isDarkMode
+                ? Colors.grey.shade600
+                : Colors.grey,
+            showUnselectedLabels: true,
+            onTap: _onItemTapped,
+            type: BottomNavigationBarType.fixed,
+            backgroundColor: isDarkMode
+                ? const Color(0xFF1E1E1E)
+                : Colors.white, // Dynamic Nav Bar background
+            elevation: 10,
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.browse_gallery, color: _getIconColor(1)),
-            label: 'Browse',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.inventory_2_outlined, color: _getIconColor(2)),
-            label: 'Feed',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.chat_bubble_outline, color: _getIconColor(3)),
-            label: 'Chat',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline, color: _getIconColor(4)),
-            label: 'Profile',
-          ),
-        ],
-        currentIndex: _selectedIndex,
-        selectedItemColor: _navItemColors[_selectedIndex],
-        unselectedItemColor: Colors.grey,
-        showUnselectedLabels: true,
-        onTap: _onItemTapped,
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
-        elevation: 10,
-      ),
+        );
+      },
     );
   }
 
   // --- Widget for Image 4: Item Header ---
-  Widget _buildItemImageHeader(BuildContext context) {
+  Widget _buildItemImageHeader(
+    BuildContext context,
+    bool isDarkMode,
+    Color primaryTextColor,
+    Color secondaryTextColor,
+  ) {
     return Column(
       children: [
         Stack(
@@ -202,11 +283,11 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
               left: 10,
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.8),
+                  color: _getAppBarIconBackground(isDarkMode),
                   shape: BoxShape.circle,
                 ),
                 child: IconButton(
-                  icon: const Icon(Icons.arrow_back, color: Colors.black),
+                  icon: Icon(Icons.arrow_back, color: primaryTextColor),
                   onPressed: () {
                     Navigator.of(context).pushReplacement(
                       MaterialPageRoute(builder: (context) => HomeScreen()),
@@ -223,11 +304,11 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
               right: 10,
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.8),
+                  color: _getAppBarIconBackground(isDarkMode),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: IconButton(
-                  icon: const Icon(Icons.flag_outlined, color: Colors.black),
+                  icon: Icon(Icons.flag_outlined, color: primaryTextColor),
                   onPressed: () {
                     // Handle flag/bookmark action
                   },
@@ -243,15 +324,17 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
             margin: const EdgeInsets.symmetric(horizontal: 20),
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: _getBackgroundColor(isDarkMode), // Dynamic background
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: darkBlue,
+                color: darkBlue, // Dark blue outline (constant for emphasis)
                 width: 1,
-              ), // Dark blue outline
+              ),
               boxShadow: [
                 BoxShadow(
-                  color: darkBlue.withOpacity(0.1),
+                  color: (isDarkMode ? Colors.black : darkBlue).withOpacity(
+                    0.2,
+                  ),
                   spreadRadius: 2,
                   blurRadius: 10,
                   offset: const Offset(0, 5),
@@ -261,13 +344,14 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Black Leather Wallet',
                   style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
-                    color: darkBlue,
-                  ), // Dark Blue Text
+                    color:
+                        primaryBlue, // Bright Blue Text (constant for accent)
+                  ),
                 ),
                 const SizedBox(height: 10),
                 Container(
@@ -278,7 +362,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                   decoration: BoxDecoration(
                     color: primaryBlue.withOpacity(
                       0.15,
-                    ), // Light background for the tag
+                    ), // Light background for the tag (constant for accent)
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: const Text(
@@ -292,9 +376,9 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                 const SizedBox(height: 15),
                 Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.location_on_outlined,
-                      color: darkBlue, // Dark Blue Icon
+                      color: primaryTextColor, // Dynamic Icon
                     ),
                     const SizedBox(width: 8),
                     Expanded(
@@ -302,7 +386,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                         'Library, 2nd Floor near Study Room 12',
                         style: TextStyle(
                           fontSize: 16,
-                          color: Colors.grey.shade800,
+                          color: secondaryTextColor, // Dynamic Text
                         ),
                       ),
                     ),
@@ -311,16 +395,16 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                 const SizedBox(height: 10),
                 Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.calendar_today_outlined,
-                      color: darkBlue, // Dark Blue Icon
+                      color: primaryTextColor, // Dynamic Icon
                     ),
                     const SizedBox(width: 8),
                     Text(
                       'October 10, 2025',
                       style: TextStyle(
                         fontSize: 16,
-                        color: Colors.grey.shade800,
+                        color: secondaryTextColor, // Dynamic Text
                       ),
                     ),
                   ],
@@ -334,14 +418,21 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
   }
 
   // --- Widget for Image 1: Posted By Section ---
-  Widget _buildPostedBySection() {
+  Widget _buildPostedBySection(
+    Color primaryTextColor,
+    Color cardColor,
+    Color cardOutlineColor,
+  ) {
     return Container(
       padding: const EdgeInsets.all(20),
       margin: const EdgeInsets.symmetric(horizontal: 0),
       decoration: BoxDecoration(
-        color: lightBlueBackground, // Light Blue Background
+        color: cardColor, // Dynamic Background
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: darkBlue, width: 1), // Dark blue outline
+        border: Border.all(
+          color: cardOutlineColor,
+          width: 1,
+        ), // Dynamic outline
         boxShadow: [
           BoxShadow(
             color: darkBlue.withOpacity(0.1),
@@ -354,13 +445,13 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Posted By',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: darkBlue,
-            ), // Dark Blue Text
+              color: primaryTextColor, // Dynamic Text
+            ),
           ),
           const SizedBox(height: 15),
           Row(
@@ -370,7 +461,8 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                 width: 50,
                 height: 50,
                 decoration: const BoxDecoration(
-                  color: primaryBlue, // Bright Blue Avatar background
+                  color:
+                      primaryBlue, // Bright Blue Avatar background (constant)
                   shape: BoxShape.circle,
                 ),
                 child: const Center(
@@ -390,18 +482,20 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'John Doe',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: darkBlue, // Dark Blue Text
+                        color: primaryTextColor, // Dynamic Text
                       ),
                     ),
                     Text(
                       'Student • Verified',
                       style: TextStyle(
-                        color: darkBlue.withOpacity(0.8), // Dark Blue Text
+                        color: primaryTextColor.withOpacity(
+                          0.8,
+                        ), // Dynamic Text
                         fontSize: 14,
                       ),
                     ),
@@ -435,14 +529,22 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
   }
 
   // --- Widget for Image 2: Description Section ---
-  Widget _buildDescriptionSection() {
+  Widget _buildDescriptionSection(
+    Color primaryTextColor,
+    Color cardColor,
+    Color cardOutlineColor,
+    TextStyle baseTextStyle,
+  ) {
     return Container(
       padding: const EdgeInsets.all(20),
       margin: const EdgeInsets.symmetric(horizontal: 0),
       decoration: BoxDecoration(
-        color: lightBlueBackground, // Light Blue Background
+        color: cardColor, // Dynamic Background
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: darkBlue, width: 1), // Dark blue outline
+        border: Border.all(
+          color: cardOutlineColor,
+          width: 1,
+        ), // Dynamic outline
         boxShadow: [
           BoxShadow(
             color: darkBlue.withOpacity(0.1),
@@ -455,22 +557,18 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Description',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: darkBlue,
-            ), // Dark Blue Text
+              color: primaryTextColor, // Dynamic Text
+            ),
           ),
           const SizedBox(height: 15),
           Text(
             'Black leather wallet with multiple card slots. Contains student ID, driver\'s license, and credit cards. Has a small Nike logo on the front. Very sentimental value as it was a gift from my parents.',
-            style: TextStyle(
-              fontSize: 16,
-              height: 1.5,
-              color: darkBlue.withOpacity(0.8), // Dark Blue Text
-            ),
+            style: baseTextStyle.copyWith(height: 1.5), // Dynamic Text
           ),
         ],
       ),
@@ -478,17 +576,21 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
   }
 
   // --- Widget for Image 3: Additional Details Section ---
-  Widget _buildAdditionalDetailsSection() {
+  Widget _buildAdditionalDetailsSection(
+    Color primaryTextColor,
+    Color cardColor,
+    Color cardOutlineColor,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Additional Details',
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
-            color: darkBlue,
-          ), // Dark Blue Text
+            color: primaryTextColor, // Dynamic Text
+          ),
         ),
         const SizedBox(height: 15),
         Row(
@@ -497,9 +599,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
               child: Container(
                 padding: const EdgeInsets.all(15),
                 decoration: BoxDecoration(
-                  color: lightBlueBackground.withOpacity(
-                    0.7,
-                  ), // Slightly darker light blue
+                  color: cardColor, // Dynamic Background
                   borderRadius: BorderRadius.circular(15),
                 ),
                 child: Column(
@@ -508,17 +608,19 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                     Text(
                       'Category',
                       style: TextStyle(
-                        color: darkBlue.withOpacity(0.6), // Dark Blue Text
+                        color: primaryTextColor.withOpacity(
+                          0.6,
+                        ), // Dynamic Text
                         fontSize: 14,
                       ),
                     ),
                     const SizedBox(height: 5),
-                    const Text(
+                    Text(
                       'Accessories',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
-                        color: darkBlue, // Dark Blue Text
+                        color: primaryTextColor, // Dynamic Text
                       ),
                     ),
                   ],
@@ -530,9 +632,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
               child: Container(
                 padding: const EdgeInsets.all(15),
                 decoration: BoxDecoration(
-                  color: lightBlueBackground.withOpacity(
-                    0.7,
-                  ), // Slightly darker light blue
+                  color: cardColor, // Dynamic Background
                   borderRadius: BorderRadius.circular(15),
                 ),
                 child: Column(
@@ -541,17 +641,19 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                     Text(
                       'Color',
                       style: TextStyle(
-                        color: darkBlue.withOpacity(0.6), // Dark Blue Text
+                        color: primaryTextColor.withOpacity(
+                          0.6,
+                        ), // Dynamic Text
                         fontSize: 14,
                       ),
                     ),
                     const SizedBox(height: 5),
-                    const Text(
+                    Text(
                       'Black',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
-                        color: darkBlue, // Dark Blue Text
+                        color: primaryTextColor, // Dynamic Text
                       ),
                     ),
                   ],
@@ -565,7 +667,12 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
   }
 
   // --- Widget for Bottom Action Buttons ---
-  Widget _buildBottomActionButtons(BuildContext context) {
+  Widget _buildBottomActionButtons(
+    BuildContext context,
+    bool isDarkMode,
+    Color backgroundColor,
+    Color primaryTextColor,
+  ) {
     return Positioned(
       bottom: 0,
       left: 0,
@@ -573,10 +680,10 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: backgroundColor, // Dynamic Background
           boxShadow: [
             BoxShadow(
-              color: darkBlue.withOpacity(0.1),
+              color: (isDarkMode ? Colors.black : darkBlue).withOpacity(0.2),
               spreadRadius: 5,
               blurRadius: 10,
               offset: const Offset(0, -3),
@@ -602,22 +709,23 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                       borderRadius: BorderRadius.circular(30),
                     ),
                     side: const BorderSide(
-                      color: primaryBlue, // Bright Blue Border
+                      color:
+                          primaryBlue, // Bright Blue Border (constant accent)
                       width: 2,
                     ),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
                         Icons.message_outlined,
-                        color: darkBlue, // Dark Blue Icon
+                        color: primaryTextColor, // Dynamic Icon
                       ),
-                      SizedBox(width: 10),
+                      const SizedBox(width: 10),
                       Text(
                         'Message',
                         style: TextStyle(
-                          color: darkBlue, // Dark Blue Text
+                          color: primaryTextColor, // Dynamic Text
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                         ),
@@ -642,7 +750,8 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(30),
                     ),
-                    backgroundColor: primaryBlue, // Bright Blue Button
+                    backgroundColor:
+                        primaryBlue, // Bright Blue Button (constant accent)
                     elevation: 0,
                   ),
                   child: const Text(

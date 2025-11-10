@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart'; // REQUIRED: Import Provider
 import 'home.dart';
 import 'upload_image.dart';
 import 'ai_generated.dart';
@@ -7,15 +8,21 @@ import 'search_lost.dart';
 import 'community_feed.dart';
 import 'profile_page.dart';
 import 'messages.dart';
+import '../theme_provider.dart'; // Using the provided ThemeProvider
 
-// --- Define the Color Palette ---
-const Color primaryBlue = Color(
-  0xFF42A5F5,
-); // Bright Blue (Header, Primary button)
-const Color darkBlue = Color(0xFF1977D2); // Dark Blue (Body text, outlines)
-const Color lightBlueBackground = Color(
-  0xFFE3F2FD,
-); // Very Light Blue (Background)
+// --- Color Palette Definition (Defined internally based on mode) ---
+// Base Colors (Light Mode reference)
+const Color basePrimaryBlue = Color(0xFF42A5F5);
+const Color baseDarkBlue = Color(0xFF1977D2);
+const Color baseLightBlueBackground = Color(0xFFE3F2FD);
+
+// Dark Mode Colors (Example replacements)
+const Color darkPrimaryBlue = Color(0xFF64B5F6); // Lighter shade for visibility
+const Color darkDarkBlue = Color(0xFF90CAF9); // Light text color
+const Color darkBackground = Color(0xFF121212); // True dark background
+const Color darkInputBackground = Color(
+  0xFF1E1E1E,
+); // Dark input field background
 
 class ReportLostItemScreen extends StatefulWidget {
   const ReportLostItemScreen({super.key});
@@ -29,7 +36,6 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
   int _selectedIndex = 0;
 
   void _navigateToScreen(BuildContext context, Widget screen) {
-    // This is generally safe for navigating to a detail page
     Navigator.push(context, MaterialPageRoute(builder: (context) => screen));
   }
 
@@ -47,8 +53,6 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
       _selectedIndex = index;
     });
 
-    // Handle navigation for Bottom Navigation Bar items
-    // Using pushReplacement for main tabs to prevent back-stack buildup
     switch (index) {
       case 0:
         Navigator.pushReplacement(
@@ -71,25 +75,18 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
     }
   }
 
-  // Helper function to get the icon color
   Color _getIconColor(int index) {
     return _selectedIndex == index ? _navItemColors[index] : Colors.grey;
   }
-  // --- END BOTTOM NAV LOGIC ---
 
-  // Global key for the form
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
-  // Text controllers
   final TextEditingController _itemNameController = TextEditingController();
   final TextEditingController _colorController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _locationController = TextEditingController();
 
-  // State for the selected date
   DateTime? _selectedDate;
-
-  // New state variable to hold the image URL/path from the upload/AI screen
   String? _uploadedImageUrl;
 
   @override
@@ -103,6 +100,13 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
 
   // Function to handle date selection
   Future<void> _selectDate(BuildContext context) async {
+    // Determine the primary color dynamically for the DatePicker theme
+    final isDarkMode = Provider.of<ThemeProvider>(
+      context,
+      listen: false,
+    ).isDarkMode;
+    final primaryColor = isDarkMode ? darkPrimaryBlue : basePrimaryBlue;
+
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: _selectedDate ?? DateTime.now(),
@@ -111,8 +115,8 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
       builder: (context, child) {
         return Theme(
           data: ThemeData.light().copyWith(
-            primaryColor: primaryBlue,
-            colorScheme: const ColorScheme.light(primary: primaryBlue),
+            primaryColor: primaryColor,
+            colorScheme: ColorScheme.light(primary: primaryColor),
             buttonTheme: const ButtonThemeData(
               textTheme: ButtonTextTheme.primary,
             ),
@@ -131,13 +135,20 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
   // Function to handle form submission
   void _submitReport() {
     if (_formKey.currentState!.validate()) {
-      // Logic to save data and show the success message popup
       _showSubmissionMessage();
     }
   }
 
   // Function to show the submission success message dialog
   void _showSubmissionMessage() {
+    // Determine colors dynamically for the dialog
+    final isDarkMode = Provider.of<ThemeProvider>(
+      context,
+      listen: false,
+    ).isDarkMode;
+    final primaryBlue = isDarkMode ? darkPrimaryBlue : basePrimaryBlue;
+    final darkBlue = isDarkMode ? darkDarkBlue : baseDarkBlue;
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -147,12 +158,12 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
           ),
           title: Row(
             children: [
-              const Icon(Icons.done_all, color: primaryBlue),
+              Icon(Icons.done_all, color: primaryBlue),
               const SizedBox(width: 8),
               Text('Report Received!', style: TextStyle(color: darkBlue)),
             ],
           ),
-          content: const Text(
+          content: Text(
             'Your lost item report has been submitted successfully.',
             style: TextStyle(color: darkBlue),
           ),
@@ -165,7 +176,7 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
                   MaterialPageRoute(builder: (context) => HomeScreen()),
                 );
               },
-              child: const Text('OK', style: TextStyle(color: primaryBlue)),
+              child: Text('OK', style: TextStyle(color: primaryBlue)),
             ),
           ],
         );
@@ -173,49 +184,49 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
     );
   }
 
-  // **FIXED Function:** Handles navigation and waits for the result (image URL/path)
   void _navigateAndHandleImage(BuildContext context, Widget screen) async {
-    // Wait for the pushed screen to be popped and return a result
     final result = await Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => screen),
     );
 
-    // **FIX:** Ensure the result is explicitly a String and not null before updating state.
     if (result is String && result.isNotEmpty) {
       setState(() {
         _uploadedImageUrl = result;
       });
-    } else if (result == null) {
-      // Optional: If the user cancels the upload screen and returns null,
-      // you might want to reset the image URL.
-      // setState(() {
-      //   _uploadedImageUrl = null;
-      // });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Determine if an image has been uploaded
-    final bool imageIsUploaded = _uploadedImageUrl != null;
+    // 1. ACCESS THEME STATE
+    final isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
 
-    // The button label changes based on the image presence
+    // 2. DEFINE DYNAMIC COLORS BASED ON MODE
+    final primaryBlue = isDarkMode ? darkPrimaryBlue : basePrimaryBlue;
+    final darkBlue = isDarkMode ? darkDarkBlue : baseDarkBlue;
+    final lightBlueBackground = isDarkMode
+        ? darkInputBackground
+        : baseLightBlueBackground;
+    final screenBackground = isDarkMode ? darkBackground : Colors.white;
+    final textColor = isDarkMode ? Colors.white : baseDarkBlue;
+
+    final bool imageIsUploaded = _uploadedImageUrl != null;
     final String uploadButtonLabel = imageIsUploaded
         ? 'Change Photo'
         : 'Upload Photo';
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: screenBackground,
       body: CustomScrollView(
         slivers: [
-          // --- Header Section (Bright Blue) ---
+          // --- Header Section (Primary Color) ---
           SliverAppBar(
             pinned: true,
             toolbarHeight: 120,
             automaticallyImplyLeading: false,
             flexibleSpace: Container(
-              decoration: const BoxDecoration(color: primaryBlue),
+              decoration: BoxDecoration(color: primaryBlue), // Dynamic color
               child: SafeArea(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
@@ -271,68 +282,87 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // --- Item Name ---
-                      _buildLabel('Item Name'),
+                      _buildLabel('Item Name', textColor),
                       _buildInputField(
                         controller: _itemNameController,
                         hintText: 'e.g., Black Wallet',
                         validatorText: 'Item Name is required.',
+                        darkBlue: darkBlue,
+                        lightBlueBackground: lightBlueBackground,
+                        textColor: textColor,
                       ),
                       const SizedBox(height: 16),
 
                       // --- Category (Dropdown style) ---
-                      _buildLabel('Category'),
+                      _buildLabel('Category', textColor),
                       _buildDropdownField(
                         hintText: 'Select category',
                         icon: Icons.keyboard_arrow_down,
+                        darkBlue: darkBlue,
+                        lightBlueBackground: lightBlueBackground,
+                        textColor: textColor,
                       ),
                       const SizedBox(height: 16),
 
                       // --- Color ---
-                      _buildLabel('Color'),
+                      _buildLabel('Color', textColor),
                       _buildInputField(
                         controller: _colorController,
                         hintText: 'e.g., Black, Blue, Brown',
                         validatorText: 'Color is required.',
+                        darkBlue: darkBlue,
+                        lightBlueBackground: lightBlueBackground,
+                        textColor: textColor,
                       ),
                       const SizedBox(height: 16),
 
                       // --- Description ---
-                      _buildLabel('Description'),
+                      _buildLabel('Description', textColor),
                       _buildInputField(
                         controller: _descriptionController,
                         hintText: 'Provide details about your item...',
                         maxLines: 4,
                         validatorText: 'Description is required.',
+                        darkBlue: darkBlue,
+                        lightBlueBackground: lightBlueBackground,
+                        textColor: textColor,
                       ),
                       const SizedBox(height: 16),
 
                       // --- Last Seen Location ---
-                      _buildLabel('Last Seen Location'),
+                      _buildLabel('Last Seen Location', textColor),
                       _buildInputField(
                         controller: _locationController,
                         hintText: 'e.g., Library, 2nd Floor',
                         icon: Icons.location_on_outlined,
                         validatorText: 'Location is required.',
+                        darkBlue: darkBlue,
+                        lightBlueBackground: lightBlueBackground,
+                        textColor: textColor,
                       ),
                       const SizedBox(height: 16),
 
                       // --- Date Lost ---
-                      _buildLabel('Date Lost'),
+                      _buildLabel('Date Lost', textColor),
                       GestureDetector(
                         onTap: () => _selectDate(context),
                         child: Container(
                           height: 50,
                           padding: const EdgeInsets.symmetric(horizontal: 12),
                           decoration: BoxDecoration(
-                            color: lightBlueBackground,
+                            color: lightBlueBackground, // Dynamic color
                             borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: Colors.grey.shade300),
+                            border: Border.all(
+                              color: isDarkMode
+                                  ? Colors.grey.shade700
+                                  : Colors.grey.shade300,
+                            ),
                           ),
                           child: Row(
                             children: [
-                              const Icon(
+                              Icon(
                                 Icons.calendar_today_outlined,
-                                color: darkBlue,
+                                color: darkBlue, // Dynamic color
                               ),
                               const SizedBox(width: 10),
                               Expanded(
@@ -343,13 +373,13 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
                                   style: TextStyle(
                                     color: _selectedDate == null
                                         ? darkBlue.withOpacity(0.6)
-                                        : darkBlue,
+                                        : darkBlue, // Dynamic color
                                   ),
                                 ),
                               ),
-                              const Icon(
+                              Icon(
                                 Icons.keyboard_arrow_down,
-                                color: darkBlue,
+                                color: darkBlue, // Dynamic color
                               ),
                             ],
                           ),
@@ -358,11 +388,17 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
                       const SizedBox(height: 20),
 
                       // --- Upload Image Section ---
-                      _buildLabel('Upload Image'),
+                      _buildLabel('Upload Image', textColor),
 
                       // Display the uploaded image if available
                       if (imageIsUploaded) ...[
-                        _buildImagePreview(_uploadedImageUrl!),
+                        _buildImagePreview(
+                          _uploadedImageUrl!,
+                          primaryBlue,
+                          darkBlue,
+                          lightBlueBackground,
+                          isDarkMode,
+                        ),
                         const SizedBox(height: 16),
                       ],
 
@@ -378,6 +414,9 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
                               );
                             },
                             isPrimary: false,
+                            darkBlue: darkBlue,
+                            lightBlueBackground: lightBlueBackground,
+                            isDarkMode: isDarkMode,
                           ),
                           const SizedBox(width: 16),
                           _buildImageActionButton(
@@ -390,6 +429,9 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
                               );
                             },
                             isPrimary: true,
+                            darkBlue: darkBlue,
+                            lightBlueBackground: lightBlueBackground,
+                            isDarkMode: isDarkMode,
                           ),
                           // Optional: Add a Delete button when an image is present
                           if (imageIsUploaded) ...[
@@ -400,9 +442,9 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
                       ),
 
                       const SizedBox(height: 10),
-                      const Text(
+                      Text(
                         'Upload a photo or use AI to generate an image description',
-                        style: TextStyle(color: darkBlue),
+                        style: TextStyle(color: darkBlue), // Dynamic color
                       ),
                       const SizedBox(height: 40),
 
@@ -411,7 +453,7 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
                         onPressed: _submitReport,
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 18),
-                          backgroundColor: primaryBlue,
+                          backgroundColor: primaryBlue, // Dynamic color
                           shadowColor: Colors.transparent,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(15),
@@ -469,23 +511,25 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
         showUnselectedLabels: true,
         onTap: _onItemTapped,
         type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
+        backgroundColor: isDarkMode
+            ? darkBackground
+            : Colors.white, // Dynamic color
         elevation: 10,
       ),
     );
   }
 
-  // --- Helper Widgets ---
+  // --- Helper Widgets (Updated to accept dynamic colors) ---
 
-  Widget _buildLabel(String label) {
+  Widget _buildLabel(String label, Color textColor) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
       child: Text(
         label,
-        style: const TextStyle(
+        style: TextStyle(
           fontWeight: FontWeight.bold,
           fontSize: 16,
-          color: darkBlue,
+          color: textColor, // Dynamic color
         ),
       ),
     );
@@ -497,21 +541,26 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
     String? validatorText,
     IconData? icon,
     int maxLines = 1,
+    required Color darkBlue,
+    required Color lightBlueBackground,
+    required Color textColor,
   }) {
     return TextFormField(
       controller: controller,
       maxLines: maxLines,
-      style: const TextStyle(color: darkBlue),
+      style: TextStyle(color: textColor), // Dynamic color
       decoration: InputDecoration(
         hintText: hintText,
-        hintStyle: TextStyle(color: darkBlue.withOpacity(0.6)),
-        prefixIcon: icon != null ? Icon(icon, color: darkBlue) : null,
+        hintStyle: TextStyle(color: darkBlue.withOpacity(0.6)), // Dynamic color
+        prefixIcon: icon != null
+            ? Icon(icon, color: darkBlue)
+            : null, // Dynamic color
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide.none,
         ),
         filled: true,
-        fillColor: lightBlueBackground,
+        fillColor: lightBlueBackground, // Dynamic color
         contentPadding: EdgeInsets.symmetric(
           vertical: (maxLines > 1 ? 12 : 0) + 8.0,
           horizontal: 10.0,
@@ -529,12 +578,15 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
   Widget _buildDropdownField({
     required String hintText,
     required IconData icon,
+    required Color darkBlue,
+    required Color lightBlueBackground,
+    required Color textColor,
   }) {
     return Container(
       height: 50,
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        color: lightBlueBackground,
+        color: lightBlueBackground, // Dynamic color
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: Colors.grey.shade300),
       ),
@@ -543,10 +595,12 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
           Expanded(
             child: Text(
               hintText,
-              style: TextStyle(color: darkBlue.withOpacity(0.6)),
+              style: TextStyle(
+                color: textColor.withOpacity(0.8),
+              ), // Dynamic color
             ),
           ),
-          Icon(icon, color: darkBlue),
+          Icon(icon, color: darkBlue), // Dynamic color
         ],
       ),
     );
@@ -557,8 +611,11 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
     required String label,
     required VoidCallback onTap,
     required bool isPrimary,
+    required Color darkBlue,
+    required Color lightBlueBackground,
+    required bool isDarkMode,
   }) {
-    final Color color = darkBlue;
+    final Color color = darkBlue; // Dynamic color
 
     return Expanded(
       child: InkWell(
@@ -567,9 +624,9 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
           padding: const EdgeInsets.symmetric(vertical: 20),
           decoration: BoxDecoration(
             color: isPrimary
-                ? lightBlueBackground.withOpacity(0.5)
-                : Colors.white,
-            // Outlined with dark blue for both
+                ? lightBlueBackground
+                : (isDarkMode ? darkInputBackground : Colors.white),
+            // Outlined with dynamic dark blue
             borderRadius: BorderRadius.circular(15),
             border: Border.all(color: darkBlue, width: 1.5),
           ),
@@ -625,14 +682,20 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
     );
   }
 
-  Widget _buildImagePreview(String imageUrl) {
+  Widget _buildImagePreview(
+    String imageUrl,
+    Color primaryBlue,
+    Color darkBlue,
+    Color lightBlueBackground,
+    bool isDarkMode,
+  ) {
     return Container(
       height: 200,
       width: double.infinity,
       decoration: BoxDecoration(
-        color: lightBlueBackground,
+        color: lightBlueBackground, // Dynamic color
         borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: darkBlue),
+        border: Border.all(color: darkBlue), // Dynamic color
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(15),
@@ -647,19 +710,23 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
                     ? loadingProgress.cumulativeBytesLoaded /
                           loadingProgress.expectedTotalBytes!
                     : null,
-                color: primaryBlue,
+                color: primaryBlue, // Dynamic color
               ),
             );
           },
           // Error handler is crucial for network images
-          errorBuilder: (context, error, stackTrace) => const Center(
+          errorBuilder: (context, error, stackTrace) => Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.broken_image, size: 50, color: Colors.red),
+                Icon(
+                  Icons.broken_image,
+                  size: 50,
+                  color: darkBlue,
+                ), // Dynamic color
                 Text(
                   'Image Preview Failed. Check URL/Path.',
-                  style: TextStyle(color: Colors.red),
+                  style: TextStyle(color: darkBlue), // Dynamic color
                 ),
               ],
             ),

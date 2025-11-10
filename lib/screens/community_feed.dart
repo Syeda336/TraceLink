@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:share_plus/share_plus.dart'; // 1. Import for sharing
+import 'package:share_plus/share_plus.dart';
+import 'package:provider/provider.dart'; // Import provider to access the theme
+import '../theme_provider.dart'; // Import your dynamic theme provider
 
 // Assuming these files exist in your project structure
 import 'home.dart';
@@ -13,7 +15,7 @@ const Color primaryBlue = Color(0xFF42A5F5); // Bright Blue
 const Color darkBlue = Color(0xFF1977D2); // Dark Blue
 const Color lightBlueBackground = Color(0xFFE3F2FD); // Very Light Blue
 
-// --- Helper class for Post Data (Improves data management) ---
+// --- Helper class for Post Data (No change) ---
 class FeedPostData {
   final String userInitials;
   final String userName;
@@ -25,7 +27,7 @@ class FeedPostData {
   final Widget imageWidget;
   int likes;
   int comments;
-  bool isLiked; // New state field
+  bool isLiked;
 
   FeedPostData({
     required this.userInitials,
@@ -38,11 +40,11 @@ class FeedPostData {
     required this.imageWidget,
     required this.likes,
     required this.comments,
-    this.isLiked = false, // Default to not liked
+    this.isLiked = false,
   });
 }
 
-// 1. Convert StatelessWidget to StatefulWidget
+// 1. CommunityFeed StatefulWidget
 class CommunityFeed extends StatefulWidget {
   const CommunityFeed({super.key});
 
@@ -51,29 +53,25 @@ class CommunityFeed extends StatefulWidget {
 }
 
 class _CommunityFeedState extends State<CommunityFeed> {
-  int _selectedIndex = 2; // Set to 2 (Feed) since this is the Feed screen
+  int _selectedIndex = 2;
 
   // --- Bottom Navigation Colors ---
+  // These will now be used for the selected item color.
   final List<Color> _navItemColors = const [
-    Colors.green, // Home (Index 0)
-    Colors.pink, // Browse (Index 1)
-    Colors.orange, // Feed (Index 2)
-    Color(0xFF00008B), // Dark Blue for Chat (Index 3)
-    Colors.purple, // Profile (Index 4)
+    Colors.green,
+    Colors.pink,
+    primaryBlue, // Changed to primaryBlue for consistency
+    Color(0xFF00008B),
+    Colors.purple,
   ];
 
-  // --- List of Feed Posts (Now using the FeedPostData class) ---
   late List<FeedPostData> _feedPosts;
-
-  // --- IN-MEMORY Comment Storage (Simulates comments.json) ---
-  // Key: Post Index (int)
-  // Value: List of comment strings
   late Map<int, List<String>> _commentData;
 
   @override
   void initState() {
     super.initState();
-    // Initialize post data in initState
+    // ... [InitState remains the same] ...
     _feedPosts = [
       FeedPostData(
         userInitials: 'SJ',
@@ -135,7 +133,6 @@ class _CommunityFeedState extends State<CommunityFeed> {
       ),
     ];
 
-    // Initialize in-memory comment data
     _commentData = {
       0: [
         'Great find Sarah! I hope the owner sees this.',
@@ -174,9 +171,8 @@ class _CommunityFeedState extends State<CommunityFeed> {
     };
   }
 
-  // 2. Correctly define _onItemTapped using setState
   void _onItemTapped(int index) {
-    if (_selectedIndex == index) return; // Avoid navigating to the same screen
+    if (_selectedIndex == index) return;
 
     setState(() {
       _selectedIndex = index;
@@ -185,20 +181,19 @@ class _CommunityFeedState extends State<CommunityFeed> {
     Widget screenToNavigate;
 
     switch (index) {
-      case 0: // Home
+      case 0:
         screenToNavigate = const HomeScreen();
         break;
-      case 1: // Browse
+      case 1:
         screenToNavigate = const SearchLost();
         break;
-      case 2: // Feed
-        screenToNavigate =
-            const CommunityFeed(); // This will trigger a replace but is safe
+      case 2:
+        screenToNavigate = const CommunityFeed();
         return;
-      case 3: // Chat
+      case 3:
         screenToNavigate = const MessagesListScreen();
         break;
-      case 4: // Profile
+      case 4:
         screenToNavigate = const ProfileScreen();
         break;
       default:
@@ -211,14 +206,14 @@ class _CommunityFeedState extends State<CommunityFeed> {
     );
   }
 
-  // Helper function to get the icon color
-  Color _getIconColor(int index) {
-    return _selectedIndex == index ? _navItemColors[index] : Colors.grey;
+  // Helper function to get the icon color (Uses the theme's default unselected color)
+  Color _getIconColor(int index, ThemeData theme) {
+    return _selectedIndex == index
+        ? _navItemColors[index]
+        : theme.unselectedWidgetColor;
   }
 
-  // --- New Feature Handlers ---
-
-  // 1. Like Toggle Handler
+  // ... [Feature handlers remain the same] ...
   void _toggleLike(int index) {
     setState(() {
       final post = _feedPosts[index];
@@ -231,18 +226,12 @@ class _CommunityFeedState extends State<CommunityFeed> {
     });
   }
 
-  // 2. Share Handler (Logically correct, relies on mobile environment for dialog)
   void _sharePost(FeedPostData post) {
     final String shareText =
         '${post.status} Item: ${post.postText} - Found at/Near: ${post.location}. Contact ${post.userName} on our app.';
-
-    // Uses the share_plus plugin to open the native share dialog
-    // NOTE: This relies on the 'share_plus' package being correctly configured
-    // and running on a supported platform (mobile/desktop).
     Share.share(shareText, subject: '${post.status} Item in Community Feed');
   }
 
-  // 3. Comment Handler (Opens Modal Sheet)
   void _showCommentSheet(int index) {
     showModalBottomSheet(
       context: context,
@@ -261,13 +250,9 @@ class _CommunityFeedState extends State<CommunityFeed> {
     );
   }
 
-  // Simulation of adding and saving a comment
   void _addCommentToPost(int index, String comment) {
     setState(() {
-      // 1. Update the post's comment count
       _feedPosts[index].comments++;
-
-      // 2. Save the comment to in-memory storage (simulating file/DB save)
       _commentData.update(
         index,
         (comments) => [...comments, comment],
@@ -285,12 +270,10 @@ class _CommunityFeedState extends State<CommunityFeed> {
     );
   }
 
-  // ⚠️ Function Stub for File Saving (Now simulates saving to in-memory store)
   void _saveCommentToFile({
     required String postId,
     required String commentText,
   }) {
-    // This simulates the file/database write to 'lib/databases/comments.json'
     print('--- Database Write Simulation ---');
     print('Saving to comments.json: Post ID $postId, Comment: "$commentText"');
     print('New Comments for Post $postId: ${_commentData[int.parse(postId)]}');
@@ -299,48 +282,54 @@ class _CommunityFeedState extends State<CommunityFeed> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final themeProvider = Provider.of<ThemeProvider>(
+      context,
+    ); // Access the provider
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      // Use theme's background color
+      backgroundColor: theme.scaffoldBackgroundColor,
+      appBar: AppBar(
+        // Use theme for AppBar
+        automaticallyImplyLeading: false,
+        titleSpacing: 0,
+        toolbarHeight: 100,
+        backgroundColor: theme.primaryColor, // Use primary color from theme
+        foregroundColor: theme
+            .colorScheme
+            .onPrimary, // Text/Icon color on primary background
+        title: Padding(
+          padding: const EdgeInsets.only(left: 8.0),
+          child: Row(
+            children: [
+              // Back Arrow Button (Top Left Corner Button)
+              IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (context) => const HomeScreen()),
+                  );
+                },
+              ),
+              const Text(
+                'Community Feed',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  // Color inherited from AppBar's foregroundColor
+                ),
+              ),
+              const Spacer(),
+            ],
+          ),
+        ),
+      ),
+
+      // ... [SliverList content remains the same, but the inner widgets use theme] ...
       body: CustomScrollView(
         slivers: [
-          // --- Fixed Header (Community Feed) ---
-          SliverAppBar(
-            pinned: true,
-            automaticallyImplyLeading: false,
-            titleSpacing: 0,
-            toolbarHeight: 100,
-            backgroundColor: primaryBlue,
-            foregroundColor: Colors.white,
-            title: Padding(
-              padding: const EdgeInsets.only(left: 8.0),
-              child: Row(
-                children: [
-                  // Back Arrow Button (Top Left Corner Button)
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back),
-                    onPressed: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const HomeScreen(),
-                        ),
-                      );
-                    },
-                  ),
-                  const Text(
-                    'Community Feed',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // --- Feed Content ---
           SliverList(
             delegate: SliverChildListDelegate([
               ..._feedPosts.asMap().entries.map((entry) {
@@ -355,57 +344,67 @@ class _CommunityFeedState extends State<CommunityFeed> {
                       onCommentTapped: () => _showCommentSheet(index),
                       onShareTapped: () => _sharePost(post),
                     ),
-                    const Divider(
+                    Divider(
                       height: 1,
                       thickness: 8,
-                      color: lightBlueBackground,
+                      // Use a color that contrasts with the background
+                      color: theme.dividerColor.withOpacity(0.1),
                     ),
                   ],
                 );
-              }).toList(),
+              }),
               const SizedBox(height: 20),
             ]),
           ),
         ],
       ),
+
       // 3. BottomNavigationBar
       bottomNavigationBar: BottomNavigationBar(
         items: <BottomNavigationBarItem>[
           BottomNavigationBarItem(
-            icon: Icon(Icons.favorite, color: _getIconColor(0)),
+            icon: Icon(Icons.favorite, color: _getIconColor(0, theme)),
             label: 'Home',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.browse_gallery, color: _getIconColor(1)),
+            icon: Icon(Icons.browse_gallery, color: _getIconColor(1, theme)),
             label: 'Browse',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.inventory_2_outlined, color: _getIconColor(2)),
+            icon: Icon(
+              Icons.inventory_2_outlined,
+              color: _getIconColor(2, theme),
+            ),
             label: 'Feed',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.chat_bubble_outline, color: _getIconColor(3)),
+            icon: Icon(
+              Icons.chat_bubble_outline,
+              color: _getIconColor(3, theme),
+            ),
             label: 'Chat',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline, color: _getIconColor(4)),
+            icon: Icon(Icons.person_outline, color: _getIconColor(4, theme)),
             label: 'Profile',
           ),
         ],
         currentIndex: _selectedIndex,
+        // Use custom color for selected item, or theme's primary color
         selectedItemColor: _navItemColors[_selectedIndex],
-        unselectedItemColor: Colors.grey,
+        unselectedItemColor: theme.unselectedWidgetColor,
         showUnselectedLabels: true,
         onTap: _onItemTapped,
         type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
+        // Use theme's BottomNavigationBar background color
+        backgroundColor: theme.bottomNavigationBarTheme.backgroundColor,
         elevation: 10,
       ),
     );
   }
 }
 
-// --- Enhanced Feed Post Card Widget (Uses FeedPostData and Callbacks) ---
+// --- Enhanced Feed Post Card Widget (Theme Adapted) ---
 class _FeedPostCard extends StatelessWidget {
   final FeedPostData postData;
   final VoidCallback onLikeTapped;
@@ -439,16 +438,22 @@ class _FeedPostCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool isLost = postData.status == 'Lost';
-    final Color statusColor = isLost ? darkBlue : primaryBlue;
-    const Color initialsColor = primaryBlue;
+    final theme = Theme.of(context);
+    final isLost = postData.status == 'Lost';
+    // Use theme's primary/secondary for status/key colors
+    final Color foundColor = theme.primaryColor;
+    final Color lostColor = theme.colorScheme.secondary;
+    final Color statusColor = isLost ? lostColor : foundColor;
+    final Color initialsColor = foundColor;
+    final Color bodyTextColor = theme.textTheme.bodyMedium!.color!;
     final String itemName = _itemNameFromPostText(postData.postText);
 
     return Card(
       margin: EdgeInsets.zero,
       elevation: 0,
       shape: const RoundedRectangleBorder(),
-      color: Colors.white,
+      // Use theme's card color (usually matches scaffold background)
+      color: theme.cardColor,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -464,7 +469,7 @@ class _FeedPostCard extends StatelessWidget {
                   backgroundColor: initialsColor,
                   child: Text(
                     postData.userInitials,
-                    style: const TextStyle(color: Colors.white),
+                    style: TextStyle(color: theme.colorScheme.onPrimary),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -476,17 +481,17 @@ class _FeedPostCard extends StatelessWidget {
                         children: [
                           Text(
                             postData.userName,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              color: darkBlue,
+                              color: bodyTextColor, // Use theme text color
                             ),
                           ),
                           if (postData.isVerified)
-                            const Padding(
-                              padding: EdgeInsets.only(left: 4.0),
+                            Padding(
+                              padding: const EdgeInsets.only(left: 4.0),
                               child: Icon(
                                 Icons.check_circle,
-                                color: primaryBlue,
+                                color: foundColor,
                                 size: 14,
                               ),
                             ),
@@ -494,7 +499,7 @@ class _FeedPostCard extends StatelessWidget {
                       ),
                       Text(
                         postData.timeAgo,
-                        style: TextStyle(color: darkBlue.withOpacity(0.6)),
+                        style: TextStyle(color: bodyTextColor.withOpacity(0.6)),
                       ),
                     ],
                   ),
@@ -510,14 +515,17 @@ class _FeedPostCard extends StatelessWidget {
                   ),
                   child: Text(
                     postData.status,
-                    style: const TextStyle(color: Colors.white, fontSize: 12),
+                    style: TextStyle(
+                      color: theme.colorScheme.onPrimary,
+                      fontSize: 12,
+                    ),
                   ),
                 ),
               ],
             ),
           ),
 
-          // Post Image/Content (Now a GestureDetector for navigation)
+          // Post Image/Content
           GestureDetector(
             onTap: () => _openItemDescription(context),
             child: SizedBox(
@@ -535,16 +543,16 @@ class _FeedPostCard extends StatelessWidget {
               children: [
                 Text(
                   '${postData.status}: $itemName',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
-                    color: darkBlue,
+                    color: theme.colorScheme.secondary,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   postData.postText,
-                  style: const TextStyle(fontSize: 14, color: darkBlue),
+                  style: TextStyle(fontSize: 14, color: bodyTextColor),
                 ),
               ],
             ),
@@ -561,15 +569,15 @@ class _FeedPostCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.location_on, color: darkBlue, size: 16),
+                    Icon(Icons.location_on, color: bodyTextColor, size: 16),
                     const SizedBox(width: 4),
                     Text(
                       postData.location,
-                      style: TextStyle(color: darkBlue.withOpacity(0.8)),
+                      style: TextStyle(color: bodyTextColor.withOpacity(0.8)),
                     ),
                   ],
                 ),
-                const Divider(color: lightBlueBackground),
+                Divider(color: theme.dividerColor),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -584,15 +592,15 @@ class _FeedPostCard extends StatelessWidget {
                                 : Icons.favorite_border,
                             color: postData.isLiked
                                 ? Colors.red
-                                : darkBlue, // Toggle color
+                                : bodyTextColor,
                             size: 24,
                           ),
                           const SizedBox(width: 4),
                           Text(
                             '${postData.likes}',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 16,
-                              color: darkBlue,
+                              color: bodyTextColor,
                             ),
                           ),
                         ],
@@ -603,17 +611,17 @@ class _FeedPostCard extends StatelessWidget {
                       onTap: onCommentTapped,
                       child: Row(
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.chat_bubble_outline,
-                            color: darkBlue,
+                            color: bodyTextColor,
                             size: 24,
                           ),
                           const SizedBox(width: 4),
                           Text(
                             '${postData.comments}',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 16,
-                              color: darkBlue,
+                              color: bodyTextColor,
                             ),
                           ),
                         ],
@@ -622,9 +630,9 @@ class _FeedPostCard extends StatelessWidget {
                     // --- 3. Share (Opens Native Dialog) ---
                     GestureDetector(
                       onTap: onShareTapped,
-                      child: const Icon(
+                      child: Icon(
                         Icons.share_outlined,
-                        color: darkBlue,
+                        color: bodyTextColor,
                         size: 24,
                       ),
                     ),
@@ -639,7 +647,7 @@ class _FeedPostCard extends StatelessWidget {
   }
 }
 
-// --- NEW Widget for Comment Modal Content (Displays comments + input) ---
+// --- NEW Widget for Comment Modal Content (Theme Adapted) ---
 class _CommentSheetContent extends StatelessWidget {
   final FeedPostData postData;
   final List<String> currentComments;
@@ -653,11 +661,15 @@ class _CommentSheetContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDarkMode = theme.brightness == Brightness.dark;
+    final Color textColor = theme.textTheme.bodyMedium!.color!;
+
     return Container(
-      height: MediaQuery.of(context).size.height * 0.8, // 80% of screen height
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      height: MediaQuery.of(context).size.height * 0.8,
+      decoration: BoxDecoration(
+        color: theme.scaffoldBackgroundColor, // Use theme background color
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: Column(
         children: [
@@ -671,7 +683,7 @@ class _CommentSheetContent extends StatelessWidget {
                     width: 40,
                     height: 5,
                     decoration: BoxDecoration(
-                      color: Colors.grey[300],
+                      color: isDarkMode ? Colors.grey[700] : Colors.grey[300],
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
@@ -679,10 +691,10 @@ class _CommentSheetContent extends StatelessWidget {
                 const SizedBox(height: 10),
                 Text(
                   'Comments (${postData.comments})',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: darkBlue,
+                    color: textColor,
                   ),
                 ),
               ],
@@ -694,9 +706,7 @@ class _CommentSheetContent extends StatelessWidget {
             child: ListView.builder(
               itemCount: currentComments.length,
               itemBuilder: (context, index) {
-                // Simple comment structure for simulation
                 final String commentText = currentComments[index];
-                // Simulate different users for variety
                 final String userName = index.isEven
                     ? 'Guest User'
                     : 'Community Member';
@@ -711,11 +721,11 @@ class _CommentSheetContent extends StatelessWidget {
                     children: [
                       CircleAvatar(
                         radius: 18,
-                        backgroundColor: primaryBlue.withOpacity(0.5),
+                        backgroundColor: theme.primaryColor.withOpacity(0.5),
                         child: Text(
-                          userName[0], // First letter
-                          style: const TextStyle(
-                            color: Colors.white,
+                          userName[0],
+                          style: TextStyle(
+                            color: theme.colorScheme.onPrimary,
                             fontSize: 14,
                           ),
                         ),
@@ -727,15 +737,15 @@ class _CommentSheetContent extends StatelessWidget {
                           children: [
                             Text(
                               userName,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontWeight: FontWeight.bold,
-                                color: darkBlue,
+                                color: textColor,
                                 fontSize: 13,
                               ),
                             ),
                             Text(
                               commentText,
-                              style: const TextStyle(fontSize: 14),
+                              style: TextStyle(fontSize: 14, color: textColor),
                             ),
                           ],
                         ),
@@ -760,7 +770,7 @@ class _CommentSheetContent extends StatelessWidget {
   }
 }
 
-// --- Separated Input Bar Widget ---
+// --- Separated Input Bar Widget (Theme Adapted) ---
 class _CommentInputBar extends StatefulWidget {
   final Function(String) onCommentSubmitted;
 
@@ -797,27 +807,32 @@ class _CommentInputBarState extends State<_CommentInputBar> {
     if (_isCommentValid) {
       widget.onCommentSubmitted(_commentController.text.trim());
       _commentController.clear();
-      // Re-validate after clearing
       _validateComment();
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDarkMode = theme.brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: lightBlueBackground,
-        border: Border(top: BorderSide(color: Colors.grey.shade300)),
+        // Use a slight variation of background or a divider for separation
+        color: isDarkMode ? Colors.grey[850] : lightBlueBackground,
+        border: Border(top: BorderSide(color: theme.dividerColor)),
       ),
       child: TextField(
         controller: _commentController,
         maxLines: null,
         minLines: 1,
         keyboardType: TextInputType.multiline,
+        style: theme.textTheme.bodyMedium, // Use theme text style
         decoration: InputDecoration(
           hintText: 'Write your comment...',
-          fillColor: Colors.white,
+          // White background for text field in light mode, lighter grey in dark mode
+          fillColor: isDarkMode ? Colors.grey[900] : Colors.white,
           filled: true,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(25),
@@ -830,7 +845,7 @@ class _CommentInputBarState extends State<_CommentInputBar> {
           suffixIcon: IconButton(
             icon: Icon(
               Icons.send,
-              color: _isCommentValid ? primaryBlue : Colors.grey,
+              color: _isCommentValid ? theme.primaryColor : Colors.grey,
             ),
             onPressed: _isCommentValid ? _submitComment : null,
           ),

@@ -1,22 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart'; // Import provider package
+
+// Import your custom ThemeProvider
+import '../theme_provider.dart';
+
 // Import all destination screens (required for the navigation bar to work)
 import 'messages.dart';
 import 'profile_page.dart';
 import 'community_feed.dart';
 import 'search_lost.dart';
-import 'home.dart'; // Import the original Home.dart screen
-
-// Define the new color palette based on the request
-const Color _brightBlue = Color(0xFF1E88E5); // Bright Blue for header/buttons
-const Color _lightBlueBackground = Color(
-  0xFFE3F2FD,
-); // Very Light Blue for body background
-const Color _darkBlueText = Color(
-  0xFF0D47A1,
-); // Dark Blue for text on light background
-const Color _warningRed = Color(
-  0xFFC70039,
-); // Retaining a dark red for warnings
+import 'home.dart';
 
 class ReportProblem extends StatefulWidget {
   const ReportProblem({super.key});
@@ -26,6 +19,32 @@ class ReportProblem extends StatefulWidget {
 }
 
 class _ReportProblemScreenState extends State<ReportProblem> {
+  // --- Define Color Palettes ---
+
+  // Light Mode Colors (Based on original request)
+  static const Color _light_brightBlue = Color(0xFF1E88E5);
+  static const Color _light_lightBlueBackground = Color(0xFFE3F2FD);
+  static const Color _light_darkBlueText = Color(0xFF0D47A1);
+  static const Color _light_warningRed = Color(0xFFC70039);
+  static const Color _light_cardColor = Colors.white;
+
+  // Dark Mode Colors (Custom dark mode interpretation)
+  static const Color _dark_brightBlue = Color(
+    0xFF42A5F5,
+  ); // Lighter bright blue for contrast
+  static const Color _dark_darkBlueBackground = Color(
+    0xFF121212,
+  ); // Primary dark background
+  static const Color _dark_lightBlueText = Color(
+    0xFFE3F2FD,
+  ); // Light blue for main text
+  static const Color _dark_warningRed = Color(
+    0xFFFF5252,
+  ); // Brighter red for visibility
+  static const Color _dark_cardColor = Color(
+    0xFF1E1E1E,
+  ); // Darker card background
+
   // Global key to uniquely identify the form and enable validation
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
@@ -35,9 +54,6 @@ class _ReportProblemScreenState extends State<ReportProblem> {
   final TextEditingController _descriptionController = TextEditingController();
 
   // --- Bottom Navigation State and Logic ---
-  // Assuming 'Report a Problem' screen is NOT part of the 5 main tabs,
-  // but we will keep the index set to 0 (Home) for visual consistency if the user
-  // navigates to the Home tab later.
   int _selectedIndex = 0; // Set to 0 (Home) as the fallback index
 
   // List of screens to navigate to from the bottom bar
@@ -58,8 +74,6 @@ class _ReportProblemScreenState extends State<ReportProblem> {
   ];
 
   void _navigateToScreen(BuildContext context, Widget screen) {
-    // This is used for navigating to the screens from the bottom bar
-    // It replaces the current screen with the new destination.
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (context) => screen),
@@ -71,13 +85,10 @@ class _ReportProblemScreenState extends State<ReportProblem> {
       _selectedIndex = index;
     });
 
-    // Navigate to the selected screen
-    // We use pushReplacement to swap the main content screen without stacking them
-    // on top of each other every time a tab is pressed.
     _navigateToScreen(context, _screens[index]);
   }
 
-  // Helper function to get the icon color
+  // Helper function to get the icon color for BottomNavigationBar
   Color _getIconColor(int index) {
     // The current screen is ReportProblem, which is not in the list.
     // We keep the Home icon active as the current screen is usually accessed
@@ -103,23 +114,36 @@ class _ReportProblemScreenState extends State<ReportProblem> {
 
   // Function to show the success message dialog
   void _showSuccessDialog() {
+    // Get the current theme mode to style the dialog correctly
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final isDarkMode = themeProvider.isDarkMode;
+
+    final Color brightBlue = isDarkMode ? _dark_brightBlue : _light_brightBlue;
+    final Color darkText = isDarkMode
+        ? _dark_lightBlueText
+        : _light_darkBlueText;
+    final Color dialogBackground = isDarkMode
+        ? _dark_cardColor
+        : _light_cardColor;
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
+          backgroundColor: dialogBackground,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(15.0),
           ),
-          title: const Row(
+          title: Row(
             children: [
-              Icon(Icons.check_circle, color: _brightBlue),
-              SizedBox(width: 8),
-              Text('Success!', style: TextStyle(color: _darkBlueText)),
+              Icon(Icons.check_circle, color: brightBlue),
+              const SizedBox(width: 8),
+              Text('Success!', style: TextStyle(color: darkText)),
             ],
           ),
-          content: const Text(
+          content: Text(
             'Report submitted successfully! Admin will review it.',
-            style: TextStyle(color: _darkBlueText),
+            style: TextStyle(color: darkText),
           ),
           actions: <Widget>[
             TextButton(
@@ -131,7 +155,7 @@ class _ReportProblemScreenState extends State<ReportProblem> {
                 _itemController.clear();
                 _descriptionController.clear();
               },
-              child: const Text('OK', style: TextStyle(color: _brightBlue)),
+              child: Text('OK', style: TextStyle(color: brightBlue)),
             ),
           ],
         );
@@ -141,9 +165,34 @@ class _ReportProblemScreenState extends State<ReportProblem> {
 
   @override
   Widget build(BuildContext context) {
+    // Get the theme provider and determine the current theme mode
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final bool isDarkMode = themeProvider.isDarkMode;
+
+    // Set dynamic colors based on the theme mode
+    final Color brightBlue = isDarkMode ? _dark_brightBlue : _light_brightBlue;
+    final Color background = isDarkMode
+        ? _dark_darkBlueBackground
+        : _light_lightBlueBackground;
+    final Color darkText = isDarkMode
+        ? _dark_lightBlueText
+        : _light_darkBlueText;
+    final Color warningRed = isDarkMode ? _dark_warningRed : _light_warningRed;
+    final Color cardColor = isDarkMode ? _dark_cardColor : _light_cardColor;
+    final Color appBarGradientEnd = isDarkMode
+        ? const Color(0xFF64B5F6)
+        : const Color(0xFF42A5F5);
+    final Color textFieldFill = isDarkMode
+        ? const Color(0xFF2C2C2C)
+        : Colors.white;
+    final Color unselectedIconColor = isDarkMode ? Colors.white54 : Colors.grey;
+    final Color appBarTextColor = isDarkMode
+        ? Colors.black
+        : Colors.white; // Text on the bright blue header
+
     return Scaffold(
-      // Set the overall background to light blue
-      backgroundColor: _lightBlueBackground,
+      // Set the overall background dynamically
+      backgroundColor: background,
       body: CustomScrollView(
         slivers: [
           // --- Header Section (Bright Blue Theme) ---
@@ -152,13 +201,13 @@ class _ReportProblemScreenState extends State<ReportProblem> {
             automaticallyImplyLeading: false,
             toolbarHeight: 150,
             flexibleSpace: Container(
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 // Use the bright blue for the header with a slight gradient
                 gradient: LinearGradient(
                   colors: [
-                    _brightBlue,
-                    Color(0xFF42A5F5),
-                  ], // Bright Blue with a variation
+                    brightBlue,
+                    appBarGradientEnd,
+                  ], // Dynamic Bright Blue with a variation
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -179,14 +228,12 @@ class _ReportProblemScreenState extends State<ReportProblem> {
                         children: [
                           // Back Arrow Button
                           IconButton(
-                            icon: const Icon(
+                            icon: Icon(
                               Icons.arrow_back,
-                              color: Colors
-                                  .white, // White text/icon on bright blue
+                              color:
+                                  appBarTextColor, // Text/icon color on the app bar
                             ),
                             onPressed: () {
-                              // Functionality to open home.dart using pushReplacement
-                              // so the user can use the bottom navigation on the home screen
                               Navigator.pushReplacement(
                                 context,
                                 MaterialPageRoute(
@@ -195,10 +242,11 @@ class _ReportProblemScreenState extends State<ReportProblem> {
                               );
                             },
                           ),
-                          const Text(
+                          Text(
                             'Report a Problem',
                             style: TextStyle(
-                              color: Colors.white, // White text on bright blue
+                              color:
+                                  appBarTextColor, // Text color on the app bar
                               fontSize: 24,
                               fontWeight: FontWeight.bold,
                             ),
@@ -206,11 +254,12 @@ class _ReportProblemScreenState extends State<ReportProblem> {
                         ],
                       ),
                       const SizedBox(height: 10),
-                      const Text(
+                      Text(
                         'Help us keep the community safe and fair',
                         style: TextStyle(
-                          color: Colors
-                              .white70, // Slightly faded white for subtext
+                          color: appBarTextColor.withOpacity(
+                            0.7,
+                          ), // Subtext color on the app bar
                           fontSize: 16,
                         ),
                       ),
@@ -221,7 +270,7 @@ class _ReportProblemScreenState extends State<ReportProblem> {
             ),
           ),
 
-          // --- Form Content Section (Light Blue Background) ---
+          // --- Form Content Section ---
           SliverList(
             delegate: SliverChildListDelegate([
               Padding(
@@ -233,7 +282,8 @@ class _ReportProblemScreenState extends State<ReportProblem> {
                     children: [
                       // Card: Report User Misconduct
                       Card(
-                        elevation: 0,
+                        elevation: isDarkMode ? 4 : 0,
+                        color: cardColor,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(15),
                         ),
@@ -243,35 +293,37 @@ class _ReportProblemScreenState extends State<ReportProblem> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               // Title and Icon
-                              const Row(
+                              Row(
                                 children: [
                                   Icon(
                                     Icons.warning_amber_rounded,
-                                    color: _warningRed,
+                                    color: warningRed, // Dynamic warning red
                                   ),
-                                  SizedBox(width: 8),
+                                  const SizedBox(width: 8),
                                   Text(
                                     'Report User Misconduct',
                                     style: TextStyle(
                                       fontSize: 18,
                                       fontWeight: FontWeight.bold,
-                                      color: _darkBlueText,
+                                      color: darkText, // Dynamic text color
                                     ),
                                   ),
                                 ],
                               ),
-                              const Text(
+                              Text(
                                 'Let us know if someone isn\'t cooperating',
-                                style: TextStyle(color: Colors.grey),
+                                style: TextStyle(
+                                  color: darkText.withOpacity(0.6),
+                                ), // Dynamic grey/faded text
                               ),
                               const SizedBox(height: 16),
 
                               // Username or ID Field
-                              const Text(
+                              Text(
                                 'Username or ID',
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  color: _darkBlueText,
+                                  color: darkText, // Dynamic text color
                                 ),
                               ),
                               _buildInputField(
@@ -279,15 +331,17 @@ class _ReportProblemScreenState extends State<ReportProblem> {
                                 hintText: 'e.g., john_doe or STU123456',
                                 icon: Icons.person_outline,
                                 validatorText: 'Username or ID is required.',
+                                darkText: darkText,
+                                textFieldFill: textFieldFill,
                               ),
                               const SizedBox(height: 16),
 
                               // Item Name or ID Field
-                              const Text(
+                              Text(
                                 'Item Name or ID',
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  color: _darkBlueText,
+                                  color: darkText, // Dynamic text color
                                 ),
                               ),
                               _buildInputField(
@@ -295,15 +349,17 @@ class _ReportProblemScreenState extends State<ReportProblem> {
                                 hintText: 'e.g., Black Wallet',
                                 icon: Icons.inventory_2_outlined,
                                 validatorText: 'Item Name or ID is required.',
+                                darkText: darkText,
+                                textFieldFill: textFieldFill,
                               ),
                               const SizedBox(height: 16),
 
                               // Description of Issue Field
-                              const Text(
+                              Text(
                                 'Description of Issue',
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  color: _darkBlueText,
+                                  color: darkText, // Dynamic text color
                                 ),
                               ),
                               _buildInputField(
@@ -313,6 +369,8 @@ class _ReportProblemScreenState extends State<ReportProblem> {
                                 icon: Icons.description_outlined,
                                 maxLines: 4,
                                 validatorText: 'Description is required.',
+                                darkText: darkText,
+                                textFieldFill: textFieldFill,
                               ),
                             ],
                           ),
@@ -324,25 +382,27 @@ class _ReportProblemScreenState extends State<ReportProblem> {
                       Container(
                         padding: const EdgeInsets.all(12.0),
                         decoration: BoxDecoration(
-                          color: _lightBlueBackground,
+                          color: cardColor,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: _brightBlue.withOpacity(0.5),
+                            color: brightBlue.withOpacity(
+                              0.5,
+                            ), // Dynamic bright blue border
                           ),
                         ),
-                        child: const Row(
+                        child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Icon(
                               Icons.warning_amber_rounded,
-                              color: _warningRed,
+                              color: warningRed, // Dynamic warning red
                             ),
-                            SizedBox(width: 8),
+                            const SizedBox(width: 8),
                             Expanded(
                               child: Text(
                                 'Please only submit genuine reports. False reports may result in action against your account.',
                                 style: TextStyle(
-                                  color: _darkBlueText,
+                                  color: darkText, // Dynamic text color
                                   fontSize: 14,
                                 ),
                               ),
@@ -357,16 +417,18 @@ class _ReportProblemScreenState extends State<ReportProblem> {
                         onPressed: _submitReport,
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 18),
-                          backgroundColor: _brightBlue,
+                          backgroundColor:
+                              brightBlue, // Dynamic bright blue button
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(15),
                           ),
                           elevation: 0,
                         ),
-                        child: const Text(
+                        child: Text(
                           'Submit Report',
                           style: TextStyle(
-                            color: Colors.white,
+                            color:
+                                appBarTextColor, // White/Black text on the bright blue button
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                           ),
@@ -409,11 +471,12 @@ class _ReportProblemScreenState extends State<ReportProblem> {
         currentIndex: _selectedIndex,
         // The selected item color is determined by the specific color list
         selectedItemColor: _navItemColors[_selectedIndex],
-        unselectedItemColor: Colors.grey,
+        unselectedItemColor:
+            unselectedIconColor, // Dynamic unselected icon color
         showUnselectedLabels: true,
         onTap: _onItemTapped,
         type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
+        backgroundColor: cardColor, // Dynamic background for nav bar
         elevation: 10,
       ),
     );
@@ -425,24 +488,26 @@ class _ReportProblemScreenState extends State<ReportProblem> {
     required String hintText,
     required IconData icon,
     required String validatorText,
+    required Color darkText,
+    required Color textFieldFill,
     int maxLines = 1,
   }) {
     return TextFormField(
       controller: controller,
       maxLines: maxLines,
-      // Ensure the text input itself is dark blue
-      style: const TextStyle(color: _darkBlueText),
+      // Ensure the text input itself is the dynamic dark/light text color
+      style: TextStyle(color: darkText),
       decoration: InputDecoration(
         hintText: hintText,
-        // Icons should be dark blue or grey on the light background
-        prefixIcon: Icon(icon, color: _darkBlueText),
+        // Icons should be the dynamic dark/light text color
+        prefixIcon: Icon(icon, color: darkText),
+        hintStyle: TextStyle(color: darkText.withOpacity(0.6)),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide.none,
         ),
         filled: true,
-        fillColor:
-            Colors.white, // White fill for text fields on light blue background
+        fillColor: textFieldFill, // Dynamic fill color for text fields
         contentPadding: EdgeInsets.symmetric(
           vertical: (maxLines > 1 ? 12 : 0) + 8.0,
           horizontal: 10.0,

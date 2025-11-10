@@ -1,8 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import 'settings.dart'; // Import the settings page
+import '../theme_provider.dart'; // Import the ThemeProvider
+
+// Define theme colors
+const Color _brightBlue = Color(
+  0xFF007AFF,
+); // Bright Blue for the header/primary
+const Color _darkBlue = Color(
+  0xFF003C8F,
+); // Dark Blue for text/accents in white sections
+const Color _whiteText = Colors.white;
 
 class PrivacySecurityScreen extends StatefulWidget {
+  const PrivacySecurityScreen({super.key});
+
   @override
   _PrivacySecurityScreenState createState() => _PrivacySecurityScreenState();
 }
@@ -29,7 +42,7 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
         duration: Duration(seconds: 2),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        backgroundColor: Colors.black87,
+        backgroundColor: _darkBlue.withOpacity(0.9), // Dark blue snackbar
       ),
     );
   }
@@ -81,7 +94,11 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
               children: [
                 Text(
                   title,
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: _darkBlue,
+                  ),
                 ),
                 Text(
                   subtitle,
@@ -93,7 +110,8 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
           Switch(
             value: value,
             onChanged: onChanged,
-            activeColor: Color(0xFF8B42F8), // Active switch color
+            activeColor: _brightBlue, // Bright blue active color
+            activeThumbColor: _darkBlue, // Dark blue thumb color
           ),
         ],
       ),
@@ -125,7 +143,7 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+                    color: _darkBlue, // Section title is dark blue
                   ),
                 ),
               ],
@@ -136,6 +154,10 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
             elevation: 0,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(15.0),
+              side: BorderSide(
+                color: _darkBlue.withOpacity(0.1),
+                width: 1.0,
+              ), // Dark blue outline
             ),
             child: Container(
               padding: contentPadding ?? EdgeInsets.all(16.0),
@@ -155,23 +177,29 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Access the ThemeProvider (not strictly used for colors here, but for context)
+    // ignore: unused_local_variable
+    final themeProvider = Provider.of<ThemeProvider>(context);
+
     // Set status bar color for consistent look
     SystemChrome.setSystemUIOverlayStyle(
       SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.light,
+        statusBarIconBrightness: Brightness
+            .light, // Icons are light because the header is dark (bright blue)
       ),
     );
 
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          // Gradient Header Bar
+          // Bright Blue Header Bar
           SliverAppBar(
             expandedHeight: 140.0,
             pinned: true,
+            backgroundColor: _brightBlue, // Solid Bright Blue
             leading: IconButton(
-              icon: Icon(Icons.arrow_back, color: Colors.white),
+              icon: Icon(Icons.arrow_back, color: _whiteText), // White icon
               onPressed: () {
                 // Navigate to SettingsPage when top left button is clicked
                 Navigator.of(context).pushReplacement(
@@ -181,13 +209,7 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
             ),
             flexibleSpace: FlexibleSpaceBar(
               background: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Color(0xFF8B42F8), Color(0xFFE94B8A)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                ),
+                color: _brightBlue, // Solid Bright Blue background
               ),
               titlePadding: EdgeInsets.only(left: 16.0, bottom: 16.0),
               centerTitle: false,
@@ -200,11 +222,15 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
                     style: TextStyle(
                       fontSize: 18.0,
                       fontWeight: FontWeight.bold,
+                      color: _whiteText, // White text
                     ),
                   ),
                   Text(
                     'Manage your privacy settings and account security',
-                    style: TextStyle(fontSize: 12.0, color: Colors.white70),
+                    style: TextStyle(
+                      fontSize: 12.0,
+                      color: _whiteText.withOpacity(0.7),
+                    ), // Slightly faded white text
                   ),
                 ],
               ),
@@ -216,16 +242,16 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
             padding: const EdgeInsets.all(20.0),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
-                // --- 1. Privacy Settings (Image 2) ---
+                // --- 1. Privacy Settings ---
                 _buildSection(
                   title: 'Privacy Settings',
                   icon: Icons.remove_red_eye_outlined,
-                  iconColor: Color(0xFFE94B8A), // Pinkish icon
+                  iconColor: _brightBlue, // Bright blue icon
                   children: [
                     // Profile Visibility
                     _buildSwitchRow(
                       icon: Icons.person_outline,
-                      iconColor: Color(0xFF8B42F8), // Purple icon
+                      iconColor: _brightBlue, // Bright blue icon
                       title: 'Profile Visibility',
                       subtitle: 'Make your profile visible to other users',
                       value: _profileVisibility,
@@ -236,7 +262,8 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
                     // Show Email
                     _buildSwitchRow(
                       icon: Icons.public,
-                      iconColor: Colors.blueAccent,
+                      iconColor:
+                          Colors.teal, // Kept different for visual separation
                       title: 'Show Email',
                       subtitle: 'Display email on your public profile',
                       value: _showEmail,
@@ -247,7 +274,8 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
                     // Show Phone Number
                     _buildSwitchRow(
                       icon: Icons.phone_android_outlined,
-                      iconColor: Colors.green,
+                      iconColor:
+                          Colors.green, // Kept different for visual separation
                       title: 'Show Phone Number',
                       subtitle: 'Display phone on your public profile',
                       value: _showPhoneNumber,
@@ -257,16 +285,16 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
                   ],
                 ),
 
-                // --- 2. Security Settings (Image 4) ---
+                // --- 2. Security Settings ---
                 _buildSection(
                   title: 'Security Settings',
                   icon: Icons.security_outlined,
-                  iconColor: Color(0xFF8B42F8), // Purple icon
+                  iconColor: _brightBlue, // Bright blue icon
                   children: [
                     // Two-Factor Authentication
                     _buildSwitchRow(
                       icon: Icons.lock_outline,
-                      iconColor: Color(0xFF8B42F8),
+                      iconColor: _brightBlue, // Bright blue icon
                       title: 'Two-Factor Authentication',
                       subtitle: 'Add an extra layer of security',
                       value: _twoFactorAuth,
@@ -289,11 +317,11 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
                   ],
                 ),
 
-                // --- 3. Data & Analytics (Image 4 - bottom part) ---
+                // --- 3. Data & Analytics ---
                 _buildSection(
                   title: 'Data & Analytics',
                   icon: Icons.analytics_outlined,
-                  iconColor: Colors.green, // Green icon
+                  iconColor: Colors.green, // Kept green
                   children: [
                     // Anonymous Data Collection
                     _buildSwitchRow(
@@ -311,11 +339,11 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
                   ],
                 ),
 
-                // --- 4. Active Sessions (Image 5) ---
+                // --- 4. Active Sessions ---
                 _buildSection(
                   title: 'Active Sessions',
                   icon: Icons.laptop_mac_outlined,
-                  iconColor: Colors.blueAccent,
+                  iconColor: _brightBlue, // Bright blue icon
                   children: [
                     // Current Device (Green background)
                     Container(
@@ -340,6 +368,7 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
                                       style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 16,
+                                        color: _darkBlue, // Dark blue text
                                       ),
                                     ),
                                     SizedBox(width: 8),
@@ -357,7 +386,9 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
                                 ),
                                 Text(
                                   'iPhone 14 Pro • iOS 17',
-                                  style: TextStyle(color: Colors.black87),
+                                  style: TextStyle(
+                                    color: _darkBlue,
+                                  ), // Dark blue text
                                 ),
                                 Text(
                                   'Last active: Just now',
@@ -388,11 +419,14 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 16,
+                                    color: _darkBlue, // Dark blue text
                                   ),
                                 ),
                                 Text(
                                   'Chrome • macOS',
-                                  style: TextStyle(color: Colors.black87),
+                                  style: TextStyle(
+                                    color: _darkBlue,
+                                  ), // Dark blue text
                                 ),
                                 Text(
                                   'Last active: 2 hours ago',
@@ -410,15 +444,15 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
                                 'MacBook Pro session revoked!',
                               );
                             },
-                            child: Text(
-                              'Revoke',
-                              style: TextStyle(color: Colors.red),
-                            ),
                             style: TextButton.styleFrom(
                               backgroundColor: Colors.red.withOpacity(0.1),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(10),
                               ),
+                            ),
+                            child: Text(
+                              'Revoke',
+                              style: TextStyle(color: Colors.red),
                             ),
                           ),
                         ],
@@ -453,17 +487,20 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
                   ],
                 ),
 
-                // --- 5. Your Data (Image 1) ---
+                // --- 5. Your Data ---
                 _buildSection(
                   title: 'Your Data',
                   icon: Icons.shield_outlined,
-                  iconColor: Color(0xFF8B42F8), // Purple icon
+                  iconColor: _brightBlue, // Bright blue icon
                   children: [
                     Container(
                       padding: EdgeInsets.all(16),
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
-                          colors: [Color(0xFF8B42F8), Color(0xFFE94B8A)],
+                          colors: [
+                            _darkBlue,
+                            _brightBlue,
+                          ], // Dark Blue to Bright Blue gradient
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
@@ -474,14 +511,17 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
                         children: [
                           Row(
                             children: [
-                              Icon(Icons.shield_outlined, color: Colors.white),
+                              Icon(
+                                Icons.shield_outlined,
+                                color: _whiteText,
+                              ), // White icon
                               SizedBox(width: 10),
                               Text(
                                 'Your Data',
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 18,
-                                  color: Colors.white,
+                                  color: _whiteText, // White text
                                 ),
                               ),
                             ],
@@ -489,7 +529,9 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
                           SizedBox(height: 5),
                           Text(
                             'Download or delete your personal data',
-                            style: TextStyle(color: Colors.white70),
+                            style: TextStyle(
+                              color: _whiteText.withOpacity(0.7),
+                            ), // Slightly faded white text
                           ),
                           SizedBox(height: 20),
                           Row(
@@ -501,16 +543,18 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
                                       'Data Download Initiated!',
                                     );
                                   },
-                                  child: Text(
-                                    'Download Data',
-                                    style: TextStyle(color: Color(0xFF8B42F8)),
-                                  ),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: Colors.white,
                                     padding: EdgeInsets.symmetric(vertical: 12),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(15),
                                     ),
+                                  ),
+                                  child: Text(
+                                    'Download Data',
+                                    style: TextStyle(
+                                      color: _darkBlue,
+                                    ), // Dark blue text on white button
                                   ),
                                 ),
                               ),
@@ -522,16 +566,16 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
                                       'Account Deletion Requested!',
                                     );
                                   },
-                                  child: Text(
-                                    'Delete Account',
-                                    style: TextStyle(color: Colors.white),
-                                  ),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: Colors.red,
                                     padding: EdgeInsets.symmetric(vertical: 12),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(15),
                                     ),
+                                  ),
+                                  child: Text(
+                                    'Delete Account',
+                                    style: TextStyle(color: Colors.white),
                                   ),
                                 ),
                               ),
@@ -543,11 +587,11 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
                   ],
                 ),
 
-                // --- 6. Privacy Notice (Image 1 - bottom part) ---
+                // --- 6. Privacy Notice ---
                 _buildSection(
                   title: 'Privacy Notice',
                   icon: Icons.lock_outlined,
-                  iconColor: Colors.blueAccent, // Blue icon
+                  iconColor: _brightBlue, // Bright blue icon
                   titleBackgroundColor: Color(
                     0xFFF0F5FF,
                   ), // Light blue background
@@ -556,7 +600,10 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
                       padding: const EdgeInsets.symmetric(vertical: 8.0),
                       child: Text(
                         'We take your privacy seriously. Your data is encrypted and never shared with third parties without your consent.',
-                        style: TextStyle(fontSize: 15, color: Colors.black87),
+                        style: TextStyle(
+                          fontSize: 15,
+                          color: _darkBlue,
+                        ), // Dark blue text
                       ),
                     ),
                   ],

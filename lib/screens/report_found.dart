@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart'; // Import provider package
 import 'home.dart';
 import 'profile_page.dart';
 import 'community_feed.dart';
 import 'upload_image.dart';
 import 'search_lost.dart';
 import 'messages.dart';
+import '../theme_provider.dart'; // Import the ThemeProvider
 
-// --- Color Palette for Blue Theme ---
+// --- Color Palette for Blue Theme (Used as Primary/Accent) ---
 const Color primaryBlue = Color(0xFF42A5F5); // Bright Blue
 const Color darkBlue = Color(0xFF1977D2); // Dark Blue
 const Color lightBlueBackground = Color(0xFFE3F2FD); // Very Light Blue
@@ -125,19 +127,31 @@ class _ReportFoundItemScreenState extends State<ReportFoundItemScreen> {
       context: context,
       barrierDismissible: false, // User must tap OK to dismiss
       builder: (BuildContext context) {
+        // Use Theme.of(context) here for dynamic colors
+        final theme = Theme.of(context);
         return AlertDialog(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(15.0),
           ),
-          title: const Row(
+          backgroundColor: theme.scaffoldBackgroundColor, // Dynamic background
+          title: Row(
             children: [
-              Icon(Icons.check_circle_outline, color: primaryBlue), // Blue icon
-              SizedBox(width: 8),
-              Text('Thank You!'),
+              const Icon(
+                Icons.check_circle_outline,
+                color: primaryBlue,
+              ), // Blue icon
+              const SizedBox(width: 8),
+              Text(
+                'Thank You!',
+                style: TextStyle(color: theme.textTheme.titleLarge?.color),
+              ), // Dynamic text color
             ],
           ),
-          content: const Text(
+          content: Text(
             'Your report has been submitted. We appreciate your help!',
+            style: TextStyle(
+              color: theme.textTheme.bodyMedium?.color,
+            ), // Dynamic text color
           ),
           actions: <Widget>[
             TextButton(
@@ -162,7 +176,22 @@ class _ReportFoundItemScreenState extends State<ReportFoundItemScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Determine the current theme mode
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
+
+    // Define dynamic colors based on the theme
+    final Color backgroundColor = isDarkMode ? Colors.black : Colors.white;
+    final Color textColor = isDarkMode ? Colors.white : Colors.black;
+    final Color inputFillColor = isDarkMode
+        ? Colors.grey.shade800
+        : Colors.grey.shade200;
+    final Color inputHintColor = isDarkMode
+        ? Colors.grey.shade400
+        : Colors.grey;
+
     return Scaffold(
+      backgroundColor: backgroundColor,
       body: CustomScrollView(
         slivers: [
           // --- Header Section (Blue Gradient) ---
@@ -172,7 +201,7 @@ class _ReportFoundItemScreenState extends State<ReportFoundItemScreen> {
             automaticallyImplyLeading: false, // Handle back button custom
             flexibleSpace: Container(
               decoration: const BoxDecoration(
-                // Blue gradient
+                // Blue gradient remains constant regardless of dark mode for branding
                 gradient: LinearGradient(
                   colors: [primaryBlue, darkBlue], // Blue shades
                   begin: Alignment.topLeft,
@@ -234,12 +263,13 @@ class _ReportFoundItemScreenState extends State<ReportFoundItemScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // --- Thank you Card (Light Blue) ---
+                      // --- Thank you Card (Light Blue/Dynamic) ---
                       Card(
                         elevation: 0,
-                        color: lightBlueBackground.withOpacity(
-                          0.5,
-                        ), // Light bluish background
+                        // Use lightBlueBackground or a dynamic color in dark mode
+                        color: isDarkMode
+                            ? darkBlue.withOpacity(0.3)
+                            : lightBlueBackground.withOpacity(0.5),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(15),
                           side: BorderSide(
@@ -249,35 +279,39 @@ class _ReportFoundItemScreenState extends State<ReportFoundItemScreen> {
                             width: 1,
                           ),
                         ),
-                        child: const Padding(
-                          padding: EdgeInsets.all(16.0),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Icon(
+                              const Icon(
                                 Icons.archive_outlined,
-                                color: darkBlue, // Dark blue icon
+                                color:
+                                    darkBlue, // Dark blue icon (Constant branding)
                                 size: 30,
                               ),
-                              SizedBox(width: 12),
+                              const SizedBox(width: 12),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(
+                                    const Text(
                                       'Thank you for helping!',
                                       style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 16,
-                                        color: darkBlue, // Dark blue text
+                                        color:
+                                            darkBlue, // Dark blue text (Constant branding)
                                       ),
                                     ),
-                                    SizedBox(height: 4),
+                                    const SizedBox(height: 4),
                                     Text(
                                       'Your report will help reunite someone with their lost item',
                                       style: TextStyle(
-                                        color: darkBlue,
-                                      ), // Dark blue text
+                                        color: darkBlue.withOpacity(
+                                          0.8,
+                                        ), // Slightly lighter dark blue text
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -289,14 +323,16 @@ class _ReportFoundItemScreenState extends State<ReportFoundItemScreen> {
                       const SizedBox(height: 20),
 
                       // --- Upload Image Section ---
-                      _buildLabel('Upload Image'),
+                      _buildLabel('Upload Image', textColor),
                       GestureDetector(
                         onTap: _openImageUploadScreen, // Use the new function
                         child: Container(
                           height: 150,
                           width: double.infinity,
                           decoration: BoxDecoration(
-                            color: Colors.transparent,
+                            color: isDarkMode
+                                ? inputFillColor
+                                : Colors.transparent,
                             borderRadius: BorderRadius.circular(15),
                             border: Border.all(
                               color: primaryBlue, // Bright blue border
@@ -306,13 +342,13 @@ class _ReportFoundItemScreenState extends State<ReportFoundItemScreen> {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(
+                              const Icon(
                                 Icons.upload_outlined,
                                 size: 40,
                                 color: primaryBlue, // Bright blue icon
                               ),
                               const SizedBox(height: 8),
-                              Text(
+                              const Text(
                                 'Upload Photo',
                                 style: TextStyle(
                                   color: darkBlue, // Dark blue text
@@ -328,7 +364,7 @@ class _ReportFoundItemScreenState extends State<ReportFoundItemScreen> {
                                 style: TextStyle(
                                   color: _uploadedImagePath != null
                                       ? darkBlue
-                                      : Colors.grey,
+                                      : inputHintColor, // Dynamic hint color
                                 ),
                               ),
                             ],
@@ -338,22 +374,24 @@ class _ReportFoundItemScreenState extends State<ReportFoundItemScreen> {
                       const SizedBox(height: 20),
 
                       // --- Description ---
-                      _buildLabel('Description'),
+                      _buildLabel('Description', textColor),
                       _buildInputField(
                         controller: _descriptionController,
                         hintText: 'Describe the item you found...',
                         maxLines: 4,
                         validatorText: 'Description is required.',
+                        isDarkMode: isDarkMode,
                       ),
                       const SizedBox(height: 20),
 
                       // --- Where did you find it? ---
-                      _buildLabel('Where did you find it?'),
+                      _buildLabel('Where did you find it?', textColor),
                       _buildInputField(
                         controller: _locationController,
                         hintText: 'e.g., Cafeteria Entrance',
                         icon: Icons.location_on_outlined,
                         validatorText: 'Location is required.',
+                        isDarkMode: isDarkMode,
                       ),
                       const SizedBox(height: 20),
 
@@ -367,6 +405,7 @@ class _ReportFoundItemScreenState extends State<ReportFoundItemScreen> {
                             _reportAnonymously = newValue ?? false;
                           });
                         },
+                        isDarkMode: isDarkMode,
                       ),
                       const SizedBox(height: 16),
 
@@ -381,6 +420,7 @@ class _ReportFoundItemScreenState extends State<ReportFoundItemScreen> {
                             _leftWithSecurity = newValue ?? false;
                           });
                         },
+                        isDarkMode: isDarkMode,
                       ),
                       const SizedBox(height: 40),
 
@@ -397,14 +437,14 @@ class _ReportFoundItemScreenState extends State<ReportFoundItemScreen> {
                                 borderRadius: BorderRadius.circular(15),
                               ),
                             ).copyWith(
-                              overlayColor: MaterialStateProperty.all(
+                              overlayColor: WidgetStateProperty.all(
                                 Colors.white.withOpacity(0.1),
                               ),
-                              side: MaterialStateProperty.all(BorderSide.none),
-                              padding: MaterialStateProperty.all(
+                              side: WidgetStateProperty.all(BorderSide.none),
+                              padding: WidgetStateProperty.all(
                                 const EdgeInsets.symmetric(vertical: 18),
                               ),
-                              shape: MaterialStateProperty.all(
+                              shape: WidgetStateProperty.all(
                                 RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(15),
                                 ),
@@ -470,11 +510,11 @@ class _ReportFoundItemScreenState extends State<ReportFoundItemScreen> {
         ],
         currentIndex: _selectedIndex,
         selectedItemColor: _navItemColors[_selectedIndex],
-        unselectedItemColor: Colors.grey,
+        unselectedItemColor: inputHintColor, // Dynamic grey color
         showUnselectedLabels: true,
         onTap: _onItemTapped,
         type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
+        backgroundColor: backgroundColor, // Dynamic background
         elevation: 10,
       ),
     );
@@ -482,12 +522,16 @@ class _ReportFoundItemScreenState extends State<ReportFoundItemScreen> {
 
   // --- Helper Widgets ---
 
-  Widget _buildLabel(String label) {
+  Widget _buildLabel(String label, Color textColor) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
       child: Text(
         label,
-        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 16,
+          color: textColor,
+        ),
       ),
     );
   }
@@ -495,22 +539,33 @@ class _ReportFoundItemScreenState extends State<ReportFoundItemScreen> {
   Widget _buildInputField({
     required TextEditingController controller,
     required String hintText,
+    required bool isDarkMode,
     String? validatorText,
     IconData? icon,
     int maxLines = 1,
   }) {
+    final Color inputFillColor = isDarkMode
+        ? Colors.grey.shade800
+        : Colors.grey.shade200;
+    final Color inputHintColor = isDarkMode
+        ? Colors.grey.shade400
+        : Colors.grey;
+    final Color inputTextColor = isDarkMode ? Colors.white : Colors.black;
+
     return TextFormField(
       controller: controller,
       maxLines: maxLines,
+      style: TextStyle(color: inputTextColor),
       decoration: InputDecoration(
         hintText: hintText,
-        prefixIcon: icon != null ? Icon(icon, color: Colors.grey) : null,
+        hintStyle: TextStyle(color: inputHintColor),
+        prefixIcon: icon != null ? Icon(icon, color: inputHintColor) : null,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide.none,
         ),
         filled: true,
-        fillColor: Colors.grey.shade200,
+        fillColor: inputFillColor,
         contentPadding: EdgeInsets.symmetric(
           vertical: (maxLines > 1 ? 12 : 0) + 8.0,
           horizontal: 10.0,
@@ -530,11 +585,23 @@ class _ReportFoundItemScreenState extends State<ReportFoundItemScreen> {
     required String subtitle,
     required bool value,
     required ValueChanged<bool?> onChanged,
+    required bool isDarkMode,
   }) {
+    final Color textColor = isDarkMode ? Colors.white : Colors.black;
+    final Color subtitleColor = isDarkMode
+        ? Colors.grey.shade400
+        : Colors.grey.shade600;
+    final Color cardColor = isDarkMode ? Colors.grey.shade900 : Colors.white;
+
     return Card(
       elevation: 0,
-      color: Colors.white, // Ensure card background is white
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      color: cardColor, // Dynamic card background
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+        side: BorderSide(
+          color: isDarkMode ? Colors.grey.shade700 : Colors.transparent,
+        ),
+      ),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
         child: Row(
@@ -543,6 +610,9 @@ class _ReportFoundItemScreenState extends State<ReportFoundItemScreen> {
               value: value,
               onChanged: onChanged,
               activeColor: primaryBlue, // Bright blue checkbox color
+              checkColor: isDarkMode
+                  ? Colors.black
+                  : Colors.white, // Ensure visibility of check mark
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(5),
               ),
@@ -554,14 +624,18 @@ class _ReportFoundItemScreenState extends State<ReportFoundItemScreen> {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
+                      color: textColor, // Dynamic text color
                     ),
                   ),
                   Text(
                     subtitle,
-                    style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                    style: TextStyle(
+                      color: subtitleColor,
+                      fontSize: 14,
+                    ), // Dynamic text color
                   ),
                 ],
               ),

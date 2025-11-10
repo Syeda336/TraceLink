@@ -82,6 +82,7 @@ flutter:
 
     - lib/databases/lost_items.json
     - lib/databases/found_items.json
+    - lib/databases/comments.json
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
