@@ -4,12 +4,7 @@ import 'package:provider/provider.dart'; // Import provider package
 // Import your custom ThemeProvider
 import '../theme_provider.dart';
 
-// Import all destination screens (required for the navigation bar to work)
-import 'messages.dart';
-import 'profile_page.dart';
-import 'community_feed.dart';
-import 'search_lost.dart';
-import 'home.dart';
+import 'bottom_navigation.dart';
 
 class ReportProblem extends StatefulWidget {
   const ReportProblem({super.key});
@@ -52,50 +47,6 @@ class _ReportProblemScreenState extends State<ReportProblem> {
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _itemController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
-
-  // --- Bottom Navigation State and Logic ---
-  int _selectedIndex = 0; // Set to 0 (Home) as the fallback index
-
-  // List of screens to navigate to from the bottom bar
-  final List<Widget> _screens = [
-    const HomeScreen(), // 0: Home
-    const SearchLost(), // 1: Browse/Search
-    const CommunityFeed(), // 2: Feed
-    const MessagesListScreen(), // 3: Chat
-    const ProfileScreen(), // 4: Profile
-  ];
-
-  final List<Color> _navItemColors = const [
-    Colors.green, // Home (Index 0)
-    Colors.pink, // Browse (Index 1)
-    Colors.orange, // Feed (Index 2)
-    Color(0xFF00008B), // Dark Blue for Chat (Index 3)
-    Colors.purple, // Profile (Index 4)
-  ];
-
-  void _navigateToScreen(BuildContext context, Widget screen) {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => screen),
-    );
-  }
-
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-
-    _navigateToScreen(context, _screens[index]);
-  }
-
-  // Helper function to get the icon color for BottomNavigationBar
-  Color _getIconColor(int index) {
-    // The current screen is ReportProblem, which is not in the list.
-    // We keep the Home icon active as the current screen is usually accessed
-    // from the Home Screen.
-    return index == 0 ? _navItemColors[0] : Colors.grey;
-  }
-  // --- END Bottom Navigation State and Logic ---
 
   @override
   void dispose() {
@@ -237,7 +188,7 @@ class _ReportProblemScreenState extends State<ReportProblem> {
                               Navigator.pushReplacement(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => const HomeScreen(),
+                                  builder: (context) => const BottomNavScreen(),
                                 ),
                               );
                             },
@@ -442,42 +393,6 @@ class _ReportProblemScreenState extends State<ReportProblem> {
             ]),
           ),
         ],
-      ),
-      // --- Bottom Navigation Bar ---
-      bottomNavigationBar: BottomNavigationBar(
-        items: <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.favorite, color: _getIconColor(0)),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.browse_gallery, color: _getIconColor(1)),
-            label: 'Browse',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.inventory_2_outlined, color: _getIconColor(2)),
-            label: 'Feed',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.chat_bubble_outline, color: _getIconColor(3)),
-            label: 'Chat',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline, color: _getIconColor(4)),
-            label: 'Profile',
-          ),
-        ],
-        // The selected index is always 0 (Home) on this screen
-        currentIndex: _selectedIndex,
-        // The selected item color is determined by the specific color list
-        selectedItemColor: _navItemColors[_selectedIndex],
-        unselectedItemColor:
-            unselectedIconColor, // Dynamic unselected icon color
-        showUnselectedLabels: true,
-        onTap: _onItemTapped,
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: cardColor, // Dynamic background for nav bar
-        elevation: 10,
       ),
     );
   }

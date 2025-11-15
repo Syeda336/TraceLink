@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'warning_admin.dart';
 import 'alerts.dart';
-import 'home.dart';
 import 'chat.dart';
 import 'community_feed.dart';
 import 'dart:async';
 import '../theme_provider.dart'; // Import your ThemeProvider
+import 'bottom_navigation.dart';
 
 // Define the new Bright Blue theme color (used for consistency)
 const Color kBrightBlue = Color(0xFF007AFF);
@@ -357,7 +357,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             // Navigate back to the previous screen (e.g., Home)
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (context) => HomeScreen()),
+              MaterialPageRoute(builder: (context) => BottomNavScreen()),
             );
           },
         ),

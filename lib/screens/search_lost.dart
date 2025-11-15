@@ -3,7 +3,7 @@ import 'package:flutter/services.dart'
     show rootBundle; // For loading local assets/files
 import 'dart:convert'; // For JSON decoding
 
-import 'home.dart';
+import 'bottom_navigation.dart';
 import 'search_bar.dart';
 import 'item_description.dart'; // Assuming this holds ItemDetailScreen/ItemDescriptionScreen
 
@@ -47,7 +47,7 @@ class _LostFoundScreenState extends State<SearchLost> {
           onPressed: () {
             // Navigate back to home.dart
             Navigator.of(context).pushReplacement(
-              MaterialPageRoute(builder: (context) => const HomeScreen()),
+              MaterialPageRoute(builder: (context) => const BottomNavScreen()),
             );
           },
         ),

@@ -2,11 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../theme_provider.dart';
-import 'messages.dart';
-import 'profile_page.dart';
-import 'community_feed.dart';
-import 'search_lost.dart';
-import 'home.dart';
 
 // --- Theme Color Definitions (Now Dynamic) ---
 
@@ -23,58 +18,6 @@ class EmergencyAlerts extends StatefulWidget {
 }
 
 class _EmergencyAlertsState extends State<EmergencyAlerts> {
-  // --- BOTTOM NAV STATE/LOGIC INCLUDED ---
-  // 0: Home (this screen), 1: Browse/Search, 2: Feed, 3: Chat, 4: Profile
-  int _selectedIndex = 0;
-
-  void _navigateToScreen(BuildContext context, Widget screen) {
-    // Using push replacement for navigation bar items to avoid deep stack
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => screen),
-    );
-  }
-
-  // --- Bottom Navigation Colors ---
-  final List<Color> _navItemColors = const [
-    Colors.green, // Home (Index 0)
-    Colors.pink, // Browse (Index 1)
-    Colors.orange, // Feed (Index 2)
-    Color(0xFF00008B), // Dark Blue for Chat (Index 3)
-    Colors.purple, // Profile (Index 4)
-  ];
-
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-
-    // Handle navigation for Bottom Navigation Bar items
-    switch (index) {
-      case 0:
-        _navigateToScreen(context, HomeScreen());
-        break;
-      case 1: // Browse
-        _navigateToScreen(context, SearchLost());
-        break;
-      case 2: // Feed
-        _navigateToScreen(context, CommunityFeed());
-        break;
-      case 3: // Chat
-        _navigateToScreen(context, MessagesListScreen());
-        break;
-      case 4: // Profile
-        _navigateToScreen(context, ProfileScreen());
-        break;
-    }
-  }
-
-  // Helper function to get the icon color
-  Color _getIconColor(int index) {
-    return _selectedIndex == index ? _navItemColors[index] : Colors.grey;
-  }
-  // --- END BOTTOM NAV LOGIC ---
-
   // Data structure for an alert item (UNCHANGED)
   final List<Map<String, dynamic>> _alerts = [
     // Item 1: Student ID - John Martinez (High Priority)
@@ -254,45 +197,6 @@ class _EmergencyAlertsState extends State<EmergencyAlerts> {
           const SliverToBoxAdapter(child: SizedBox(height: 20)),
         ],
       ),
-
-      // --- BOTTOM NAVIGATION BAR ADDED (Minor modification) ---
-      bottomNavigationBar: BottomNavigationBar(
-        items: <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.favorite, color: _getIconColor(0)),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.browse_gallery, color: _getIconColor(1)),
-            label: 'Browse',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.inventory_2_outlined, color: _getIconColor(2)),
-            label: 'Feed',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.chat_bubble_outline, color: _getIconColor(3)),
-            label: 'Chat',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline, color: _getIconColor(4)),
-            label: 'Profile',
-          ),
-        ],
-        currentIndex: _selectedIndex,
-        selectedItemColor: _navItemColors[_selectedIndex],
-        unselectedItemColor: isDarkMode
-            ? Colors.white60
-            : Colors.grey, // Theme-aware unselected color
-        showUnselectedLabels: true,
-        onTap: _onItemTapped,
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: isDarkMode
-            ? Theme.of(context).cardColor
-            : Colors.white, // Theme-aware background
-        elevation: 10,
-      ),
-      // --- END BOTTOM NAVIGATION BAR ADDED ---
     );
   }
 }

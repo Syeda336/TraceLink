@@ -3,11 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:tracelink/theme_provider.dart';
 
 // Import the hypothetical screens
-import 'home.dart';
 import 'chat.dart';
-import 'profile_page.dart';
-import 'search_lost.dart';
-import 'community_feed.dart';
+import 'bottom_navigation.dart';
 
 // --- Define the Color Palette ---
 const Color primaryBlue = Color(0xFF42A5F5); // Bright Blue
@@ -30,58 +27,6 @@ class MessagesListScreen extends StatefulWidget {
 }
 
 class _MessagesListScreenState extends State<MessagesListScreen> {
-  // Moved state variables here
-  int _selectedIndex = 3; // Chat index
-
-  // --- Bottom Navigation Colors ---
-  final List<Color> _navItemColors = const [
-    Colors.green, // Home (Index 0)
-    Colors.pink, // Browse (Index 1)
-    Colors.orange, // Feed (Index 2)
-    Color(0xFF00008B), // Dark Blue for Chat (Index 3)
-    Colors.purple, // Profile (Index 4)
-  ];
-
-  // 2. CORRECTLY DEFINED NAVIGATION LOGIC
-  void _onItemTapped(int index) {
-    if (_selectedIndex == index) return;
-
-    setState(() {
-      _selectedIndex = index;
-    });
-
-    Widget screenToNavigate;
-
-    switch (index) {
-      case 0: // Home
-        screenToNavigate = const HomeScreen();
-        break;
-      case 1: // Browse
-        screenToNavigate = const SearchLost();
-        break;
-      case 2: // Feed
-        screenToNavigate = const CommunityFeed();
-        break;
-      case 3: // Chat (Current Screen) - Should be handled by the check above
-        return;
-      case 4: // Profile
-        screenToNavigate = const ProfileScreen();
-        break;
-      default:
-        return;
-    }
-
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => screenToNavigate),
-    );
-  }
-
-  // Helper function to get the icon color
-  Color _getIconColor(int index) {
-    return _selectedIndex == index ? _navItemColors[index] : Colors.grey;
-  }
-
   @override
   Widget build(BuildContext context) {
     // 3. CONSUME THE THEME PROVIDER
@@ -110,7 +55,7 @@ class _MessagesListScreenState extends State<MessagesListScreen> {
           onPressed: () {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (context) => const HomeScreen()),
+              MaterialPageRoute(builder: (context) => const BottomNavScreen()),
             );
           },
         ),
@@ -240,40 +185,6 @@ class _MessagesListScreenState extends State<MessagesListScreen> {
             ),
           ),
         ],
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        items: <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.favorite, color: _getIconColor(0)),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.browse_gallery, color: _getIconColor(1)),
-            label: 'Browse',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.inventory_2_outlined, color: _getIconColor(2)),
-            label: 'Feed',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.chat_bubble_outline, color: _getIconColor(3)),
-            label: 'Chat',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline, color: _getIconColor(4)),
-            label: 'Profile',
-          ),
-        ],
-        currentIndex: _selectedIndex,
-        selectedItemColor: _navItemColors[_selectedIndex],
-        unselectedItemColor: unselectedIconColor, // THEME CHANGE
-        showUnselectedLabels: true,
-        onTap: _onItemTapped,
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: isDarkMode
-            ? darkSurfaceColor
-            : Colors.white, // THEME CHANGE
-        elevation: 10,
       ),
     );
   }

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart'; // Import Provider
-import 'home.dart';
 import '../theme_provider.dart'; // Import your ThemeProvider
 
 // --- 1. DATA MODEL ---
@@ -340,12 +339,7 @@ class _SearchScreenState extends State<SearchScreen> {
                               color: _whiteTextColor,
                             ),
                             onPressed: () {
-                              Navigator.pushReplacement(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const HomeScreen(),
-                                ),
-                              );
+                              Navigator.pop(context);
                             },
                           ),
                           const SizedBox(width: 8),
@@ -388,7 +382,7 @@ class _SearchScreenState extends State<SearchScreen> {
                                   enabledBorder: InputBorder.none,
                                   focusedBorder: InputBorder.none,
                                   contentPadding: const EdgeInsets.symmetric(
-                                    vertical: 8,
+                                    vertical: 5,
                                     horizontal: 10,
                                   ),
                                 ),

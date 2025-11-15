@@ -9,13 +9,9 @@ import 'alerts.dart';
 import 'report_problem.dart';
 import 'report_lost.dart';
 import 'report_found.dart';
-import 'messages.dart';
-import 'profile_page.dart';
-import 'community_feed.dart';
-import 'search_lost.dart';
 
 // 1. IMPORT YOUR ITEM DESCRIPTION SCREEN HERE
-import 'item_description.dart';
+import 'item_description.dart'; // Assuming ItemDetailScreen is defined here
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -25,54 +21,14 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // 0: Home (this screen), 1: Browse/Search, 2: Feed, 3: Chat, 4: Profile
-  int _selectedIndex = 0;
-
+  // Navigation helper function (kept for card actions)
   void _navigateToScreen(BuildContext context, Widget screen) {
     Navigator.push(context, MaterialPageRoute(builder: (context) => screen));
   }
 
-  // --- Bottom Navigation Colors ---
-  // These remain hardcoded as they represent fixed brand/function colors.
-  final List<Color> _navItemColors = const [
-    Colors.green, // Home (Index 0)
-    Colors.pink, // Browse (Index 1)
-    Colors.orange, // Feed (Index 2)
-    Color(0xFF00008B), // Dark Blue for Chat (Index 3)
-    Colors.purple, // Profile (Index 4)
-  ];
-
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-
-    // Handle navigation for Bottom Navigation Bar items
-    switch (index) {
-      case 0:
-        break;
-      case 1: // Browse
-        _navigateToScreen(context, const SearchLost());
-        break;
-      case 2: // Feed
-        _navigateToScreen(context, const CommunityFeed());
-        break;
-      case 3: // Chat
-        _navigateToScreen(context, const MessagesListScreen());
-        break;
-      case 4: // Profile
-        _navigateToScreen(context, const ProfileScreen());
-        break;
-    }
-  }
-
-  // Helper function to get the icon color
-  Color _getIconColor(int index, BuildContext context) {
-    // Use the theme's unselected color for non-active icons
-    return _selectedIndex == index
-        ? _navItemColors[index]
-        : Theme.of(context).unselectedWidgetColor;
-  }
+  // NOTE: Bottom Navigation State and Logic (selectedIndex, _navItemColors,
+  // _onItemTapped, _getIconColor) were removed as they are no longer needed
+  // without the BottomNavigationBar.
 
   // 1. Builds the main gradient header area
   Widget _buildHeader(BuildContext context, bool isDarkMode) {
@@ -376,26 +332,50 @@ class _HomeScreenState extends State<HomeScreen> {
       context,
     ).scaffoldBackgroundColor;
 
-    // Consistent gradient colors
-    final Color brightBlueTop = isDarkMode
-        ? Colors.lightBlue.shade700
-        : const Color(0xFF1E90FF);
-    final Color deepBlueBottom = isDarkMode
-        ? Colors.blue.shade900
-        : const Color(0xFF007FFF);
+    // Consistent white text color for all action cards and alerts
     const Color whiteTextColor = Colors.white;
 
-    // Fixed colors for action cards/status tags
+    // **MODIFIED COLORS START HERE**
+    // 1. Emergency Alerts: Red Gradient
+    const Color emergencyAlertColor1 = Color(0xFFE53935); // Bright Red
+    const Color emergencyAlertColor2 = Color(0xFFB71C1C); // Deep Red
+
+    // 2. Report Lost: Orange Solid Color (Dynamic based on theme for contrast)
+    final Color reportLostColor = isDarkMode
+        ? const Color.fromARGB(255, 64, 173, 236) // Darker orange for dark mode
+        : const Color.fromARGB(
+            255,
+            132,
+            199,
+            238,
+          ); // Bright orange for light mode
+
+    // 3. Report Found: Green Solid Color (Dynamic based on theme for contrast)
+    final Color reportFoundColor = isDarkMode
+        ? const Color.fromARGB(255, 64, 173, 236) // Darker green for dark mode
+        : const Color.fromARGB(
+            255,
+            132,
+            199,
+            238,
+          ); // Bright green for light mode
+
+    // 4. Report Problem: Grey Gradient
+    final Color reportProblemColor1 = isDarkMode
+        ? Colors
+              .blueGrey
+              .shade700 // Dark grey/blue for dark mode
+        : Colors.grey.shade500; // Light grey for light mode
+    final Color reportProblemColor2 = isDarkMode
+        ? Colors
+              .blueGrey
+              .shade900 // Deep grey/blue for dark mode
+        : Colors.grey.shade700; // Dark grey for light mode
+    // **MODIFIED COLORS END HERE**
+
+    // Fixed colors for status tags (can remain the original lost/found colors)
     const Color lostStatusColor = Color(0xFF2980b9);
     const Color foundStatusColor = Color(0xFF2ecc71);
-
-    // Dynamic background colors for the Report Lost/Found cards
-    final Color reportLostColor = isDarkMode
-        ? Colors.blue.shade700
-        : const Color.fromARGB(255, 69, 160, 252);
-    final Color reportFoundColor = isDarkMode
-        ? Colors.lightBlue.shade600
-        : const Color.fromARGB(255, 0, 183, 255);
 
     return Scaffold(
       // Use the theme's background color
@@ -410,7 +390,7 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // --- Emergency Alert Card (Dynamic Gradient, White Text) ---
+                  // --- Emergency Alert Card (Red Gradient, White Text) ---
                   GestureDetector(
                     onTap: () =>
                         _navigateToScreen(context, const EmergencyAlerts()),
@@ -420,10 +400,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(15),
                         gradient: LinearGradient(
-                          colors: [
-                            brightBlueTop,
-                            deepBlueBottom,
-                          ], // Dynamic Gradient
+                          // RED GRADIENT
+                          colors: [emergencyAlertColor1, emergencyAlertColor2],
                           begin: Alignment.centerLeft,
                           end: Alignment.centerRight,
                         ),
@@ -471,7 +449,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
 
-                  // --- Report Lost / Report Found Row (Dynamic Solid Blue, White Text) ---
+                  // --- Report Lost / Report Found Row (Orange/Green Solid, White Text) ---
                   Row(
                     children: [
                       _buildActionCard(
@@ -480,7 +458,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         iconColor: whiteTextColor,
                         title: 'Report Lost',
                         subtitle: 'Lost something?',
-                        backgroundColor: reportLostColor, // Dynamic color
+                        backgroundColor: reportLostColor, // **ORANGE**
                         destination: const ReportLostItemScreen(),
                       ),
                       const SizedBox(width: 15),
@@ -490,7 +468,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         iconColor: whiteTextColor,
                         title: 'Report Found',
                         subtitle: 'Found something?',
-                        backgroundColor: reportFoundColor, // Dynamic color
+                        backgroundColor: reportFoundColor, // **GREEN**
                         destination: const ReportFoundItemScreen(),
                       ),
                     ],
@@ -498,7 +476,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                   const SizedBox(height: 15),
 
-                  // --- Report a Problem Card (Dynamic Gradient, White Text) ---
+                  // --- Report a Problem Card (Grey Gradient, White Text) ---
                   GestureDetector(
                     onTap: () =>
                         _navigateToScreen(context, const ReportProblem()),
@@ -509,10 +487,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(15),
                         gradient: LinearGradient(
-                          colors: [
-                            deepBlueBottom,
-                            brightBlueTop,
-                          ], // Dynamic Gradient
+                          // GREY GRADIENT
+                          colors: [reportProblemColor1, reportProblemColor2],
                           begin: Alignment.centerLeft,
                           end: Alignment.centerRight,
                         ),
@@ -626,46 +602,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
 
-      // 3. The Bottom Navigation Bar (Theme-aware background)
-      bottomNavigationBar: BottomNavigationBar(
-        items: <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.favorite, color: _getIconColor(0, context)),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.browse_gallery, color: _getIconColor(1, context)),
-            label: 'Browse',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(
-              Icons.inventory_2_outlined,
-              color: _getIconColor(2, context),
-            ),
-            label: 'Feed',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(
-              Icons.chat_bubble_outline,
-              color: _getIconColor(3, context),
-            ),
-            label: 'Chat',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline, color: _getIconColor(4, context)),
-            label: 'Profile',
-          ),
-        ],
-        currentIndex: _selectedIndex,
-        selectedItemColor: _navItemColors[_selectedIndex],
-        unselectedItemColor: Theme.of(context).unselectedWidgetColor,
-        showUnselectedLabels: true,
-        onTap: _onItemTapped,
-        type: BottomNavigationBarType.fixed,
-        // Use the theme's card color (White in Light, Dark Grey in Dark)
-        backgroundColor: Theme.of(context).cardColor,
-        elevation: 10,
-      ),
+      // 3. The Bottom Navigation Bar has been removed from this file.
     );
   }
 }

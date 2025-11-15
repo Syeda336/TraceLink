@@ -1,12 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart'; // Import provider package
-import 'home.dart';
-import 'profile_page.dart';
-import 'community_feed.dart';
+import 'package:provider/provider.dart';
 import 'upload_image.dart';
-import 'search_lost.dart';
-import 'messages.dart';
 import '../theme_provider.dart'; // Import the ThemeProvider
+import 'bottom_navigation.dart';
 
 // --- Color Palette for Blue Theme (Used as Primary/Accent) ---
 const Color primaryBlue = Color(0xFF42A5F5); // Bright Blue
@@ -25,57 +21,6 @@ class ReportFoundItemScreen extends StatefulWidget {
 }
 
 class _ReportFoundItemScreenState extends State<ReportFoundItemScreen> {
-  int _selectedIndex = 0;
-
-  void _navigateToScreen(BuildContext context, Widget screen) {
-    // This is generally safe for navigating to a detail page
-    Navigator.push(context, MaterialPageRoute(builder: (context) => screen));
-  }
-
-  // --- Bottom Navigation Colors ---
-  final List<Color> _navItemColors = const [
-    Colors.green, // Home (Index 0)
-    Colors.pink, // Browse (Index 1)
-    Colors.orange, // Feed (Index 2)
-    Color(0xFF00008B), // Chat (Index 3)
-    Colors.purple, // Profile (Index 4)
-  ];
-
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-
-    // Handle navigation for Bottom Navigation Bar items
-    // Using pushReplacement for main tabs to prevent back-stack buildup
-    switch (index) {
-      case 0: // Home
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
-        );
-        break;
-      case 1: // Browse
-        _navigateToScreen(context, const SearchLost());
-        break;
-      case 2: // Feed
-        _navigateToScreen(context, const CommunityFeed());
-        break;
-      case 3: // Chat
-        _navigateToScreen(context, const MessagesListScreen());
-        break;
-      case 4: // Profile
-        _navigateToScreen(context, const ProfileScreen());
-        break;
-    }
-  }
-
-  // Helper function to get the icon color
-  Color _getIconColor(int index) {
-    return _selectedIndex == index ? _navItemColors[index] : Colors.grey;
-  }
-  // --- END BOTTOM NAV LOGIC ---
-
   // Global key for the form
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
@@ -160,7 +105,9 @@ class _ReportFoundItemScreenState extends State<ReportFoundItemScreen> {
                 // Navigate to home.dart after closing the dialog
                 Navigator.pushReplacement(
                   context,
-                  MaterialPageRoute(builder: (context) => const HomeScreen()),
+                  MaterialPageRoute(
+                    builder: (context) => const BottomNavScreen(),
+                  ),
                 );
               },
               child: const Text(
@@ -231,7 +178,7 @@ class _ReportFoundItemScreenState extends State<ReportFoundItemScreen> {
                               Navigator.pushReplacement(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => const HomeScreen(),
+                                  builder: (context) => const BottomNavScreen(),
                                 ),
                               );
                             },
@@ -483,39 +430,6 @@ class _ReportFoundItemScreenState extends State<ReportFoundItemScreen> {
             ]),
           ),
         ],
-      ),
-      // --- BOTTOM NAVIGATION BAR ---
-      bottomNavigationBar: BottomNavigationBar(
-        items: <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.favorite, color: _getIconColor(0)),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.browse_gallery, color: _getIconColor(1)),
-            label: 'Browse',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.inventory_2_outlined, color: _getIconColor(2)),
-            label: 'Feed',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.chat_bubble_outline, color: _getIconColor(3)),
-            label: 'Chat',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline, color: _getIconColor(4)),
-            label: 'Profile',
-          ),
-        ],
-        currentIndex: _selectedIndex,
-        selectedItemColor: _navItemColors[_selectedIndex],
-        unselectedItemColor: inputHintColor, // Dynamic grey color
-        showUnselectedLabels: true,
-        onTap: _onItemTapped,
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: backgroundColor, // Dynamic background
-        elevation: 10,
       ),
     );
   }

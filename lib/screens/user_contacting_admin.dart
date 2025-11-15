@@ -103,7 +103,7 @@ class ContactAdminDialog extends StatelessWidget {
               children: <Widget>[
                 // Cancel Button
                 SizedBox(
-                  width: 100,
+                  width: 120,
                   height: 45,
                   child: OutlinedButton.icon(
                     onPressed: () => _handleAction(context), // Close action
@@ -120,7 +120,7 @@ class ContactAdminDialog extends StatelessWidget {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(15),
                       ),
-                      side: const BorderSide(color: Colors.grey, width: 0.5),
+                      side: const BorderSide(color: Colors.grey, width: 1.5),
                     ),
                   ),
                 ),
@@ -128,7 +128,7 @@ class ContactAdminDialog extends StatelessWidget {
 
                 // Send Button (with Gradient)
                 Container(
-                  width: 100,
+                  width: 120,
                   height: 45,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(15),

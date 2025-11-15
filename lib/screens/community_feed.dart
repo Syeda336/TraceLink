@@ -5,9 +5,6 @@ import '../theme_provider.dart'; // Import your dynamic theme provider
 
 // Assuming these files exist in your project structure
 import 'home.dart';
-import 'profile_page.dart';
-import 'search_lost.dart';
-import 'messages.dart';
 import 'item_description.dart';
 
 // --- Define the NEW Color Palette ---
@@ -53,18 +50,6 @@ class CommunityFeed extends StatefulWidget {
 }
 
 class _CommunityFeedState extends State<CommunityFeed> {
-  int _selectedIndex = 2;
-
-  // --- Bottom Navigation Colors ---
-  // These will now be used for the selected item color.
-  final List<Color> _navItemColors = const [
-    Colors.green,
-    Colors.pink,
-    primaryBlue, // Changed to primaryBlue for consistency
-    Color(0xFF00008B),
-    Colors.purple,
-  ];
-
   late List<FeedPostData> _feedPosts;
   late Map<int, List<String>> _commentData;
 
@@ -169,48 +154,6 @@ class _CommunityFeedState extends State<CommunityFeed> {
         'Good luck finding the owner!',
       ],
     };
-  }
-
-  void _onItemTapped(int index) {
-    if (_selectedIndex == index) return;
-
-    setState(() {
-      _selectedIndex = index;
-    });
-
-    Widget screenToNavigate;
-
-    switch (index) {
-      case 0:
-        screenToNavigate = const HomeScreen();
-        break;
-      case 1:
-        screenToNavigate = const SearchLost();
-        break;
-      case 2:
-        screenToNavigate = const CommunityFeed();
-        return;
-      case 3:
-        screenToNavigate = const MessagesListScreen();
-        break;
-      case 4:
-        screenToNavigate = const ProfileScreen();
-        break;
-      default:
-        return;
-    }
-
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => screenToNavigate),
-    );
-  }
-
-  // Helper function to get the icon color (Uses the theme's default unselected color)
-  Color _getIconColor(int index, ThemeData theme) {
-    return _selectedIndex == index
-        ? _navItemColors[index]
-        : theme.unselectedWidgetColor;
   }
 
   // ... [Feature handlers remain the same] ...
@@ -357,48 +300,6 @@ class _CommunityFeedState extends State<CommunityFeed> {
             ]),
           ),
         ],
-      ),
-
-      // 3. BottomNavigationBar
-      bottomNavigationBar: BottomNavigationBar(
-        items: <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.favorite, color: _getIconColor(0, theme)),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.browse_gallery, color: _getIconColor(1, theme)),
-            label: 'Browse',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(
-              Icons.inventory_2_outlined,
-              color: _getIconColor(2, theme),
-            ),
-            label: 'Feed',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(
-              Icons.chat_bubble_outline,
-              color: _getIconColor(3, theme),
-            ),
-            label: 'Chat',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline, color: _getIconColor(4, theme)),
-            label: 'Profile',
-          ),
-        ],
-        currentIndex: _selectedIndex,
-        // Use custom color for selected item, or theme's primary color
-        selectedItemColor: _navItemColors[_selectedIndex],
-        unselectedItemColor: theme.unselectedWidgetColor,
-        showUnselectedLabels: true,
-        onTap: _onItemTapped,
-        type: BottomNavigationBarType.fixed,
-        // Use theme's BottomNavigationBar background color
-        backgroundColor: theme.bottomNavigationBarTheme.backgroundColor,
-        elevation: 10,
       ),
     );
   }

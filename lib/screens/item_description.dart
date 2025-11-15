@@ -7,9 +7,6 @@ import '../theme_provider.dart';
 import 'home.dart';
 import 'messages.dart';
 import 'claim_submit.dart';
-import 'search_lost.dart';
-import 'community_feed.dart';
-import 'profile_page.dart';
 
 // Define the new color palette (Base for Light Mode)
 const Color primaryBlue = Color(
@@ -30,61 +27,6 @@ class ItemDetailScreen extends StatefulWidget {
 }
 
 class _ItemDetailScreenState extends State<ItemDetailScreen> {
-  // Correctly define state variables within the State class
-  int _selectedIndex =
-      0; // Set to 0 initially, or choose an appropriate index for Alerts screen
-
-  // --- Bottom Navigation Colors ---
-  // These will be used for the selected icons regardless of light/dark mode for high visibility
-  final List<Color> _navItemColors = const [
-    Colors
-        .green, // Home (Index 0) - Using favorite icon, but navigating to home.dart
-    Colors.pink, // Browse (Index 1)
-    Colors.orange, // Feed (Index 2)
-    Color(0xFF00008B), // Dark Blue for Chat (Index 3)
-    Colors.purple, // Profile (Index 4)
-  ];
-
-  void _navigateToScreen(BuildContext context, Widget screen) {
-    // Using pushReplacement for main tab navigation to avoid deep stack
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => screen),
-    );
-  }
-
-  // Define _onItemTapped correctly within the State class
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-
-    // Handle navigation for Bottom Navigation Bar items
-    // Context is available in State class methods.
-    switch (index) {
-      case 0:
-        _navigateToScreen(context, HomeScreen());
-        break;
-      case 1: // Browse
-        _navigateToScreen(context, SearchLost());
-        break;
-      case 2: // Feed
-        _navigateToScreen(context, CommunityFeed());
-        break;
-      case 3: // Chat
-        _navigateToScreen(context, MessagesListScreen());
-        break;
-      case 4: // Profile
-        _navigateToScreen(context, ProfileScreen());
-        break;
-    }
-  }
-
-  // Helper function to get the icon color
-  Color _getIconColor(int index) {
-    return _selectedIndex == index ? _navItemColors[index] : Colors.grey;
-  }
-
   // --- Theme-Adaptive Color Helpers ---
   Color _getPrimaryTextColor(bool isDarkMode) {
     return isDarkMode ? Colors.white : darkBlue;
@@ -99,10 +41,12 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
   }
 
   Color _getCardColor(bool isDarkMode) {
+    // Note: lightBlueBackground is a very light blue for section backgrounds
     return isDarkMode ? const Color(0xFF1E1E1E) : lightBlueBackground;
   }
 
   Color _getCardOutlineColor(bool isDarkMode) {
+    // This color is no longer used for the border, but kept for consistency if needed elsewhere
     return isDarkMode ? primaryBlue : darkBlue;
   }
 
@@ -197,46 +141,6 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
               ),
             ],
           ),
-          // --- Bottom Navigation Bar (Moved here) ---
-          bottomNavigationBar: BottomNavigationBar(
-            items: <BottomNavigationBarItem>[
-              BottomNavigationBarItem(
-                icon: Icon(
-                  Icons.home_outlined,
-                  color: _getIconColor(0),
-                ), // Changed to home icon
-                label: 'Home',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.browse_gallery, color: _getIconColor(1)),
-                label: 'Browse',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.inventory_2_outlined, color: _getIconColor(2)),
-                label: 'Feed',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.chat_bubble_outline, color: _getIconColor(3)),
-                label: 'Chat',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.person_outline, color: _getIconColor(4)),
-                label: 'Profile',
-              ),
-            ],
-            currentIndex: _selectedIndex,
-            selectedItemColor: _navItemColors[_selectedIndex],
-            unselectedItemColor: isDarkMode
-                ? Colors.grey.shade600
-                : Colors.grey,
-            showUnselectedLabels: true,
-            onTap: _onItemTapped,
-            type: BottomNavigationBarType.fixed,
-            backgroundColor: isDarkMode
-                ? const Color(0xFF1E1E1E)
-                : Colors.white, // Dynamic Nav Bar background
-            elevation: 10,
-          ),
         );
       },
     );
@@ -289,9 +193,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                 child: IconButton(
                   icon: Icon(Icons.arrow_back, color: primaryTextColor),
                   onPressed: () {
-                    Navigator.of(context).pushReplacement(
-                      MaterialPageRoute(builder: (context) => HomeScreen()),
-                    );
+                    Navigator.pop(context);
                   },
                 ),
               ),
@@ -326,10 +228,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
             decoration: BoxDecoration(
               color: _getBackgroundColor(isDarkMode), // Dynamic background
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: darkBlue, // Dark blue outline (constant for emphasis)
-                width: 1,
-              ),
+              // Removed Border.all to eliminate the outline
               boxShadow: [
                 BoxShadow(
                   color: (isDarkMode ? Colors.black : darkBlue).withOpacity(
@@ -429,10 +328,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
       decoration: BoxDecoration(
         color: cardColor, // Dynamic Background
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: cardOutlineColor,
-          width: 1,
-        ), // Dynamic outline
+        // Removed Border.all to eliminate the outline
         boxShadow: [
           BoxShadow(
             color: darkBlue.withOpacity(0.1),
@@ -541,10 +437,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
       decoration: BoxDecoration(
         color: cardColor, // Dynamic Background
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: cardOutlineColor,
-          width: 1,
-        ), // Dynamic outline
+        // Removed Border.all to eliminate the outline
         boxShadow: [
           BoxShadow(
             color: darkBlue.withOpacity(0.1),
@@ -601,6 +494,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                 decoration: BoxDecoration(
                   color: cardColor, // Dynamic Background
                   borderRadius: BorderRadius.circular(15),
+                  // Removed implicit outline by not specifying a border
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -634,6 +528,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                 decoration: BoxDecoration(
                   color: cardColor, // Dynamic Background
                   borderRadius: BorderRadius.circular(15),
+                  // Removed implicit outline by not specifying a border
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -694,7 +589,8 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
           child: Row(
             children: [
               Expanded(
-                child: OutlinedButton(
+                // Converted OutlinedButton to ElevatedButton to remove border
+                child: ElevatedButton(
                   onPressed: () {
                     // Navigate to chat screen
                     Navigator.of(context).push(
@@ -703,16 +599,16 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                       ),
                     );
                   },
-                  style: OutlinedButton.styleFrom(
+                  style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 15),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(30),
                     ),
-                    side: const BorderSide(
-                      color:
-                          primaryBlue, // Bright Blue Border (constant accent)
-                      width: 2,
-                    ),
+                    // Set a background color for the 'Message' button that contrasts with the primary Blue
+                    backgroundColor: isDarkMode
+                        ? const Color(0xFF2C2C2C)
+                        : Colors.grey.shade200,
+                    elevation: 0,
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
