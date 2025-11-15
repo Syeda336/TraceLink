@@ -1,11 +1,10 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../firebase_service.dart';
+import 'home.dart'; // Placeholder for the main app screen
 import 'admin_welcome.dart'; // Placeholder for the admin screen
 import 'signup_screen.dart'; // Placeholder for the sign-up screen
 import 'forget_password.dart'; // Placeholder for the forget password screen (used as ResetPasswordScreen)
-import 'bottom_navigation.dart';
-
 
 // Change to StatefulWidget to manage form key and controllers
 class LoginScreen extends StatefulWidget {
@@ -22,6 +21,9 @@ class _LoginScreenState extends State<LoginScreen> {
   // Controllers to capture input data
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+
+  // State for password visibility
+  bool _isPasswordObscured = true;
 
   // Define the dark color scheme (copied from original code)
   static const Color darkBackgroundStart = Color.fromARGB(
@@ -56,74 +58,72 @@ class _LoginScreenState extends State<LoginScreen> {
   // --- Login Logic Functions ---
 
   void _handleLogin() async {
-  // 1. Validate the form first
-  if (_formKey.currentState!.validate()) {
-    // Show loading indicator
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return const Center(
-          child: CircularProgressIndicator(),
-        );
-      },
-    );
+    // 1. Validate the form first
+    if (_formKey.currentState!.validate()) {
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return const Center(
+            child: CircularProgressIndicator(),
+          );
+        },
+      );
 
-    final String input = _emailController.text.trim();
-    final String password = _passwordController.text;
+      final String input = _emailController.text.trim();
+      final String password = _passwordController.text;
 
-    User? user;
+      User? user;
 
-    try {
-      // Check if input is an email (contains @) or student ID
-      if (input.contains('@')) {
-        // It's an email - use regular login
-        user = await FirebaseService.signIn(
-          email: input,
-          password: password,
-        );
-      } else {
-        
-        
-        // It's a student ID - use student ID login
-        user = await FirebaseService.signInWithStudentId(
-          studentId: input,
-          password: password,
-        );
-      }
+      try {
+        // Check if input is an email (contains @) or student ID
+        if (input.contains('@')) {
+          // It's an email - use regular login
+          user = await FirebaseService.signIn(
+            email: input,
+            password: password,
+          );
+        } else {
+          // It's a student ID (as a string) - use student ID login
+          user = await FirebaseService.signInWithStudentId(
+            studentId: input,
+            password: password,
+          );
+        }
 
-      // Hide loading indicator
-      Navigator.of(context).pop();
+        // Hide loading indicator
+        Navigator.of(context).pop();
 
-      if (user != null) {
-        // Success - navigate to HomeScreen
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const BottomNavScreen()),
-        );
-      } else {
-        // Error
+        if (user != null) {
+          // Success - navigate to HomeScreen
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const HomeScreen()),
+          );
+        } else {
+          // Error
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Login failed. Please check your credentials.'),
+              backgroundColor: Colors.redAccent,
+            ),
+          );
+        }
+      } catch (e) {
+        // Hide loading indicator
+        Navigator.of(context).pop();
+
+        // Show specific error
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Login failed. Please check your credentials.'),
+          SnackBar(
+            content: Text('Login error: $e'),
             backgroundColor: Colors.redAccent,
           ),
         );
       }
-    } catch (e) {
-      // Hide loading indicator
-      Navigator.of(context).pop();
-      
-      // Show specific error
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Login error: $e'),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
     }
   }
-}
 
   void _handleAdminLogin() {
     // 1. Validate the form first
@@ -154,7 +154,14 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // Fix for gradient not reaching bottom
+      extendBody: true,
+      // Fix for keyboard pushing gradient up
+      resizeToAvoidBottomInset: false,
       body: Container(
+        // Ensure gradient fills screen
+        width: MediaQuery.of(context).size.width,
+        height: MediaQuery.of(context).size.height,
         // Main background gradient (DARKER)
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -171,7 +178,7 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               children: [
                 const SizedBox(height: 40),
-                // Heart icon
+                // Replaced Icon with Image.asset
                 Container(
                   width: 100,
                   height: 100,
@@ -181,11 +188,23 @@ class _LoginScreenState extends State<LoginScreen> {
                     ), // Adjusted for dark background
                     borderRadius: BorderRadius.circular(25),
                   ),
-                  child: const Center(
-                    child: Icon(
-                      Icons.favorite,
-                      color: Colors.white, // Text in dark section is WHITE
-                      size: 60,
+                  child: Center(
+                    // IMPORTANT: Replace 'assets/images/app_logo.png'
+                    // with the path to your actual logo image.
+                    child: Image.asset(
+                      'lib/images/logo.png',
+                      width: 145,
+                      height: 145,
+                      fit: BoxFit.contain,
+                      // Optional: Add error builder
+                      errorBuilder: (context, error, stackTrace) {
+                        // Fallback icon if image fails to load
+                        return const Icon(
+                          Icons.school, // Placeholder icon
+                          color: Colors.white,
+                          size: 60,
+                        );
+                      },
                     ),
                   ),
                 ),
@@ -231,7 +250,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-
                         // Email label (Text in white section is DARK BLUE)
                         const Text(
                           "University Email / Student ID",
@@ -242,20 +260,29 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         const SizedBox(height: 8),
                         // Email input field (TextFormField with validation)
-          //****ADDED STUDENT ID LOGIN*****
-
                         TextFormField(
                           controller: _emailController,
-                          // Validator to check if field is empty
+                          // Fix for dark mode text
+                          style: const TextStyle(color: darkBlueText),
+                          // Real-time validation
+                          autovalidateMode: AutovalidateMode.onUserInteraction,
+                          // Simplified email validator
                           validator: (value) {
                             if (value == null || value.isEmpty) {
                               return 'Please enter your email or student ID.';
                             }
+                            // Check if it's intended as an email (contains '@')
+                            if (value.contains('@')) {
+                              // If it has an '@' but NO '.', it's invalid.
+                              if (!value.contains('.')) {
+                                return 'Please enter a valid email address.';
+                              }
+                            }
+                            // If no '@' (Student ID) or if '@' and '.' are present, it's valid
                             return null;
                           },
                           decoration: InputDecoration(
                             hintText: "your.email@university.edu or STU123456",
-
 
                             hintStyle: const TextStyle(color: Colors.grey),
                             prefixIcon: Icon(
@@ -322,11 +349,19 @@ class _LoginScreenState extends State<LoginScreen> {
                         // Password input field (TextFormField with validation)
                         TextFormField(
                           controller: _passwordController,
-                          obscureText: true,
-                          // Validator to check if field is empty
+                          // Use state variable
+                          obscureText: _isPasswordObscured,
+                          // Fix for dark mode text
+                          style: const TextStyle(color: darkBlueText),
+                          // Real-time validation
+                          autovalidateMode: AutovalidateMode.onUserInteraction,
+                          // Password validator logic
                           validator: (value) {
                             if (value == null || value.isEmpty) {
                               return 'Please enter your password.';
+                            }
+                            if (value.length < 7) {
+                              return 'Password must be at least 7 characters long.';
                             }
                             return null;
                           },
@@ -337,9 +372,20 @@ class _LoginScreenState extends State<LoginScreen> {
                               Icons.lock_outline,
                               color: darkBlueText.withOpacity(0.7),
                             ),
-                            suffixIcon: Icon(
-                              Icons.visibility_off_outlined,
-                              color: darkBlueText.withOpacity(0.7),
+                            // Visibility Toggle
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _isPasswordObscured
+                                    ? Icons.visibility_off_outlined
+                                    : Icons.visibility_outlined,
+                                color: darkBlueText.withOpacity(0.7),
+                              ),
+                              onPressed: () {
+                                // Toggle the state
+                                setState(() {
+                                  _isPasswordObscured = !_isPasswordObscured;
+                                });
+                              },
                             ),
                             filled: true,
                             fillColor: Colors.white,
