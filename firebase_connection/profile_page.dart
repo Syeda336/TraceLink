@@ -3,15 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart'; // Import provider
 import 'package:tracelink/firebase_service.dart';
 import '../theme_provider.dart'; // Import your ThemeProvider
-import 'home.dart';
 import 'settings.dart';
 import 'accessibility.dart';
 import 'logout.dart';
 import 'edit_profile.dart';
 import 'rewards.dart';
-import 'messages.dart';
-import 'search_lost.dart';
-import 'community_feed.dart';
+import 'bottom_navigation.dart';
 
 // --- COLOR PALETTE ---
 const Color brightBlueStart = Color(0xFF4A90E2);
@@ -32,18 +29,10 @@ const Color lightBlueText = Color(0xFFE0E0E0); // Light text for Dark Mode
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  int _selectedIndex = 4;
   Map<String, dynamic>? userData;  // ← NEW: For Firebase data
   bool isLoading = true;           // ← NEW: Loading state
 
 
-  final List<Color> _navItemColors = const [
-    Colors.green,
-    Colors.pink,
-    Colors.orange,
-    Color(0xFF00008B),
-    Colors.purple,
-  ];
   @override
   void initState() {
     super.initState();
@@ -87,36 +76,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
 }
 
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-
-    switch (index) {
-      case 0:
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
-        );
-        break;
-      case 1:
-        _navigateTo(context, const SearchLost());
-        break;
-      case 2:
-        _navigateTo(context, const CommunityFeed());
-        break;
-      case 3:
-        _navigateTo(context, const MessagesListScreen());
-        break;
-      case 4:
-        break;
-    }
-  }
-
-  Color _getIconColor(int index) {
-    return _selectedIndex == index ? _navItemColors[index] : Colors.grey;
-  }
-
+  
   @override
   Widget build(BuildContext context) {
     // Access ThemeProvider state
@@ -179,7 +139,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   Navigator.pushReplacement(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (context) => const HomeScreen(),
+                                      builder: (context) => const BottomNavScreen(),
                                     ),
                                   );
                                 },
@@ -513,42 +473,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ]),
           ),
         ],
-      ),
-      // --- BOTTOM NAVIGATION BAR ---
-      bottomNavigationBar: BottomNavigationBar(
-        items: <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.favorite, color: _getIconColor(0)),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.browse_gallery, color: _getIconColor(1)),
-            label: 'Browse',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.inventory_2_outlined, color: _getIconColor(2)),
-            label: 'Feed',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.chat_bubble_outline, color: _getIconColor(3)),
-            label: 'Chat',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline, color: _getIconColor(4)),
-            label: 'Profile',
-          ),
-        ],
-        currentIndex: _selectedIndex,
-        selectedItemColor: _navItemColors[_selectedIndex],
-        unselectedItemColor: Colors.grey,
-        showUnselectedLabels: true,
-        onTap: _onItemTapped,
-        type: BottomNavigationBarType.fixed,
-        // The background and text color should ideally be managed by `MaterialApp`'s theme data
-        backgroundColor: Theme.of(
-          context,
-        ).bottomNavigationBarTheme.backgroundColor,
-        elevation: 10,
       ),
     );
   }
