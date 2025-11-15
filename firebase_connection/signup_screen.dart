@@ -1,7 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:tracelink/firebase_service.dart';
-import 'home.dart';
+import 'bottom_navigation.dart';
 
 // Define the colors based on your request
 const Color _brightBlue = Color(0xFF007AFF); // A standard bright blue
@@ -81,7 +81,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     if (user != null) {
       // Success - navigate to Home screen
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const HomeScreen()),
+        MaterialPageRoute(builder: (context) => const BottomNavScreen()),
       );
     } else {
       // Error
