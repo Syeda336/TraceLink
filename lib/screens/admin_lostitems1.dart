@@ -267,7 +267,10 @@ class AdminViewItem1Screen extends StatelessWidget {
             // Action Buttons
             ElevatedButton.icon(
               onPressed: () {
-                _navigateToScreen(context, AdminShowReturnScreen(item: item));
+                _navigateToScreen(
+                  context,
+                  AdminShowReturnScreen(item: item, onReturnConfirmed: () {}),
+                );
               },
               icon: const Icon(Icons.check_circle_outline, color: Colors.white),
               label: const Text(
@@ -288,7 +291,10 @@ class AdminViewItem1Screen extends StatelessWidget {
               onPressed: () {
                 _navigateToScreen(
                   context,
-                  AdminDeleteItemMaskScreen(item: item),
+                  AdminDeleteItemMaskScreen(
+                    item: item,
+                    onDeleteConfirmed: () {},
+                  ),
                 );
               },
               icon: const Icon(Icons.delete_outline, color: Colors.red),
@@ -314,9 +320,17 @@ class AdminViewItem1Screen extends StatelessWidget {
 }
 
 // MODIFIED SCREEN 2: Mark as Returned Confirmation (Modal Overlay)
+// MODIFIED SCREEN 2: Mark as Returned Confirmation (Modal Overlay)
 class AdminShowReturnScreen extends StatelessWidget {
   final Item item;
-  const AdminShowReturnScreen({super.key, required this.item});
+  // New: Callback function to execute the actual 'mark returned' logic.
+  final VoidCallback onReturnConfirmed;
+
+  const AdminShowReturnScreen({
+    super.key,
+    required this.item,
+    required this.onReturnConfirmed, // Now required
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -324,6 +338,7 @@ class AdminShowReturnScreen extends StatelessWidget {
       backgroundColor: Colors.transparent,
       body: Stack(
         children: [
+          // 1. The Mask/Background Tappable Area (Closes Modal only)
           GestureDetector(
             onTap: () => Navigator.of(context).pop(),
             child: Container(color: Colors.black54),
@@ -362,14 +377,19 @@ class AdminShowReturnScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 32),
+
+                    // --- MARK AS RETURNED BUTTON ---
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
                         onPressed: () {
-                          // Logic to mark as returned goes here
+                          // 1. Execute the 'Mark as Returned' logic passed from the parent
+                          onReturnConfirmed();
+
+                          // 2. Close ONLY this modal overlay (pop once)
                           Navigator.of(context).pop();
-                          // Close the detail screen too
-                          Navigator.of(context).pop();
+
+                          // 3. Show Snackbar (Can be shown here or in the parent, keeping it here for continuity)
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(
@@ -397,11 +417,13 @@ class AdminShowReturnScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 12),
+
+                    // --- CANCEL BUTTON ---
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton(
-                        onPressed: () =>
-                            Navigator.of(context).pop(), // Close the modal
+                        // Close ONLY the modal
+                        onPressed: () => Navigator.of(context).pop(),
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
@@ -429,7 +451,15 @@ class AdminShowReturnScreen extends StatelessWidget {
 // MODIFIED SCREEN 3: Delete Report Confirmation (Modal Overlay)
 class AdminDeleteItemMaskScreen extends StatelessWidget {
   final Item item;
-  const AdminDeleteItemMaskScreen({super.key, required this.item});
+  // Callback function to execute the actual deletion logic, if successful.
+  // This function should be passed from the parent screen (the detail screen).
+  final VoidCallback onDeleteConfirmed;
+
+  const AdminDeleteItemMaskScreen({
+    super.key,
+    required this.item,
+    required this.onDeleteConfirmed, // New required callback
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -437,10 +467,16 @@ class AdminDeleteItemMaskScreen extends StatelessWidget {
       backgroundColor: Colors.transparent,
       body: Stack(
         children: [
+          // 1. The Mask/Background Tappable Area
           GestureDetector(
-            onTap: () => Navigator.of(context).pop(),
+            // Action changed: tapping the mask now ONLY closes the modal
+            onTap: () {
+              Navigator.of(context).pop();
+            },
             child: Container(color: Colors.black54),
           ),
+
+          // 2. The Delete Confirmation Dialog
           Center(
             child: Padding(
               padding: const EdgeInsets.all(32.0),
@@ -475,14 +511,19 @@ class AdminDeleteItemMaskScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 32),
+
+                    // --- DELETE BUTTON ---
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
                         onPressed: () {
-                          // Logic to delete the report goes here
+                          // 1. Execute the deletion logic passed via the callback
+                          onDeleteConfirmed();
+
+                          // 2. ONLY close this modal (AdminDeleteItemMaskScreen)
                           Navigator.of(context).pop();
-                          // Close the detail screen too
-                          Navigator.of(context).pop();
+
+                          // 3. Show Snackbar (remains here, though often placed in the calling screen)
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text('${item.title} report deleted.'),
@@ -508,11 +549,13 @@ class AdminDeleteItemMaskScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 12),
+
+                    // --- CANCEL BUTTON ---
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton(
-                        onPressed: () =>
-                            Navigator.of(context).pop(), // Close the modal
+                        // Tap to close only the modal (pop once)
+                        onPressed: () => Navigator.of(context).pop(),
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
@@ -1583,7 +1626,10 @@ class _ItemCard extends StatelessWidget {
                     // Opens Mark as Returned Confirmation (Screen 2)
                     _navigateToScreen(
                       context,
-                      AdminShowReturnScreen(item: item),
+                      AdminShowReturnScreen(
+                        item: item,
+                        onReturnConfirmed: () {},
+                      ),
                     );
                   },
                 ),
@@ -1597,7 +1643,10 @@ class _ItemCard extends StatelessWidget {
                     // Opens Delete Report Confirmation (Screen 3)
                     _navigateToScreen(
                       context,
-                      AdminDeleteItemMaskScreen(item: item),
+                      AdminDeleteItemMaskScreen(
+                        item: item,
+                        onDeleteConfirmed: () {},
+                      ),
                     );
                   },
                 ),
@@ -1748,7 +1797,10 @@ class _FoundItemCard extends StatelessWidget {
                     // Opens Mark as Returned Confirmation (Screen 2)
                     _navigateToScreen(
                       context,
-                      AdminShowReturnScreen(item: item),
+                      AdminShowReturnScreen(
+                        item: item,
+                        onReturnConfirmed: () {},
+                      ),
                     );
                   },
                 ),
@@ -1762,7 +1814,10 @@ class _FoundItemCard extends StatelessWidget {
                     // Opens Delete Report Confirmation (Screen 3)
                     _navigateToScreen(
                       context,
-                      AdminDeleteItemMaskScreen(item: item),
+                      AdminDeleteItemMaskScreen(
+                        item: item,
+                        onDeleteConfirmed: () {},
+                      ),
                     );
                   },
                 ),
@@ -1960,38 +2015,55 @@ class _GeneralClaimCard extends StatelessWidget {
             ),
             const SizedBox(height: 12.0),
             // Action Buttons (View Details, Mark Returned, Delete)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.start,
+            Column(
+              crossAxisAlignment: CrossAxisAlignment
+                  .start, // Align the Row and Delete button to the start (left)
               children: [
-                _buildActionButton(
-                  context,
-                  icon: Icons.remove_red_eye_outlined,
-                  label: 'View Details',
-                  onTap: () {
-                    // Opens Item Details (Screen 1)
-                    _navigateToScreen(
+                // 1. The original Row containing 'View Details' and 'Mark Returned'
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    // View Details Button
+                    _buildActionButton(
                       context,
-                      AdminViewItem1Screen(item: item),
-                    );
-                  },
-                ),
-                const SizedBox(width: 8.0),
-                // Mark Returned only appears if the status is NOT 'Returned'
-                if (claim.status != 'Returned')
-                  _buildActionButton(
-                    context,
-                    icon: Icons.check_circle_outline,
-                    label: 'Mark Returned',
-                    onTap: () {
-                      // Opens Mark as Returned Confirmation (Screen 2)
-                      _navigateToScreen(
+                      icon: Icons.remove_red_eye_outlined,
+                      label: 'View Details',
+                      onTap: () {
+                        // Opens Item Details (Screen 1)
+                        _navigateToScreen(
+                          context,
+                          AdminViewItem1Screen(item: item),
+                        );
+                      },
+                    ),
+
+                    // Space between buttons
+                    const SizedBox(width: 8.0),
+
+                    // Mark Returned Button (Conditional)
+                    if (claim.status != 'Returned')
+                      _buildActionButton(
                         context,
-                        AdminShowReturnScreen(item: item),
-                      );
-                    },
-                  ),
-                const SizedBox(width: 8.0),
-                // Delete button
+                        icon: Icons.check_circle_outline,
+                        label: 'Mark Returned',
+                        onTap: () {
+                          // Opens Mark as Returned Confirmation (Screen 2)
+                          _navigateToScreen(
+                            context,
+                            AdminShowReturnScreen(
+                              item: item,
+                              onReturnConfirmed: () {},
+                            ),
+                          );
+                        },
+                      ),
+                  ],
+                ),
+
+                // Add vertical space between the Row and the Delete button
+                const SizedBox(height: 16.0),
+
+                // 2. The Delete button (now in its own section/line)
                 _buildActionButton(
                   context,
                   icon: Icons.delete_outline,
@@ -2001,7 +2073,10 @@ class _GeneralClaimCard extends StatelessWidget {
                     // Opens Delete Report Confirmation (Screen 3)
                     _navigateToScreen(
                       context,
-                      AdminDeleteItemMaskScreen(item: item),
+                      AdminDeleteItemMaskScreen(
+                        item: item,
+                        onDeleteConfirmed: () {},
+                      ),
                     );
                   },
                 ),
@@ -2144,46 +2219,63 @@ class _ReportCard extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             // Action Buttons for Reports
-            Row(
-              mainAxisAlignment: MainAxisAlignment.start,
+            Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start, // Align contents to the left
               children: [
-                _buildActionButton(
-                  context,
-                  icon: Icons.mail_outline,
-                  label: 'Contact User',
-                  color: Colors.blue.shade700,
-                  onTap: () {
-                    // Opens admin_splash_user_contacted.dart
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => UserContactedSplash(
-                          report: report, // Pass the report
-                          onFinishNavigation: onViewDetail, // Pass the callback
-                        ),
-                      ),
-                    );
-                  },
+                // 1. The Row containing 'Contact User' and 'Warn User'
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    // Contact User Button
+                    _buildActionButton(
+                      context,
+                      icon: Icons.mail_outline,
+                      label: 'Contact User',
+                      color: Colors.blue.shade700,
+                      onTap: () {
+                        // Opens admin_splash_user_contacted.dart
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => UserContactedSplash(
+                              report: report, // Pass the report
+                              onFinishNavigation:
+                                  onViewDetail, // Pass the callback
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+
+                    // Space between buttons
+                    const SizedBox(width: 8.0),
+
+                    // Warn User Button
+                    _buildActionButton(
+                      context,
+                      icon: Icons.error_outline,
+                      label: 'Warn User',
+                      color: Colors.orange.shade700,
+                      onTap: () {
+                        // Opens admin_splash_userwarn.dart
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => UserWarnedSplash(
+                              report: report, // Pass the report
+                              onFinishNavigation:
+                                  onViewDetail, // Pass the callback
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 8.0),
-                _buildActionButton(
-                  context,
-                  icon: Icons.error_outline,
-                  label: 'Warn User',
-                  color: Colors.orange.shade700,
-                  onTap: () {
-                    // Opens admin_splash_userwarn.dart
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => UserWarnedSplash(
-                          report: report, // Pass the report
-                          onFinishNavigation: onViewDetail, // Pass the callback
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(width: 8.0),
-                // Delete button
+
+                // Vertical space between the Row and the Delete button
+                const SizedBox(height: 16.0),
+
+                // 2. The Delete Item button (now on its own line)
                 _buildActionButton(
                   context,
                   icon: Icons.delete_outline,
