@@ -1,10 +1,10 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../firebase_service.dart';
-import 'home.dart'; // Placeholder for the main app screen
 import 'admin_welcome.dart'; // Placeholder for the admin screen
 import 'signup_screen.dart'; // Placeholder for the sign-up screen
 import 'forget_password.dart'; // Placeholder for the forget password screen (used as ResetPasswordScreen)
+import 'bottom_navigation.dart';
 
 
 // Change to StatefulWidget to manage form key and controllers
@@ -99,7 +99,7 @@ class _LoginScreenState extends State<LoginScreen> {
         // Success - navigate to HomeScreen
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
+          MaterialPageRoute(builder: (context) => const BottomNavScreen()),
         );
       } else {
         // Error
