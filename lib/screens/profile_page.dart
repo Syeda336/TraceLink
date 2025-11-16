@@ -1,6 +1,7 @@
 // profile.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart'; // Import provider
+import 'package:tracelink/firebase_service.dart';
 import '../theme_provider.dart'; // Import your ThemeProvider
 import 'settings.dart';
 import 'accessibility.dart';
@@ -18,16 +19,9 @@ const Color darkBackground = Color(0xFF121212); // Darker background for body
 const Color darkBlueText = Color(0xFF1E3A8A);
 const Color lightBlueText = Color(0xFFE0E0E0); // Light text for Dark Mode
 
-// --- DUMMY USER DATA MODEL ---
-class _UserData {
-  final String fullName;
-  final String studentId;
-  final String email;
+// ---  USER DATA MODEL ---
 
-  const _UserData(this.fullName, this.studentId, this.email);
-}
-
-class ProfileScreen extends StatefulWidget {
+  class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
   @override
@@ -35,16 +29,54 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  final _UserData userData = const _UserData(
-    'Jane Doe',
-    'STU789012',
-    'jane.doe@uni.edu',
-  );
+  Map<String, dynamic>? userData;  // ← NEW: For Firebase data
+  bool isLoading = true;           // ← NEW: Loading state
 
-  void _navigateTo(BuildContext context, Widget page) {
-    Navigator.of(context).push(MaterialPageRoute(builder: (context) => page));
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();  // ← NEW: Load real data when screen starts
   }
 
+// This will refresh the data when you come back to the profile page
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _loadUserData();
+  }
+
+
+  Future<void> _loadUserData() async {
+    Map<String, dynamic>? data = await FirebaseService.getUserData();
+    setState(() {
+      userData = data;
+      isLoading = false;
+    });
+  }
+
+// Manual refresh function
+  Future<void> _refreshData() async {
+    setState(() {
+      isLoading = true;
+    });
+    await _loadUserData();
+  }
+
+
+
+  void _navigateTo(BuildContext context, Widget page) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (context) => page)
+    );
+    
+    // Refresh data when returning from edit profile (whether successful or not)
+    if (page is EditProfileScreen) {
+      await _refreshData();
+    }
+}
+
+  
   @override
   Widget build(BuildContext context) {
     // Access ThemeProvider state
@@ -54,6 +86,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final cardBackgroundColor = isDarkMode
         ? const Color(0xFF1E1E1E)
         : Colors.white;
+
+//NEW
+    if (isLoading) {
+      return Scaffold(
+        backgroundColor: bodyBackgroundColor,
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: bodyBackgroundColor, // Dynamic Background
@@ -97,8 +139,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   Navigator.pushReplacement(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (context) =>
-                                          const BottomNavScreen(),
+                                      builder: (context) => const BottomNavScreen(),
                                     ),
                                   );
                                 },
@@ -134,20 +175,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   colors: [brightBlueStart, brightBlueEnd],
                                 ),
                               ),
+
+    //CHANGEDDDDD
                               child: Center(
-                                child: Text(
-                                  // Safely get initials
-                                  userData.fullName.contains(' ')
-                                      ? '${userData.fullName.split(' ').first.substring(0, 1)}${userData.fullName.split(' ').last.substring(0, 1)}'
-                                      : userData.fullName.substring(0, 1),
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 36,
-                                    fontWeight: FontWeight.bold,
+                                    child: Text(
+                                      // Safely get initials from Firebase data
+                                      userData?['fullName'] != null && (userData!['fullName'] as String).contains(' ')
+                                          ? '${(userData!['fullName'] as String).split(' ').first.substring(0, 1)}${(userData!['fullName'] as String).split(' ').last.substring(0, 1)}'
+                                          : userData?['fullName'] != null 
+                                              ? (userData!['fullName'] as String).substring(0, 1)
+                                              : 'U',  // Default if no name
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 36,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
                                   ),
-                                ),
-                              ),
                             ),
+
+
+
                             // Edit Icon
                             Positioned(
                               right: 0,
@@ -169,9 +217,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                           ],
                         ),
+
+
+
                         // User Info (DYNAMIC DATA)
                         Text(
-                          userData.fullName,
+                          userData?['fullName'] ?? 'User Name',  // ← NEW
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 20,
@@ -179,19 +230,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         ),
                         Text(
-                          'ID: ${userData.studentId}',
+                          'ID: ${userData?['studentId'] ?? 'STU000000'}',  // ← NEW
                           style: const TextStyle(
                             color: Colors.white70,
                             fontSize: 16,
                           ),
                         ),
                         Text(
-                          userData.email,
+                          userData?['email'] ?? 'user@email.com',  // ← NEW
                           style: const TextStyle(
                             color: Colors.white70,
                             fontSize: 16,
                           ),
                         ),
+
+//adding phone number if available (new) remove after testing
+                       /* if (userData?['phoneNumber'] != null && userData!['phoneNumber'].isNotEmpty)
+                            Text(
+                              'Phone: ${userData!['phoneNumber']}',
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 16,
+                              ),
+                            ), */
+
+
                         // Verified Student Badge
                         Container(
                           padding: const EdgeInsets.symmetric(

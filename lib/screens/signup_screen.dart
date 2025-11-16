@@ -1,5 +1,7 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'home.dart';
+import 'package:tracelink/firebase_service.dart';
+import 'bottom_navigation.dart';
 
 // Define the colors based on your request
 const Color _brightBlue = Color(0xFF007AFF); // A standard bright blue
@@ -40,27 +42,55 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   }
 
   // --- Form Validation and Navigation Logic ---
-  void _register() {
+  void _register() async {
     // Validate all fields and terms agreement
     if (_formKey.currentState!.validate() && _agreedToTerms) {
       // Check if passwords match
       if (_passwordController.text != _confirmPasswordController.text) {
-        // Show an error if passwords don't match
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Error: Passwords do not match.'),
             backgroundColor: Colors.red,
           ),
         );
-        return; // Stop if passwords don't match
+        return;
       }
 
-      // If validation and terms check pass, navigate to Home screen
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const HomeScreen()),
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return const Center(child: CircularProgressIndicator());
+        },
       );
+
+      // Call Firebase signup
+      User? user = await FirebaseService.signUp(
+        email: _emailController.text,
+        password: _passwordController.text,
+        fullName: _fullNameController.text,
+        studentId: _studentIdController.text,
+      );
+
+      // Hide loading indicator
+      Navigator.of(context).pop();
+
+      if (user != null) {
+        // Success - navigate to Home screen
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const BottomNavScreen()),
+        );
+      } else {
+        // Error
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Sign up failed. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } else if (!_agreedToTerms) {
-      // Show an error if terms are not agreed
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('You must agree to the Terms & Conditions.'),

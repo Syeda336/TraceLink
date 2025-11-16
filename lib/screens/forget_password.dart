@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'login_screen.dart';
+import '../firebase_service.dart'; // Import Firebase Service
 
-// Password Changed Success Screen (from the second code block)
+// -----------------------------------------------------
+// SUCCESS SCREEN (This is the screen from ...194014.jpg)
+// -----------------------------------------------------
 class PasswordChangedSuccess extends StatefulWidget {
   const PasswordChangedSuccess({super.key});
   @override
@@ -10,16 +13,10 @@ class PasswordChangedSuccess extends StatefulWidget {
 
 class _PasswordChangedSuccessState extends State<PasswordChangedSuccess> {
   // Color variables derived from the requested theme
-  static const Color _brightBlue = Color(0xFF007BFF); // Bright Blue for accents
-  static const Color _lightBlue = Color(
-    0xFFE3F2FD,
-  ); // Light Blue for background gradient start
-  static const Color _darkBlueText = Color(
-    0xFF0D47A1,
-  ); // Dark Blue for main body text
-  static const Color _lightBlueGradientEnd = Color(
-    0xFFBBDEFB,
-  ); // Slightly darker light blue for gradient end
+  static const Color _brightBlue = Color(0xFF007BFF);
+  static const Color _lightBlue = Color(0xFFE3F2FD);
+  static const Color _darkBlueText = Color(0xFF0D47A1);
+  static const Color _lightBlueGradientEnd = Color(0xFFBBDEFB);
 
   @override
   Widget build(BuildContext context) {
@@ -41,10 +38,10 @@ class _PasswordChangedSuccessState extends State<PasswordChangedSuccess> {
               Expanded(
                 child: Center(
                   child: ListView(
-                    shrinkWrap: true, // Only occupy required vertical space
+                    shrinkWrap: true,
                     padding: const EdgeInsets.all(24.0),
                     children: [
-                      // --- Icon Section (Bright Blue Accent) ---
+                      // --- Icon Section ---
                       Center(
                         child: Container(
                           width: 111,
@@ -53,10 +50,7 @@ class _PasswordChangedSuccessState extends State<PasswordChangedSuccess> {
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             gradient: const LinearGradient(
-                              colors: [
-                                Color(0xFF4FC3F7), // Lighter Blue
-                                _brightBlue,
-                              ],
+                              colors: [Color(0xFF4FC3F7), _brightBlue],
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                             ),
@@ -69,20 +63,19 @@ class _PasswordChangedSuccessState extends State<PasswordChangedSuccess> {
                             ],
                           ),
                           child: const Icon(
-                            Icons.check_circle_outline,
-                            color:
-                                Colors.white, // White text/icon on Bright Blue
+                            Icons.email_outlined,
+                            color: Colors.white,
                             size: 60,
                           ),
                         ),
                       ),
 
-                      // 1. Password Reset Title
+                      // 1. Title
                       Center(
                         child: Text(
-                          "Password Reset! 🎉",
+                          "Check Your Email! 📧",
                           style: TextStyle(
-                            color: _brightBlue, // Bright Blue accent color
+                            color: _brightBlue,
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
                             fontFamily: 'Poppins',
@@ -91,13 +84,13 @@ class _PasswordChangedSuccessState extends State<PasswordChangedSuccess> {
                       ),
                       const SizedBox(height: 12),
 
-                      // 2. Success Message 1 (Dark Blue text on Light Blue background)
+                      // 2. Success Message 1
                       Center(
                         child: Text(
-                          "Your password has been successfully reset!",
+                          "A password reset link has been sent to your email.",
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            color: _darkBlueText, // Dark Blue text
+                            color: _darkBlueText,
                             fontSize: 16,
                             fontFamily: 'Poppins',
                           ),
@@ -105,13 +98,13 @@ class _PasswordChangedSuccessState extends State<PasswordChangedSuccess> {
                       ),
                       const SizedBox(height: 8),
 
-                      // 3. Success Message 2 (Bright Blue text on Light Blue background)
+                      // 3. Success Message 2
                       Center(
                         child: Text(
-                          "You can now login with your new password ✨",
+                          "Please follow the link to create a new password.",
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            color: _brightBlue, // Bright Blue accent color
+                            color: _brightBlue,
                             fontSize: 16,
                             fontFamily: 'Poppins',
                             fontWeight: FontWeight.w600,
@@ -120,7 +113,7 @@ class _PasswordChangedSuccessState extends State<PasswordChangedSuccess> {
                       ),
                       const SizedBox(height: 48),
 
-                      // 4. Back to Login Button (Bright Blue background, White text)
+                      // 4. Back to Login Button
                       InkWell(
                         onTap: () {
                           // Navigate back to the LoginScreen
@@ -129,8 +122,7 @@ class _PasswordChangedSuccessState extends State<PasswordChangedSuccess> {
                             MaterialPageRoute(
                               builder: (context) => const LoginScreen(),
                             ),
-                            (Route<dynamic> route) =>
-                                false, // Clears all routes
+                            (Route<dynamic> route) => false,
                           );
                         },
                         child: Container(
@@ -143,14 +135,10 @@ class _PasswordChangedSuccessState extends State<PasswordChangedSuccess> {
                                 offset: const Offset(0, 8),
                               ),
                             ],
-                            // Bright Blue Gradient for the Button
                             gradient: const LinearGradient(
                               begin: Alignment.centerLeft,
                               end: Alignment.centerRight,
-                              colors: [
-                                Color(0xFF00BFFF), // A lighter shade of blue
-                                _brightBlue,
-                              ],
+                              colors: [Color(0xFF00BFFF), _brightBlue],
                             ),
                           ),
                           padding: const EdgeInsets.symmetric(vertical: 16),
@@ -159,19 +147,12 @@ class _PasswordChangedSuccessState extends State<PasswordChangedSuccess> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(
-                                  Icons.login,
-                                  color:
-                                      Colors.white, // White icon on Bright Blue
-                                  size: 20,
-                                ),
+                                Icon(Icons.login, color: Colors.white, size: 20),
                                 SizedBox(width: 8),
                                 Text(
                                   "Back to Login",
                                   style: TextStyle(
-                                    color: Color(
-                                      0xFFFFFFFF,
-                                    ), // White text on Bright Blue
+                                    color: Colors.white,
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
                                     fontFamily: 'Poppins',
@@ -194,7 +175,9 @@ class _PasswordChangedSuccessState extends State<PasswordChangedSuccess> {
   }
 }
 
-// Reset Password Screen (from the first code block)
+// -----------------------------------------------------------------
+// SCREEN 1: "RESET PASSWORD" SCREEN (MODIFIED TO ASK FOR EMAIL)
+// -----------------------------------------------------------------
 class ResetPasswordScreen extends StatefulWidget {
   const ResetPasswordScreen({super.key});
 
@@ -203,59 +186,115 @@ class ResetPasswordScreen extends StatefulWidget {
 }
 
 class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
-  bool _isPasswordObscured = true;
-  bool _isConfirmPasswordObscured = true;
+  // --- Controllers and State ---
+  final TextEditingController _emailController = TextEditingController();
+  bool _isLoading = false;
+  String? _emailError; // <-- NEW: State to hold the error text
 
-  // --- New Color Definitions for the Blue Theme ---
-  // Primary Gradient: Bright Blue (for buttons and main icon)
+  // --- Color Definitions (from your original file) ---
   static const List<Color> _brightBlueGradient = [
-    Color(0xFF42A5F5), // Light Blue
-    Color(0xFF1565C0), // Darker Blue
+    Color(0xFF42A5F5),
+    Color(0xFF1565C0),
   ];
-  // Background: Very Light Blue
-  static const Color _lightBlueBackgroundStart = Color(
-    0xFFE3F2FD,
-  ); // Light Blue 50
-  static const Color _lightBlueBackgroundEnd = Color(
-    0xFFBBDEFB,
-  ); // Light Blue 200
-  // Secondary Color: Dark Blue (for text and outlines)
-  static const Color _darkBlue = Color(0xFF0D47A1); // Very Dark Blue
+  static const Color _lightBlueBackgroundStart = Color(0xFFE3F2FD);
+  static const Color _lightBlueBackgroundEnd = Color(0xFFBBDEFB);
+  static const Color _darkBlue = Color(0xFF0D47A1);
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    super.dispose();
+  }
+  
+  // --- NEW: Function to manually validate email ---
+  void _validateEmail(String? value) {
+    if (value == null || value.isEmpty) {
+      setState(() {
+        _emailError = 'Please enter your email';
+      });
+    } else if (!value.contains('@') || !value.contains('.')) {
+      setState(() {
+        _emailError = 'Please enter a valid email address';
+      });
+    } else {
+      setState(() {
+        _emailError = null; // It's valid
+      });
+    }
+  }
+
+  // --- Handle Verify Email Button Press ---
+  void _handleSendLink() async {
+    // 1. Manually validate before proceeding
+    _validateEmail(_emailController.text);
+    if (_emailError != null) {
+      return; // If there's an error, stop
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    // 2. Call the Firebase service
+    final email = _emailController.text.trim();
+    final String? error =
+        await FirebaseService.sendPasswordResetEmail(email: email);
+
+    setState(() {
+      _isLoading = false;
+    });
+
+    // 3. Handle success or failure
+    if (error == null && mounted) {
+      // SUCCESS!
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const PasswordChangedSuccess(),
+        ),
+      );
+    } else if (mounted) {
+      // ERROR!
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error ?? 'An unknown error occurred.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        // 1. Overall Background Gradient (Light Blue)
+        // --- Main Background Gradient (FITS WHOLE SCREEN) ---
+        width: double.infinity,
+        height: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              _lightBlueBackgroundStart, // Very light blue
-              _lightBlueBackgroundEnd, // Slightly darker light blue
-            ],
+            colors: [_lightBlueBackgroundStart, _lightBlueBackgroundEnd],
           ),
         ),
         child: SafeArea(
           child: SingleChildScrollView(
             child: Padding(
               padding: const EdgeInsets.all(24.0),
+              // --- REMOVED THE Form WIDGET ---
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 2. Back Button
+                  // --- Back Button ---
                   IconButton(
                     icon: const Icon(Icons.arrow_back),
-                    color: _darkBlue, // Dark Blue Icon
-                    onPressed: () {
-                      // Handle back navigation
-                      Navigator.pop(context);
-                    },
+                    color: _darkBlue,
+                    onPressed: () => Navigator.pop(context),
                   ),
                   const SizedBox(height: 20),
 
-                  // 3. Main Lock Icon (Bright Blue Gradient)
+                  // --- Icon ---
                   Center(
                     child: Container(
                       width: 100,
@@ -264,7 +303,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                         gradient: const LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
-                          colors: _brightBlueGradient, // Bright Blue Gradient
+                          colors: _brightBlueGradient,
                         ),
                         borderRadius: BorderRadius.circular(30),
                         boxShadow: [
@@ -276,52 +315,35 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                         ],
                       ),
                       child: const Icon(
-                        Icons.lock_outline,
-                        color: Colors.white, // White Icon
+                        Icons.lock_reset_outlined,
+                        color: Colors.white,
                         size: 50,
                       ),
                     ),
                   ),
                   const SizedBox(height: 24),
 
-                  // 4. Title and Subtitle
+                  // --- Title and Subtitle ---
                   Center(
                     child: Column(
                       children: [
-                        Text.rich(
-                          TextSpan(
-                            text: 'Reset Password ',
-                            style: const TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: _darkBlue, // Dark Blue Title
-                              fontFamily: 'Poppins',
-                            ),
-                            children: [
-                              const TextSpan(
-                                text: '🔐',
-                                style: TextStyle(fontSize: 20),
-                              ),
-                            ],
+                        const Text(
+                          'Forget Password?',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: _darkBlue,
+                            fontFamily: 'Poppins',
                           ),
                         ),
                         const SizedBox(height: 8),
-                        Text.rich(
-                          TextSpan(
-                            text: 'Create a new secure password ',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: _darkBlue.withOpacity(
-                                0.7,
-                              ), // Dark Blue Subtitle
-                              fontFamily: 'Poppins',
-                            ),
-                            children: [
-                              const TextSpan(
-                                text: '💙',
-                                style: TextStyle(fontSize: 14),
-                              ),
-                            ],
+                        Text(
+                          "Enter the email associated with your account.",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: _darkBlue.withOpacity(0.7),
+                            fontFamily: 'Poppins',
                           ),
                         ),
                       ],
@@ -329,81 +351,29 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                   ),
                   const SizedBox(height: 32),
 
-                  // 5. "New Password" Field Label
-                  Text(
-                    'New Password',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: _darkBlue, // Dark Blue Label
-                      fontFamily: 'Poppins',
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  _buildPasswordField(
-                    hint: 'Enter new password',
-                    isObscured: _isPasswordObscured,
-                    onToggleVisibility: () {
-                      setState(() {
-                        _isPasswordObscured = !_isPasswordObscured;
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 20),
-
-                  // 6. "Confirm Password" Field Label
-                  Text(
-                    'Confirm Password',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: _darkBlue, // Dark Blue Label
-                      fontFamily: 'Poppins',
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  _buildPasswordField(
-                    hint: 'Confirm new password',
-                    isObscured: _isConfirmPasswordObscured,
-                    onToggleVisibility: () {
-                      setState(() {
-                        _isConfirmPasswordObscured =
-                            !_isConfirmPasswordObscured;
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 24),
-
-                  // 7. Password Hint Box
-                  _buildPasswordHintBox(),
+                  // --- EMAIL FIELD WIDGET ---
+                  _buildEmailTextField(), // This now includes the error text below
                   const SizedBox(height: 32),
 
-                  // 8. Reset Password Button (Bright Blue Gradient)
-                  _buildResetButton(),
+                  // --- "VERIFY EMAIL" BUTTON ---
+                  _buildVerifyEmailButton(),
                   const SizedBox(height: 24),
 
-                  // 9. Back to Login Link
+                  // --- Back to Login Link ---
                   Center(
                     child: TextButton(
-                      onPressed: () {
-                        // Handle back to login (pop to go back to the previous screen)
-                        Navigator.pop(context);
-                      },
-                      child: Row(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(
-                            Icons.arrow_back,
-                            size: 18,
-                            color: _darkBlue, // Dark Blue Link Icon
-                          ),
-                          const SizedBox(width: 4),
-                          const Text(
+                          Icon(Icons.arrow_back, size: 18, color: _darkBlue),
+                          SizedBox(width: 4),
+                          Text(
                             'Back to Login',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
-                              color: _darkBlue, // Dark Blue Link Text
+                              color: _darkBlue,
                               fontFamily: 'Poppins',
                             ),
                           ),
@@ -411,15 +381,14 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 20),
-
-                  // 10. Page Indicator Dots
+                  const SizedBox(height: 32),
+                  
+                  // --- Bottom Dots ---
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      _buildDot(color: const Color(0xFFBBDEFB)), // Light Blue
-                      _buildDot(color: const Color(0xFF64B5F6)), // Mid Blue
-                      _buildDot(color: _darkBlue), // Dark Blue (Current Page)
+                      _buildDot(color: _darkBlue.withOpacity(0.5)),
+                      _buildDot(color: _darkBlue),
                     ],
                   ),
                 ],
@@ -431,150 +400,94 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     );
   }
 
-  // Helper widget for Password Text Fields
-  Widget _buildPasswordField({
-    required String hint,
-    required bool isObscured,
-    required VoidCallback onToggleVisibility,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _darkBlue, width: 1.5), // Dark Blue Outline
-        boxShadow: [
-          BoxShadow(
-            color: _darkBlue.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: TextField(
-        obscureText: isObscured,
-        style: const TextStyle(
-          color: _darkBlue,
-          fontFamily: 'Poppins',
-        ), // Dark Blue Input Text
-        decoration: InputDecoration(
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(vertical: 16),
-          hintText: hint,
-          hintStyle: TextStyle(
-            color: _darkBlue.withOpacity(0.4),
+  // --- WIDGET: Email Text Field ---
+  Widget _buildEmailTextField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Your University Email',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: _darkBlue,
             fontFamily: 'Poppins',
           ),
-          prefixIcon: const Icon(
-            Icons.lock_outline,
-            color: _darkBlue,
-          ), // Dark Blue Icon
-          suffixIcon: IconButton(
-            icon: Icon(
-              isObscured
-                  ? Icons.visibility_off_outlined
-                  : Icons.visibility_outlined,
-              color: _darkBlue, // Dark Blue Icon
-            ),
-            onPressed: onToggleVisibility,
-          ),
         ),
-      ),
-    );
-  }
-
-  // Helper widget for the "Create a strong password" box
-  Widget _buildPasswordHintBox() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _darkBlue, width: 1.5), // Dark Blue Outline
-        boxShadow: [
-          BoxShadow(
-            color: _darkBlue.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            // Change border color if there is an error
+            border: Border.all(
+              color: _emailError != null ? Colors.red : _darkBlue, // Use red for error
+              width: 1.5
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: _darkBlue.withOpacity(0.1),
+                blurRadius: 10,
+                offset: const Offset(0, 5),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                colors: [
-                  Color(0xFF90CAF9), // Light Blue
-                  Color(0xFF42A5F5), // Mid Blue
-                ],
+          child: TextFormField(
+            controller: _emailController,
+            keyboardType: TextInputType.emailAddress,
+            style: const TextStyle(color: _darkBlue, fontFamily: 'Poppins'),
+            
+            // --- UPDATED ---
+            // Call our manual validator on every change
+            onChanged: (value) {
+              _validateEmail(value);
+            },
+            // --- REMOVED autovalidateMode and validator ---
+
+            decoration: InputDecoration(
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+              hintText: 'your.email@university.edu',
+              hintStyle: TextStyle(
+                color: _darkBlue.withOpacity(0.4),
+                fontFamily: 'Poppins',
+              ),
+              
+              // --- HIDE THE DEFAULT ERROR TEXT ---
+              errorStyle: const TextStyle(
+                height: 0, 
+                color: Colors.transparent,
+                fontSize: 0,
               ),
             ),
-            child: const Icon(
-              Icons.auto_awesome_outlined,
-              color: Colors.white, // White Icon
+          ),
+        ),
+        
+        // --- NEW: MANUALLY DISPLAY THE ERROR TEXT OUTSIDE ---
+        if (_emailError != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 8.0, left: 4.0),
+            child: Text(
+              _emailError!,
+              style: const TextStyle(
+                color: _darkBlue, // Dark blue, as requested
+                fontFamily: 'Poppins',
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Create a strong password',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                    color: _darkBlue, // Dark Blue Text
-                    fontFamily: 'Poppins',
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text.rich(
-                  TextSpan(
-                    text:
-                        'Use at least 8 characters with a mix of '
-                        'letters, numbers, and symbols ',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: _darkBlue.withOpacity(0.7), // Dark Blue Text
-                      height: 1.4,
-                      fontFamily: 'Poppins',
-                    ),
-                    children: [
-                      const TextSpan(
-                        text: '🔒',
-                        style: TextStyle(fontSize: 10),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+      ],
     );
   }
 
-  // Helper widget for the main "Reset Password" button
-  Widget _buildResetButton() {
+  // --- WIDGET: Verify Email Button ---
+  Widget _buildVerifyEmailButton() {
     return GestureDetector(
-      onTap: () {
-        // Handle reset password logic and navigate to the success screen
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const PasswordChangedSuccess(),
-          ),
-        );
-      },
+      onTap: _isLoading ? null : _handleSendLink,
       child: Container(
         height: 56,
         decoration: BoxDecoration(
-          // Bright Blue Gradient for the button
           gradient: const LinearGradient(
             begin: Alignment.centerLeft,
             end: Alignment.centerRight,
@@ -589,27 +502,29 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
             ),
           ],
         ),
-        child: const Center(
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.autorenew, // Reset icon
-                color: Colors.white, // White Icon
-                size: 20,
-              ),
-              SizedBox(width: 8),
-              Text(
-                'Reset Password',
-                style: TextStyle(
-                  color: Colors.white, // White Text
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Poppins',
+        child: Center(
+          child: _isLoading
+              ? const CircularProgressIndicator(color: Colors.white)
+              : const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.send_outlined,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                    SizedBox(width: 8),
+                    Text(
+                      'Verify Email',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'Poppins',
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-            ],
-          ),
         ),
       ),
     );

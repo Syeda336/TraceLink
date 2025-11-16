@@ -3,8 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:tracelink/theme_provider.dart';
 
 // Import the hypothetical screens
-import 'chat.dart';
 import 'bottom_navigation.dart';
+import 'chat.dart';
 
 // --- Define the Color Palette ---
 const Color primaryBlue = Color(0xFF42A5F5); // Bright Blue
@@ -120,6 +120,7 @@ class _MessagesListScreenState extends State<MessagesListScreen> {
                   timeAgo: '2m ago',
                   unreadCount: 2,
                   isOnline: true,
+                  receiverId: 'sj_user_id_123',
                 ),
                 Divider(
                   height: 1,
@@ -132,6 +133,7 @@ class _MessagesListScreenState extends State<MessagesListScreen> {
                   timeAgo: '1h ago',
                   unreadCount: 0,
                   isOnline: false,
+                  receiverId: 'mc_user_id_456',
                 ),
                 Divider(
                   height: 1,
@@ -144,6 +146,7 @@ class _MessagesListScreenState extends State<MessagesListScreen> {
                   timeAgo: '3h ago',
                   unreadCount: 1,
                   isOnline: true,
+                  receiverId: 'ew_user_id_456',
                 ),
                 Divider(
                   height: 1,
@@ -156,6 +159,7 @@ class _MessagesListScreenState extends State<MessagesListScreen> {
                   timeAgo: '1d ago',
                   unreadCount: 0,
                   isOnline: false,
+                  receiverId: 'ab_user_id_456',
                 ),
                 Divider(
                   height: 1,
@@ -168,6 +172,7 @@ class _MessagesListScreenState extends State<MessagesListScreen> {
                   timeAgo: '2d ago',
                   unreadCount: 0,
                   isOnline: false,
+                  receiverId: 'jr_user_id_456',
                 ),
                 Divider(
                   height: 1,
@@ -180,6 +185,7 @@ class _MessagesListScreenState extends State<MessagesListScreen> {
                   timeAgo: '3d ago',
                   unreadCount: 3,
                   isOnline: true,
+                  receiverId: 'kp_user_id_456',
                 ),
               ],
             ),
@@ -197,6 +203,7 @@ class _ConversationListItem extends StatelessWidget {
   final String timeAgo;
   final int unreadCount;
   final bool isOnline;
+  final String? receiverId; // Add this line
 
   const _ConversationListItem({
     required this.userInitials,
@@ -205,6 +212,7 @@ class _ConversationListItem extends StatelessWidget {
     required this.timeAgo,
     required this.unreadCount,
     required this.isOnline,
+    this.receiverId,
     // Removed avatarColor and initialsColor from constructor since they are theme-derived now
   });
 
@@ -236,6 +244,7 @@ class _ConversationListItem extends StatelessWidget {
               isOnline: isOnline,
               // Pass theme-aware colors to the ChatScreen for consistency
               avatarColor: avatarBg,
+              receiverId: receiverId, // Pass the receiver ID
             ),
           ),
         );

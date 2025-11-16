@@ -1,4 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:tracelink/theme_provider.dart';
+import 'package:firebase_auth/firebase_auth.dart'; 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../firebase_service.dart';
+
 
 // --- Define the Color Palette ---
 const Color primaryBlue = Color(0xFF42A5F5); // Bright Blue (Header, My Bubble)
@@ -11,11 +17,22 @@ const Color lightBlueBackground = Color(
 const Color myBubbleColor = primaryBlue;
 const Color partnerBubbleColor = lightBlueBackground;
 
+
+
+// --- Define Dark Theme Colors (New) ---
+const Color darkBackgroundColor = Color(0xFF121212); // Deep Dark
+const Color darkSurfaceColor = Color(0xFF1E1E1E); // Darker surface
+const Color darkPrimaryColor = Color(0xFF90CAF9); // Light Blue for accents
+const Color darkTextColor = Colors.white;
+const Color darkHintColor = Color(0xFFB0B0B0); // Light Grey for hints
+
+
 class ChatScreen extends StatefulWidget {
   final String chatPartnerName;
   final String chatPartnerInitials;
   final bool isOnline;
   final Color avatarColor;
+  final String? receiverId; // Add receiver ID for Firebase
 
   const ChatScreen({
     super.key,
@@ -23,6 +40,7 @@ class ChatScreen extends StatefulWidget {
     required this.chatPartnerInitials,
     this.isOnline = false,
     required this.avatarColor,
+    this.receiverId, // Make it optional for backward compatibility
   });
 
   @override
@@ -33,35 +51,71 @@ class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final List<Map<String, dynamic>> _messages = []; // To store chat messages
+  Stream<QuerySnapshot>? _messagesStream;
+  bool _isLoading = true;
+  bool _useFirebase = false;
 
   @override
   void initState() {
     super.initState();
-    // Initialize with example messages
-    _messages.add({
-      'text': 'Hi! I found your wallet at the library',
-      'isMe': false,
-      'time': '10:30 AM',
-    });
-    _messages.add({
-      'text': 'Oh thank you so much! Where exactly did you find it?',
-      'isMe': true,
-      'time': '10:32 AM',
-    });
-    _messages.add({
-      'text':
-          'It was on the table near study room 12. I turned it in to the front desk.',
-      'isMe': false,
-      'time': '10:33 AM',
-    });
-    _messages.add({
-      'text': 'Perfect! I can pick it up today. Thank you again!',
-      'isMe': true,
-      'time': '10:35 AM',
-    });
+    _initializeChat();
+  }
 
-    // Add listener to automatically scroll to bottom when a new message is added
+  void _initializeChat() async {
+    // Check if we have a receiver ID for Firebase
+    if (widget.receiverId != null && widget.receiverId!.isNotEmpty) {
+      try {
+        _useFirebase = true;
+        _messagesStream = FirebaseService.getMessages(widget.receiverId!);
+        
+        // Mark messages as read when opening chat
+        await FirebaseService.markMessagesAsRead(widget.receiverId!);
+      } catch (e) {
+        print('Error initializing Firebase chat: $e');
+        _useFirebase = false;
+        _loadHardcodedMessages();
+      }
+    } else {
+      _useFirebase = false;
+      _loadHardcodedMessages();
+    }
+    
+    setState(() {
+      _isLoading = false;
+    });
+    
+    // Scroll to bottom after initialization
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+  }
+
+  void _loadHardcodedMessages() {
+    // Initialize with example messages (only if not using Firebase)
+    _messages.addAll([
+      {
+        'text': 'Hi! I found your wallet at the library',
+        'isMe': false,
+        'time': '10:30 AM',
+        'senderId': 'partner',
+      },
+      {
+        'text': 'Oh thank you so much! Where exactly did you find it?',
+        'isMe': true,
+        'time': '10:32 AM',
+        'senderId': 'current',
+      },
+      {
+        'text': 'It was on the table near study room 12. I turned it in to the front desk.',
+        'isMe': false,
+        'time': '10:33 AM',
+        'senderId': 'partner',
+      },
+      {
+        'text': 'Perfect! I can pick it up today. Thank you again!',
+        'isMe': true,
+        'time': '10:35 AM',
+        'senderId': 'current',
+      },
+    ]);
   }
 
   // Helper function to scroll to the bottom
@@ -83,40 +137,85 @@ class _ChatScreenState extends State<ChatScreen> {
     super.dispose();
   }
 
-  void _sendMessage() {
-    if (_messageController.text.trim().isNotEmpty) {
-      setState(() {
-        _messages.add({
-          'text': _messageController.text.trim(),
-          'isMe': true, // Assume current user is sending the message
-          'time': TimeOfDay.now().format(context), // Current time
-        });
-      });
-      _messageController.clear();
-      // Scroll to the latest message after sending
-      _scrollToBottom();
+  void _sendMessage() async {
+    if (_messageController.text.trim().isEmpty) return;
+
+    final messageText = _messageController.text.trim();
+    final currentTime = TimeOfDay.now().format(context);
+
+    if (_useFirebase && widget.receiverId != null) {
+      // Send message via Firebase
+      bool success = await FirebaseService.sendMessage(
+        receiverId: widget.receiverId!,
+        message: messageText,
+        receiverName: widget.chatPartnerName,
+        receiverInitials: widget.chatPartnerInitials,
+      );
+
+      if (success) {
+        _messageController.clear();
+      } else {
+        // Fallback: add to local list if Firebase fails
+        _addMessageToLocalList(messageText, true, currentTime);
+      }
+    } else {
+      // Use local messages
+      _addMessageToLocalList(messageText, true, currentTime);
     }
+  }
+
+  void _addMessageToLocalList(String text, bool isMe, String time) {
+    setState(() {
+      _messages.add({
+        'text': text,
+        'isMe': isMe,
+        'time': time,
+        'senderId': isMe ? 'current' : 'partner',
+      });
+    });
+    _messageController.clear();
+    _scrollToBottom();
+  }
+
+  // Convert Firebase document to message format
+  Map<String, dynamic> _firebaseDocToMessage(DocumentSnapshot doc, String currentUserId) {
+    final data = doc.data() as Map<String, dynamic>;
+    final isMe = data['senderId'] == currentUserId;
+    
+    // Format timestamp
+    String time = '10:00 AM'; // Default
+    if (data['timestamp'] != null) {
+      final timestamp = data['timestamp'] as Timestamp;
+      final dateTime = timestamp.toDate();
+      time = '${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
+    }
+
+    return {
+      'text': data['message'] ?? '',
+      'isMe': isMe,
+      'time': time,
+      'senderId': data['senderId'],
+    };
   }
 
   @override
   Widget build(BuildContext context) {
-    // ⚠️ CRITICAL: Get the height of the keyboard and system navigation bar
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
     final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
 
     return Scaffold(
-      // ✅ MODIFICATION 1: Ensure Scaffold body resizes when keyboard pops up
       resizeToAvoidBottomInset: true,
       appBar: AppBar(
-        // THEME CHANGE: AppBar background set to Primary Blue
-        backgroundColor: primaryBlue,
+        backgroundColor: isDarkMode ? darkSurfaceColor : primaryBlue,
         elevation: 1,
         leading: IconButton(
-          icon: const Icon(
+          icon: Icon(
             Icons.arrow_back,
             color: Colors.white,
-          ), // THEME CHANGE: Icon set to White
+          ),
           onPressed: () {
-            Navigator.pop(context); // Go back to MessagesListScreen
+            Navigator.pop(context);
           },
         ),
         title: Row(
@@ -140,20 +239,15 @@ class _ChatScreenState extends State<ChatScreen> {
                 Text(
                   widget.chatPartnerName,
                   style: const TextStyle(
-                    color:
-                        Colors.white, // THEME CHANGE: Partner name set to White
+                    color: Colors.white,
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
                   ),
                 ),
                 Text(
-                  widget.isOnline
-                      ? 'Online'
-                      : 'Offline', // Dynamically show online/offline
+                  widget.isOnline ? 'Online' : 'Offline',
                   style: TextStyle(
-                    color: Colors.white.withOpacity(
-                      0.8,
-                    ), // THEME CHANGE: Status text set to White
+                    color: Colors.white.withOpacity(0.8),
                     fontSize: 12,
                   ),
                 ),
@@ -166,7 +260,7 @@ class _ChatScreenState extends State<ChatScreen> {
             icon: const Icon(
               Icons.more_vert,
               color: Colors.white,
-            ), // THEME CHANGE: Icon set to White
+            ),
             onPressed: () {
               // More options
             },
@@ -176,32 +270,64 @@ class _ChatScreenState extends State<ChatScreen> {
       body: Column(
         children: [
           Expanded(
-            child: ListView.builder(
-              controller: _scrollController, // Use the scroll controller
-              padding: const EdgeInsets.all(16.0),
-              itemCount: _messages.length,
-              itemBuilder: (context, index) {
-                final message = _messages[index];
-                return _MessageBubble(
-                  message: message['text'],
-                  isMe: message['isMe'],
-                  time: message['time'],
-                  chatPartnerInitials: widget.chatPartnerInitials,
-                  chatPartnerAvatarColor: widget.avatarColor,
-                );
-              },
-            ),
+            child: _isLoading
+                ? Center(child: CircularProgressIndicator())
+                : _useFirebase
+                    ? StreamBuilder<QuerySnapshot>(
+                        stream: _messagesStream,
+                        builder: (context, snapshot) {
+                          if (snapshot.hasError) {
+                            return Center(child: Text('Error: ${snapshot.error}'));
+                          }
+
+                          if (snapshot.connectionState == ConnectionState.waiting) {
+                            return Center(child: CircularProgressIndicator());
+                          }
+
+                          final messages = snapshot.data!.docs;
+                          return ListView.builder(
+                            controller: _scrollController,
+                            padding: const EdgeInsets.all(16.0),
+                            itemCount: messages.length,
+                            itemBuilder: (context, index) {
+                              final message = _firebaseDocToMessage(
+                                messages[index],
+                                FirebaseAuth.instance.currentUser?.uid ?? '', // <-- This is the fix
+                              );
+                              return _MessageBubble(
+                                message: message['text'],
+                                isMe: message['isMe'],
+                                time: message['time'],
+                                chatPartnerInitials: widget.chatPartnerInitials,
+                                chatPartnerAvatarColor: widget.avatarColor,
+                              );
+                            },
+                          );
+                        },
+                      )
+                    : ListView.builder(
+                        controller: _scrollController,
+                        padding: const EdgeInsets.all(16.0),
+                        itemCount: _messages.length,
+                        itemBuilder: (context, index) {
+                          final message = _messages[index];
+                          return _MessageBubble(
+                            message: message['text'],
+                            isMe: message['isMe'],
+                            time: message['time'],
+                            chatPartnerInitials: widget.chatPartnerInitials,
+                            chatPartnerAvatarColor: widget.avatarColor,
+                          );
+                        },
+                      ),
           ),
           // Message Input Area
-          // ✅ MODIFICATION 2: Remove fixed height and use Padding for responsiveness
           Padding(
             padding: EdgeInsets.only(bottom: bottomPadding),
             child: Container(
-              // REMOVED fixed height: 150
               padding: const EdgeInsets.all(18.0),
               decoration: BoxDecoration(
-                // THEME CHANGE: Input container color (White)
-                color: Colors.white,
+                color: isDarkMode ? darkSurfaceColor : Colors.white,
                 boxShadow: [
                   BoxShadow(
                     color: Colors.grey.withOpacity(0.2),
@@ -211,46 +337,41 @@ class _ChatScreenState extends State<ChatScreen> {
                 ],
               ),
               child: Row(
-                crossAxisAlignment: CrossAxisAlignment
-                    .end, // Align contents to the bottom of the row
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Expanded(
                     child: Container(
                       decoration: BoxDecoration(
-                        color:
-                            lightBlueBackground, // THEME CHANGE: Input field background
+                        color: isDarkMode ? darkBackgroundColor : lightBlueBackground,
                         borderRadius: BorderRadius.circular(25),
                       ),
                       child: TextField(
                         controller: _messageController,
-                        onSubmitted: (_) =>
-                            _sendMessage(), // Allows sending on enter
-                        // Added maxLines and minLines to allow the text field to grow vertically
+                        onSubmitted: (_) => _sendMessage(),
                         minLines: 1,
                         maxLines: 5,
                         keyboardType: TextInputType.multiline,
                         decoration: InputDecoration(
                           hintText: 'Type a message...',
-                          hintStyle: const TextStyle(color: Colors.grey),
+                          hintStyle: TextStyle(color: isDarkMode ? darkHintColor : Colors.grey),
                           border: InputBorder.none,
                           contentPadding: const EdgeInsets.symmetric(
                             horizontal: 20,
                             vertical: 10,
                           ),
                           suffixIcon: IconButton(
-                            icon: const Icon(
+                            icon: Icon(
                               Icons.mic,
-                              color:
-                                  darkBlue, // THEME CHANGE: Mic icon is Dark Blue
+                              color: isDarkMode ? darkPrimaryColor : darkBlue,
                             ),
                             onPressed: () {
                               // Voice message functionality
                             },
                           ),
                         ),
-                        style: const TextStyle(
-                          color: darkBlue,
-                        ), // THEME CHANGE: Typed text color
+                        style: TextStyle(
+                          color: isDarkMode ? darkTextColor : darkBlue,
+                        ),
                       ),
                     ),
                   ),
@@ -259,8 +380,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     width: 48,
                     height: 48,
                     decoration: BoxDecoration(
-                      // THEME CHANGE: Send button uses Primary Blue solid color
-                      color: primaryBlue,
+                      color: isDarkMode ? darkPrimaryColor : primaryBlue,
                       borderRadius: BorderRadius.circular(24),
                     ),
                     child: IconButton(
@@ -278,7 +398,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 }
 
-// MessageBubble class remains unchanged as it doesn't affect keyboard handling
+// _MessageBubble class remains the same but with theme support
 class _MessageBubble extends StatelessWidget {
   final String message;
   final bool isMe;
@@ -296,14 +416,15 @@ class _MessageBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Determine alignment based on who sent the message
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
+
     final alignment = isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start;
-
-    // THEME CHANGE: My bubble is Primary Blue, Partner bubble is Light Blue
-    final backgroundColor = isMe ? myBubbleColor : partnerBubbleColor;
-
-    // THEME CHANGE: My text is White, Partner text is Dark Blue
-    final textColor = isMe ? Colors.white : darkBlue;
+    final backgroundColor = isMe 
+        ? (isDarkMode ? darkPrimaryColor : myBubbleColor)
+        : (isDarkMode ? darkSurfaceColor : partnerBubbleColor);
+    final textColor = isMe ? Colors.white : (isDarkMode ? darkTextColor : darkBlue);
+    final timeColor = isDarkMode ? darkHintColor.withOpacity(0.6) : darkBlue.withOpacity(0.6);
 
     final borderRadius = BorderRadius.circular(15);
 
@@ -313,26 +434,19 @@ class _MessageBubble extends StatelessWidget {
         crossAxisAlignment: alignment,
         children: [
           Row(
-            mainAxisAlignment: isMe
-                ? MainAxisAlignment.end
-                : MainAxisAlignment.start,
+            mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Avatar for received messages
-              if (!isMe &&
-                  chatPartnerInitials != null &&
-                  chatPartnerAvatarColor != null)
+              if (!isMe && chatPartnerInitials != null && chatPartnerAvatarColor != null)
                 CircleAvatar(
                   radius: 16,
-                  // Use a slightly darker color for better contrast
                   backgroundColor: chatPartnerAvatarColor!.withOpacity(0.8),
                   child: Text(
                     chatPartnerInitials!,
                     style: const TextStyle(color: Colors.white, fontSize: 12),
                   ),
                 ),
-              if (!isMe)
-                const SizedBox(width: 8), // Spacing for received message avatar
+              if (!isMe) const SizedBox(width: 8),
               Flexible(
                 child: Container(
                   padding: const EdgeInsets.symmetric(
@@ -357,12 +471,11 @@ class _MessageBubble extends StatelessWidget {
           Padding(
             padding: EdgeInsets.only(
               left: isMe ? 0 : 40.0,
-              right: isMe ? 40.0 : 0, // Adjusted right padding for my messages
+              right: isMe ? 40.0 : 0,
             ),
             child: Text(
               time,
-              // THEME CHANGE: Time text is Dark Blue (slightly muted)
-              style: TextStyle(color: darkBlue.withOpacity(0.6), fontSize: 10),
+              style: TextStyle(color: timeColor, fontSize: 10),
             ),
           ),
         ],

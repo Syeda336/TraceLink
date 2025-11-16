@@ -55,27 +55,19 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
             end: Alignment.bottomRight,
           ),
         ),
-        child: const Center(
+        child:  Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // --- Icon Card ---
-              Material(
-                elevation: 4,
-                borderRadius: BorderRadius.all(Radius.circular(16.0)),
-                color: Color(0xFFE0FFFF),
-                child: Padding(
-                  padding: EdgeInsets.all(20.0),
-                  child: Icon(
-                    // Changed icon to 'track_changes'
-                    Icons.track_changes,
-                    size: 60.0,
-                    color: Color(0xFF1E90FF), // A bright blue color
-                  ),
-                ), // A light blue background for the icon
-              ),
 
-              SizedBox(height: 25.0),
+
+              // --- Icon Card ---
+             
+                    Image.asset(
+                      'lib/images/logo.png', // <-- Your new logo
+                      width: 130.0,  // Adjust this size as needed
+                      height: 130.0, // Adjust this size as needed
+                    ),
 
               // --- Main Title Text ---
               Text(

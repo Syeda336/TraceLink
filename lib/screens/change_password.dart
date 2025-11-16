@@ -3,9 +3,9 @@ import 'package:flutter/services.dart'; // For SystemChrome
 import 'package:provider/provider.dart'; // For Provider
 import 'profile_page.dart'; // Import your profile_page.dart
 import '../theme_provider.dart'; // Import the ThemeProvider
+import '../firebase_service.dart'; // <-- IMPORT FIREBASE SERVICE
 
 // --- Theme Colors (Base) ---
-// Note: Actual colors will be determined at runtime based on isDarkMode
 const Color _primaryBrightBlue = Color(
   0xFF007AFF,
 ); // Header/Button background, TextField focus
@@ -67,6 +67,8 @@ class _ChangePasswordContentState extends State<_ChangePasswordContent> {
   bool _isNewPasswordVisible = false;
   bool _isConfirmNewPasswordVisible = false;
 
+  bool _isLoading = false; // <-- ADDED FOR LOADING STATE
+
   @override
   void dispose() {
     _currentPasswordController.dispose();
@@ -75,25 +77,56 @@ class _ChangePasswordContentState extends State<_ChangePasswordContent> {
     super.dispose();
   }
 
-  void _updatePassword() {
-    if (_formKey.currentState!.validate()) {
-      // Simulate backend call
-      debugPrint('Password update simulated.');
+  // --- UPDATED PASSWORD FUNCTION ---
+  void _updatePassword() async {
+    // First, run all the validators
+    if (!_formKey.currentState!.validate()) {
+      return; // Stop if validation fails
+    }
 
-      // Show a success message
+    // Set loading state
+    setState(() {
+      _isLoading = true;
+    });
+
+    // Call the new Firebase service function
+    final String? error = await FirebaseService.updateUserPassword(
+      currentPassword: _currentPasswordController.text.trim(),
+      newPassword: _newPasswordController.text.trim(),
+    );
+    
+    // Stop loading
+    setState(() {
+      _isLoading = false;
+    });
+    
+    // Handle the response
+    if (error == null) {
+      // SUCCESS
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Password updated successfully!'),
           backgroundColor: Colors.green,
         ),
       );
-
       // Navigate back to the ProfilePage
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (context) => const ProfileScreen()),
       );
+      
+    } else {
+      // ERROR
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error), // Show the specific error from Firebase
+          backgroundColor: Colors.redAccent,
+        ),
+      );
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -211,7 +244,7 @@ class _ChangePasswordContentState extends State<_ChangePasswordContent> {
                             ),
                             const SizedBox(height: 15),
                             _buildTipRow(
-                              'At least 10 characters long',
+                              'At least 7 characters long', // <-- CHANGED
                               textColor,
                             ),
                             _buildTipRow(
@@ -275,12 +308,13 @@ class _ChangePasswordContentState extends State<_ChangePasswordContent> {
                           _isNewPasswordVisible = !_isNewPasswordVisible;
                         });
                       },
+                      // --- UPDATED VALIDATOR ---
                       validator: (value) {
                         if (value == null || value.isEmpty) {
                           return 'Please enter a new password';
                         }
-                        if (value.length < 10) {
-                          return 'Password must be at least 10 characters long';
+                        if (value.length < 7) { // <-- CHANGED
+                          return 'Password must be at least 7 characters long'; // <-- CHANGED
                         }
                         if (!value.contains(RegExp(r'[A-Z]'))) {
                           return 'Password must include uppercase letters';
@@ -338,7 +372,7 @@ class _ChangePasswordContentState extends State<_ChangePasswordContent> {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: _updatePassword,
+                        onPressed: _isLoading ? null : _updatePassword, // Disable button when loading
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 15),
                           backgroundColor: _primaryBrightBlue,
@@ -347,21 +381,26 @@ class _ChangePasswordContentState extends State<_ChangePasswordContent> {
                           ),
                           elevation: 5,
                         ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: const [
-                            Icon(Icons.lock_open, color: Colors.white),
-                            SizedBox(width: 10),
-                            Text(
-                              'Update Password',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
+                        // --- UPDATED BUTTON CHILD (shows loading) ---
+                        child: _isLoading
+                            ? const CircularProgressIndicator(
                                 color: Colors.white,
+                              )
+                            : Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: const [
+                                  Icon(Icons.lock_open, color: Colors.white),
+                                  SizedBox(width: 10),
+                                  Text(
+                                    'Update Password',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ),
-                          ],
-                        ),
                       ),
                     ),
                     const SizedBox(height: 30),
@@ -500,6 +539,7 @@ class _ChangePasswordContentState extends State<_ChangePasswordContent> {
       controller: controller,
       obscureText: !isVisible,
       style: TextStyle(color: inputTextColor), // Input text is theme-aware
+      autovalidateMode: AutovalidateMode.onUserInteraction, // <-- Added this
       decoration: InputDecoration(
         hintText: hintText,
         hintStyle: TextStyle(color: hintTextColor),

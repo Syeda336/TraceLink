@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1087969207416",
+    "project_id": "tracelink-main",
+    "storage_bucket": "tracelink-main.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1087969207416:android:4fccda7e6823c0058af98d",
+        "android_client_info": {
+          "package_name": "com.example.tracelink"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBPqNWyo-k6qG4nmJH4BbtYhc6Ks6J_lqc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

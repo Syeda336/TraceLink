@@ -28,18 +28,27 @@ environment:
 # the latest version available on pub.dev. To see which dependencies have newer
 # versions available, run `flutter pub outdated`.
 dependencies:
-  provider: ^6.0.5
-  shared_preferences: ^2.1.0
+  provider: ^6.0.5 # State management
+  shared_preferences: ^2.1.0  # Store small key-value data locally
   flutter:
     sdk: flutter
-  url_launcher: ^6.2.2
-  image_picker: ^1.0.4
-  google_generative_ai: ^0.3.2
-  share_plus: ^7.0.2
+  url_launcher: ^6.2.2   # Open URLs in browser or apps
+  image_picker: ^1.0.4    # Pick images from gallery/camera
+  google_generative_ai: ^0.3.2   # Use Google’s generative AI services
+  share_plus: ^7.0.2 # Share content to other apps
 
   flutter_localizations:
-    sdk: flutter
+    sdk: flutter       # Localization support for Flutter
   intl: 0.20.2
+
+  supabase_flutter: ^2.5.0
+
+  firebase_core: ^2.24.0   # Initialize and connect to Firebase
+  firebase_auth: ^4.17.1   # Firebase Authentication (login/register)
+  cloud_firestore: ^4.13.0
+  http: ^1.6.0
+  flutter_dotenv: ^5.0.2  #to hide the API key
+  cloud_functions: ^4.6.0
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -79,10 +88,13 @@ flutter:
     - lib/images/laptop.jfif
     - lib/images/bottle.jfif
     - lib/images/card.jfif
+    - lib/images/logo.png
 
     - lib/databases/lost_items.json
     - lib/databases/found_items.json
     - lib/databases/comments.json
+    - lib/images/logo.png
+    
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
