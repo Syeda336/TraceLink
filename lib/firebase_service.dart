@@ -14,6 +14,7 @@ class FirebaseService {
       options: DefaultFirebaseOptions.currentPlatform,
     );
   }
+
   // -----------------------
   // Sign up new user
   // -----------------------
@@ -24,11 +25,8 @@ class FirebaseService {
     required String studentId,
   }) async {
     try {
-      UserCredential userCredential =
-          await _auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+      UserCredential userCredential = await _auth
+          .createUserWithEmailAndPassword(email: email, password: password);
 
       await _firestore.collection('users').doc(userCredential.user!.uid).set({
         'fullName': fullName,
@@ -102,8 +100,7 @@ class FirebaseService {
       print('Student ID sign-in: found email $email for studentId $studentId');
 
       try {
-        UserCredential userCredential =
-            await _auth.signInWithEmailAndPassword(
+        UserCredential userCredential = await _auth.signInWithEmailAndPassword(
           email: email,
           password: password,
         );
@@ -111,7 +108,8 @@ class FirebaseService {
         return userCredential.user;
       } on FirebaseAuthException catch (e) {
         print(
-            'Student ID sign-in auth error for email $email: ${e.code} - ${e.message}');
+          'Student ID sign-in auth error for email $email: ${e.code} - ${e.message}',
+        );
         return null;
       }
     } catch (e) {
@@ -146,9 +144,11 @@ class FirebaseService {
       print('🔥 Current auth email: $currentAuthEmail');
 
       // If email is changing and different from Auth email
-      if (email.isNotEmpty && currentAuthEmail != null && currentAuthEmail != email) {
+      if (email.isNotEmpty &&
+          currentAuthEmail != null &&
+          currentAuthEmail != email) {
         print('Email change detected: $currentAuthEmail -> $email');
-        
+
         if (currentPassword == null || currentPassword.isEmpty) {
           print('Email change requires current password');
           return false;
@@ -167,7 +167,6 @@ class FirebaseService {
           // 2. Send verification email to new address
           await user.verifyBeforeUpdateEmail(email);
           print('Verification email sent to: $email');
-          
         } on FirebaseAuthException catch (e) {
           print('Email update failed: ${e.code} - ${e.message}');
           return false;
@@ -196,7 +195,9 @@ class FirebaseService {
 
       return true;
     } on FirebaseAuthException catch (e) {
-      print('updateUserProfile FirebaseAuthException: ${e.code} - ${e.message}');
+      print(
+        'updateUserProfile FirebaseAuthException: ${e.code} - ${e.message}',
+      );
       return false;
     } catch (e) {
       print('updateUserProfile general error: $e');
@@ -259,7 +260,9 @@ class FirebaseService {
 
       return true;
     } on FirebaseAuthException catch (e) {
-      print('updateUserProfileWithPassword FirebaseAuthException: ${e.code} - ${e.message}');
+      print(
+        'updateUserProfileWithPassword FirebaseAuthException: ${e.code} - ${e.message}',
+      );
       return false;
     } catch (e) {
       print('updateUserProfileWithPassword general error: $e');
@@ -270,7 +273,10 @@ class FirebaseService {
   // -----------------------
   // Update email only including reauthentication
   // -----------------------
-  static Future<bool> updateEmail(String newEmail, {required String currentPassword}) async {
+  static Future<bool> updateEmail(
+    String newEmail, {
+    required String currentPassword,
+  }) async {
     try {
       User? user = _auth.currentUser;
       if (user == null) {
@@ -323,8 +329,10 @@ class FirebaseService {
     try {
       User? user = _auth.currentUser;
       if (user != null) {
-        DocumentSnapshot userDoc =
-            await _firestore.collection('users').doc(user.uid).get();
+        DocumentSnapshot userDoc = await _firestore
+            .collection('users')
+            .doc(user.uid)
+            .get();
         return userDoc.data() as Map<String, dynamic>?;
       }
       print('getUserData: no current user.');
@@ -343,13 +351,10 @@ class FirebaseService {
     print('User signed out.');
   }
 
-
   /// -----------------------
   // Send Password Reset Email
   // -----------------------
-  static Future<String?> sendPasswordResetEmail({
-    required String email,
-  }) async {
+  static Future<String?> sendPasswordResetEmail({required String email}) async {
     try {
       await _auth.sendPasswordResetEmail(email: email);
       print('Password reset email sent to $email');
@@ -363,7 +368,7 @@ class FirebaseService {
     }
   }
 
-// -----------------------
+  // -----------------------
   // Update User Password (for logged-in user)
   // -----------------------
   static Future<String?> updateUserPassword({
@@ -385,10 +390,9 @@ class FirebaseService {
 
       // 2. If re-authentication is successful, update the password
       await user.updatePassword(newPassword);
-      
+
       print('Password updated successfully.');
       return null; // Indicates success
-      
     } on FirebaseAuthException catch (e) {
       print('Password update error: ${e.code} - ${e.message}');
       // Provide more user-friendly messages
@@ -430,12 +434,14 @@ class FirebaseService {
       }
 
       // Create new demo user
-      final String demoUserId = 'demo_${userName.toLowerCase().replaceAll(' ', '_')}_${DateTime.now().millisecondsSinceEpoch}';
-      
+      final String demoUserId =
+          'demo_${userName.toLowerCase().replaceAll(' ', '_')}_${DateTime.now().millisecondsSinceEpoch}';
+
       await _firestore.collection('users').doc(demoUserId).set({
         'fullName': userName,
         'initials': userInitials,
-        'email': '${userName.toLowerCase().replaceAll(' ', '.')}@demo.tracelink.com',
+        'email':
+            '${userName.toLowerCase().replaceAll(' ', '.')}@demo.tracelink.com',
         'isDemo': true,
         'createdAt': FieldValue.serverTimestamp(),
       });
@@ -452,7 +458,7 @@ class FirebaseService {
   // Send a message
   // -----------------------
   // --- ⭐️ CHANGE 1: OPTIMIZED METHOD ⭐️ ---
-  // This version fetches the current user's data only ONCE, 
+  // This version fetches the current user's data only ONCE,
   // making it much more efficient than the previous version
   // that called `await getUserData()` multiple times.
   static Future<bool> sendMessage({
@@ -477,12 +483,20 @@ class FirebaseService {
       // Determine sender and receiver based on whether it's an initial message
       // (Assuming 'initial message' means it's FROM the receiver TO the current user)
       final String finalSenderId = isInitialMessage ? receiverId : user.uid;
-      final String finalSenderName = isInitialMessage ? receiverName : currentUserName;
-      final String finalSenderInitials = isInitialMessage ? receiverInitials : currentUserInitials;
+      final String finalSenderName = isInitialMessage
+          ? receiverName
+          : currentUserName;
+      final String finalSenderInitials = isInitialMessage
+          ? receiverInitials
+          : currentUserInitials;
 
       final String finalReceiverId = isInitialMessage ? user.uid : receiverId;
-      final String finalReceiverName = isInitialMessage ? currentUserName : receiverName;
-      final String finalReceiverInitials = isInitialMessage ? currentUserInitials : receiverInitials;
+      final String finalReceiverName = isInitialMessage
+          ? currentUserName
+          : receiverName;
+      final String finalReceiverInitials = isInitialMessage
+          ? currentUserInitials
+          : receiverInitials;
 
       // Chat room ID
       List<String> participants = [user.uid, receiverId];
@@ -511,23 +525,20 @@ class FirebaseService {
           .add(messageData);
 
       // Update last message in chat room
-      await _firestore
-          .collection('chatRooms')
-          .doc(chatRoomId)
-          .set({
-            'lastMessage': message,
-            'lastMessageTimestamp': FieldValue.serverTimestamp(),
-            'participants': participants,
-            'participantNames': {
-              user.uid: currentUserName, // Current user's name
-              receiverId: receiverName,  // The other participant's name
-            },
-            'participantInitials': {
-              user.uid: currentUserInitials, // Current user's initials
-              receiverId: receiverInitials,  // The other participant's initials
-            },
-            'updatedAt': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true));
+      await _firestore.collection('chatRooms').doc(chatRoomId).set({
+        'lastMessage': message,
+        'lastMessageTimestamp': FieldValue.serverTimestamp(),
+        'participants': participants,
+        'participantNames': {
+          user.uid: currentUserName, // Current user's name
+          receiverId: receiverName, // The other participant's name
+        },
+        'participantInitials': {
+          user.uid: currentUserInitials, // Current user's initials
+          receiverId: receiverInitials, // The other participant's initials
+        },
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
 
       print('Message sent successfully to $receiverName');
       return true;
@@ -607,7 +618,10 @@ class FirebaseService {
   // -----------------------
   static Future<Map<String, dynamic>?> getUserDataById(String userId) async {
     try {
-      DocumentSnapshot userDoc = await _firestore.collection('users').doc(userId).get();
+      DocumentSnapshot userDoc = await _firestore
+          .collection('users')
+          .doc(userId)
+          .get();
       if (userDoc.exists) {
         return userDoc.data() as Map<String, dynamic>?;
       }
@@ -621,7 +635,9 @@ class FirebaseService {
   // -----------------------
   // Get user data by name (updated for demo users)
   // -----------------------
-  static Future<Map<String, dynamic>?> getUserDataByName(String userName) async {
+  static Future<Map<String, dynamic>?> getUserDataByName(
+    String userName,
+  ) async {
     try {
       QuerySnapshot querySnapshot = await _firestore
           .collection('users')
@@ -631,10 +647,7 @@ class FirebaseService {
 
       if (querySnapshot.docs.isNotEmpty) {
         final doc = querySnapshot.docs.first;
-        return {
-          'uid': doc.id,
-          ...doc.data() as Map<String, dynamic>,
-        };
+        return {'uid': doc.id, ...doc.data() as Map<String, dynamic>};
       }
       return null;
     } catch (e) {
@@ -663,16 +676,15 @@ class FirebaseService {
           .where('receiverId', isEqualTo: user.uid)
           .where('read', isEqualTo: false)
           .get();
-      
+
       WriteBatch batch = _firestore.batch();
-      
+
       // Mark them as read in a batch
       for (var doc in unreadMessages.docs) {
         batch.update(doc.reference, {'read': true});
       }
-      
-      await batch.commit();
 
+      await batch.commit();
     } catch (e) {
       print('Mark messages as read error: $e');
     }
@@ -697,7 +709,7 @@ class FirebaseService {
             receiverInitials: receiverInitials,
             isInitialMessage: true,
           );
-          
+
           // Add a small delay to ensure proper ordering
           await Future.delayed(const Duration(milliseconds: 100));
         }
@@ -776,7 +788,9 @@ class FirebaseService {
           .where('receiverId', isEqualTo: user.uid)
           .where('read', isEqualTo: false)
           .snapshots()
-          .map((snapshot) => snapshot.docs.length); // Map the snapshot to its length
+          .map(
+            (snapshot) => snapshot.docs.length,
+          ); // Map the snapshot to its length
     } catch (e) {
       print('Get unread count stream error: $e');
       return Stream.value(0); // Return a stream with 0 in case of an error
@@ -835,7 +849,9 @@ class FirebaseService {
 
       return true;
     } on FirebaseAuthException catch (e) {
-      print('updateUserProfileWithoutEmail FirebaseAuthException: ${e.code} - ${e.message}');
+      print(
+        'updateUserProfileWithoutEmail FirebaseAuthException: ${e.code} - ${e.message}',
+      );
       return false;
     } catch (e) {
       print('updateUserProfileWithoutEmail general error: $e');
@@ -891,7 +907,9 @@ class FirebaseService {
         await user.reauthenticateWithCredential(credential);
         print('Reauthentication successful for account deletion');
       } on FirebaseAuthException catch (e) {
-        print('Reauthentication failed for account deletion: ${e.code} - ${e.message}');
+        print(
+          'Reauthentication failed for account deletion: ${e.code} - ${e.message}',
+        );
         return false;
       }
 
@@ -905,12 +923,13 @@ class FirebaseService {
 
       return true;
     } on FirebaseAuthException catch (e) {
-      print('deleteUserAccount FirebaseAuthException: ${e.code} - ${e.message}');
+      print(
+        'deleteUserAccount FirebaseAuthException: ${e.code} - ${e.message}',
+      );
       return false;
     } catch (e) {
       print('deleteUserAccount general error: $e');
       return false;
     }
   }
-
 }

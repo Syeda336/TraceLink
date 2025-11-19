@@ -128,7 +128,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final password = _passwordController.text;
 
       // Dummy Admin Check:
-      if (email == 'admin@uni.edu' && password == 'admin') {
+      if (email == 'admin@uni.edu' && password == 'admin#1') {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const AdminWelcome()),
