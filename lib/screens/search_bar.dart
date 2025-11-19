@@ -353,7 +353,7 @@ class _SearchScreenState extends State<SearchScreen> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 8),
                       // Search Bar and Filter Button
                       Row(
                         children: [

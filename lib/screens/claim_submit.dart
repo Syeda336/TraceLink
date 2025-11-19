@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import '../theme_provider.dart';
 
 // Assume these files exist in your project structure for navigation
-import 'item_description.dart'; // Renamed to ItemDetailScreen for consistency with usage
 import 'submitted_claim.dart';
 
 // --- Theme Constants ---
@@ -163,13 +162,7 @@ class VerifyOwnershipScreen extends StatelessWidget {
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () {
             // Navigate back to item_description.dart
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    ItemDetailScreen(itemName: 'Black Wallet'),
-              ),
-            );
+            Navigator.pop(context);
           },
         ),
         flexibleSpace: Container(

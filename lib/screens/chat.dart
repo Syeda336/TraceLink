@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:tracelink/theme_provider.dart';
-import 'package:firebase_auth/firebase_auth.dart'; 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../firebase_service.dart';
-
 
 // --- Define the Color Palette ---
 const Color primaryBlue = Color(0xFF42A5F5); // Bright Blue (Header, My Bubble)
@@ -17,15 +16,12 @@ const Color lightBlueBackground = Color(
 const Color myBubbleColor = primaryBlue;
 const Color partnerBubbleColor = lightBlueBackground;
 
-
-
 // --- Define Dark Theme Colors (New) ---
 const Color darkBackgroundColor = Color(0xFF121212); // Deep Dark
 const Color darkSurfaceColor = Color(0xFF1E1E1E); // Darker surface
 const Color darkPrimaryColor = Color(0xFF90CAF9); // Light Blue for accents
 const Color darkTextColor = Colors.white;
 const Color darkHintColor = Color(0xFFB0B0B0); // Light Grey for hints
-
 
 class ChatScreen extends StatefulWidget {
   final String chatPartnerName;
@@ -67,7 +63,7 @@ class _ChatScreenState extends State<ChatScreen> {
       try {
         _useFirebase = true;
         _messagesStream = FirebaseService.getMessages(widget.receiverId!);
-        
+
         // Mark messages as read when opening chat
         await FirebaseService.markMessagesAsRead(widget.receiverId!);
       } catch (e) {
@@ -79,11 +75,11 @@ class _ChatScreenState extends State<ChatScreen> {
       _useFirebase = false;
       _loadHardcodedMessages();
     }
-    
+
     setState(() {
       _isLoading = false;
     });
-    
+
     // Scroll to bottom after initialization
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
   }
@@ -104,7 +100,8 @@ class _ChatScreenState extends State<ChatScreen> {
         'senderId': 'current',
       },
       {
-        'text': 'It was on the table near study room 12. I turned it in to the front desk.',
+        'text':
+            'It was on the table near study room 12. I turned it in to the front desk.',
         'isMe': false,
         'time': '10:33 AM',
         'senderId': 'partner',
@@ -178,10 +175,13 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   // Convert Firebase document to message format
-  Map<String, dynamic> _firebaseDocToMessage(DocumentSnapshot doc, String currentUserId) {
+  Map<String, dynamic> _firebaseDocToMessage(
+    DocumentSnapshot doc,
+    String currentUserId,
+  ) {
     final data = doc.data() as Map<String, dynamic>;
     final isMe = data['senderId'] == currentUserId;
-    
+
     // Format timestamp
     String time = '10:00 AM'; // Default
     if (data['timestamp'] != null) {
@@ -210,10 +210,7 @@ class _ChatScreenState extends State<ChatScreen> {
         backgroundColor: isDarkMode ? darkSurfaceColor : primaryBlue,
         elevation: 1,
         leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back,
-            color: Colors.white,
-          ),
+          icon: Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () {
             Navigator.pop(context);
           },
@@ -257,10 +254,7 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(
-              Icons.more_vert,
-              color: Colors.white,
-            ),
+            icon: const Icon(Icons.more_vert, color: Colors.white),
             onPressed: () {
               // More options
             },
@@ -273,44 +267,28 @@ class _ChatScreenState extends State<ChatScreen> {
             child: _isLoading
                 ? Center(child: CircularProgressIndicator())
                 : _useFirebase
-                    ? StreamBuilder<QuerySnapshot>(
-                        stream: _messagesStream,
-                        builder: (context, snapshot) {
-                          if (snapshot.hasError) {
-                            return Center(child: Text('Error: ${snapshot.error}'));
-                          }
+                ? StreamBuilder<QuerySnapshot>(
+                    stream: _messagesStream,
+                    builder: (context, snapshot) {
+                      if (snapshot.hasError) {
+                        return Center(child: Text('Error: ${snapshot.error}'));
+                      }
 
-                          if (snapshot.connectionState == ConnectionState.waiting) {
-                            return Center(child: CircularProgressIndicator());
-                          }
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return Center(child: CircularProgressIndicator());
+                      }
 
-                          final messages = snapshot.data!.docs;
-                          return ListView.builder(
-                            controller: _scrollController,
-                            padding: const EdgeInsets.all(16.0),
-                            itemCount: messages.length,
-                            itemBuilder: (context, index) {
-                              final message = _firebaseDocToMessage(
-                                messages[index],
-                                FirebaseAuth.instance.currentUser?.uid ?? '', // <-- This is the fix
-                              );
-                              return _MessageBubble(
-                                message: message['text'],
-                                isMe: message['isMe'],
-                                time: message['time'],
-                                chatPartnerInitials: widget.chatPartnerInitials,
-                                chatPartnerAvatarColor: widget.avatarColor,
-                              );
-                            },
-                          );
-                        },
-                      )
-                    : ListView.builder(
+                      final messages = snapshot.data!.docs;
+                      return ListView.builder(
                         controller: _scrollController,
                         padding: const EdgeInsets.all(16.0),
-                        itemCount: _messages.length,
+                        itemCount: messages.length,
                         itemBuilder: (context, index) {
-                          final message = _messages[index];
+                          final message = _firebaseDocToMessage(
+                            messages[index],
+                            FirebaseAuth.instance.currentUser?.uid ??
+                                '', // <-- This is the fix
+                          );
                           return _MessageBubble(
                             message: message['text'],
                             isMe: message['isMe'],
@@ -319,76 +297,105 @@ class _ChatScreenState extends State<ChatScreen> {
                             chatPartnerAvatarColor: widget.avatarColor,
                           );
                         },
-                      ),
+                      );
+                    },
+                  )
+                : ListView.builder(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.all(16.0),
+                    itemCount: _messages.length,
+                    itemBuilder: (context, index) {
+                      final message = _messages[index];
+                      return _MessageBubble(
+                        message: message['text'],
+                        isMe: message['isMe'],
+                        time: message['time'],
+                        chatPartnerInitials: widget.chatPartnerInitials,
+                        chatPartnerAvatarColor: widget.avatarColor,
+                      );
+                    },
+                  ),
           ),
           // Message Input Area
-          Padding(
-            padding: EdgeInsets.only(bottom: bottomPadding),
-            child: Container(
-              padding: const EdgeInsets.all(18.0),
-              decoration: BoxDecoration(
-                color: isDarkMode ? darkSurfaceColor : Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.2),
-                    spreadRadius: 1,
-                    blurRadius: 5,
-                  ),
-                ],
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: isDarkMode ? darkBackgroundColor : lightBlueBackground,
-                        borderRadius: BorderRadius.circular(25),
-                      ),
-                      child: TextField(
-                        controller: _messageController,
-                        onSubmitted: (_) => _sendMessage(),
-                        minLines: 1,
-                        maxLines: 5,
-                        keyboardType: TextInputType.multiline,
-                        decoration: InputDecoration(
-                          hintText: 'Type a message...',
-                          hintStyle: TextStyle(color: isDarkMode ? darkHintColor : Colors.grey),
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 10,
-                          ),
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              Icons.mic,
-                              color: isDarkMode ? darkPrimaryColor : darkBlue,
+          SizedBox(
+            height: 100,
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 0.5),
+              child: Container(
+                padding: const EdgeInsets.only(
+                  bottom: 30,
+                  top: 20,
+                  left: 20,
+                  right: 20,
+                ),
+                decoration: BoxDecoration(
+                  color: isDarkMode ? darkSurfaceColor : Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.2),
+                      spreadRadius: 1,
+                      blurRadius: 5,
+                    ),
+                  ],
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: isDarkMode
+                              ? darkBackgroundColor
+                              : lightBlueBackground,
+                          borderRadius: BorderRadius.circular(25),
+                        ),
+                        child: TextField(
+                          controller: _messageController,
+                          onSubmitted: (_) => _sendMessage(),
+                          minLines: 1,
+                          maxLines: 5,
+                          keyboardType: TextInputType.multiline,
+                          decoration: InputDecoration(
+                            hintText: 'Type a message...',
+                            hintStyle: TextStyle(
+                              color: isDarkMode ? darkHintColor : Colors.grey,
                             ),
-                            onPressed: () {
-                              // Voice message functionality
-                            },
+                            border: InputBorder.none,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 10,
+                            ),
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                Icons.mic,
+                                color: isDarkMode ? darkPrimaryColor : darkBlue,
+                              ),
+                              onPressed: () {
+                                // Voice message functionality
+                              },
+                            ),
                           ),
-                        ),
-                        style: TextStyle(
-                          color: isDarkMode ? darkTextColor : darkBlue,
+                          style: TextStyle(
+                            color: isDarkMode ? darkTextColor : darkBlue,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: isDarkMode ? darkPrimaryColor : primaryBlue,
-                      borderRadius: BorderRadius.circular(24),
+                    const SizedBox(width: 8),
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: isDarkMode ? darkPrimaryColor : primaryBlue,
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      child: IconButton(
+                        icon: const Icon(Icons.send, color: Colors.white),
+                        onPressed: _sendMessage,
+                      ),
                     ),
-                    child: IconButton(
-                      icon: const Icon(Icons.send, color: Colors.white),
-                      onPressed: _sendMessage,
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -420,11 +427,15 @@ class _MessageBubble extends StatelessWidget {
     final isDarkMode = themeProvider.isDarkMode;
 
     final alignment = isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start;
-    final backgroundColor = isMe 
+    final backgroundColor = isMe
         ? (isDarkMode ? darkPrimaryColor : myBubbleColor)
         : (isDarkMode ? darkSurfaceColor : partnerBubbleColor);
-    final textColor = isMe ? Colors.white : (isDarkMode ? darkTextColor : darkBlue);
-    final timeColor = isDarkMode ? darkHintColor.withOpacity(0.6) : darkBlue.withOpacity(0.6);
+    final textColor = isMe
+        ? Colors.white
+        : (isDarkMode ? darkTextColor : darkBlue);
+    final timeColor = isDarkMode
+        ? darkHintColor.withOpacity(0.6)
+        : darkBlue.withOpacity(0.6);
 
     final borderRadius = BorderRadius.circular(15);
 
@@ -434,10 +445,14 @@ class _MessageBubble extends StatelessWidget {
         crossAxisAlignment: alignment,
         children: [
           Row(
-            mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+            mainAxisAlignment: isMe
+                ? MainAxisAlignment.end
+                : MainAxisAlignment.start,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (!isMe && chatPartnerInitials != null && chatPartnerAvatarColor != null)
+              if (!isMe &&
+                  chatPartnerInitials != null &&
+                  chatPartnerAvatarColor != null)
                 CircleAvatar(
                   radius: 16,
                   backgroundColor: chatPartnerAvatarColor!.withOpacity(0.8),
@@ -473,10 +488,7 @@ class _MessageBubble extends StatelessWidget {
               left: isMe ? 0 : 40.0,
               right: isMe ? 40.0 : 0,
             ),
-            child: Text(
-              time,
-              style: TextStyle(color: timeColor, fontSize: 10),
-            ),
+            child: Text(time, style: TextStyle(color: timeColor, fontSize: 10)),
           ),
         ],
       ),
