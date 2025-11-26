@@ -87,17 +87,6 @@ flutter:
   #   - images/a_dot_ham.jpeg
 
   assets:
-    - lib/images/black_wallet.jfif
-    - lib/images/key.jfif
-    - lib/images/blue_backpack.jfif
-    - lib/images/laptop.jfif
-    - lib/images/bottle.jfif
-    - lib/images/card.jfif
-    - lib/images/logo.png
-
-    - lib/databases/lost_items.json
-    - lib/databases/found_items.json
-    - lib/databases/comments.json
     - lib/images/logo.png
     
 
