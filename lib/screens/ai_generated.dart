@@ -4,6 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 
+// NEW SUPABASE IMPORTS
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
+
 import '../theme_provider.dart';
 
 //***************Using Cloudflare to hide the Api key********************** */
@@ -47,7 +51,16 @@ class _AiImageGeneratorScreenState extends State<AiImageGeneratorScreen> {
   bool _isGeneratingImage = false; // State for loading indicator
   bool _imageGenerated = false; // State to show/hide generated image section
 
-  Uint8List? _imageBytes; // Stores AI-generated image
+  // MODIFIED STATE: Store the public URL instead of bytes
+  String? _imageUrl;
+  // We keep bytes temporarily for upload, but we don't store them long-term
+  Uint8List? _imageBytes;
+
+  // SUPABASE AND UUID INSTANCES
+  final SupabaseClient _supabase = Supabase.instance.client;
+  final Uuid _uuid = const Uuid();
+  // IMPORTANT: Replace this with your actual bucket name in Supabase Storage
+  static const String _bucketName = 'ImagesOfItems';
 
   @override
   void initState() {
@@ -68,7 +81,7 @@ class _AiImageGeneratorScreenState extends State<AiImageGeneratorScreen> {
     });
   }
 
-  //*************function which calls the text to image model (black forest labs flux1. schell*********************** */
+  //*************function which calls the text to image model and uploads to Supabase*********************** */
   Future<void> _generateImage() async {
     final prompt = _descriptionController.text.trim();
     if (prompt.isEmpty) return;
@@ -76,10 +89,12 @@ class _AiImageGeneratorScreenState extends State<AiImageGeneratorScreen> {
     setState(() {
       _isGeneratingImage = true;
       _imageGenerated = false;
-      _imageBytes = null;
+      _imageUrl = null; // Clear previous URL
+      _imageBytes = null; // Clear previous bytes
     });
 
     try {
+      // 1. CALL CLOUDFLARE WORKER TO GENERATE IMAGE BYTES
       final response = await http.post(
         //********using workers URL from cloudflare************** */
         Uri.parse("https://imageapi.251723892.workers.dev"),
@@ -91,25 +106,66 @@ class _AiImageGeneratorScreenState extends State<AiImageGeneratorScreen> {
       );
 
       if (response.statusCode == 200) {
+        _imageBytes = response.bodyBytes;
+
+        // 2. UPLOAD BYTES TO SUPABASE STORAGE
+        final String fileExt = 'png'; // Assuming the AI model returns PNG
+        final String fileName = '${_uuid.v4()}.$fileExt';
+        final String storagePath = 'generated/$fileName'; // 'generated' folder
+
+        await _supabase.storage
+            .from(_bucketName)
+            .uploadBinary(
+              storagePath,
+              _imageBytes!,
+              fileOptions: const FileOptions(
+                upsert: true,
+                cacheControl: '3600',
+              ),
+            );
+
+        // 3. GET THE PUBLIC URL
+        final String publicUrl = _supabase.storage
+            .from(_bucketName)
+            .getPublicUrl(storagePath);
+
         setState(() {
-          _imageBytes = response.bodyBytes;
+          _imageUrl = publicUrl;
           _imageGenerated = true;
           _isGeneratingImage = false;
         });
       } else {
-        print("ERROR: ${response.statusCode} - ${response.body}");
+        debugPrint("ERROR: ${response.statusCode} - ${response.body}");
+        _showErrorSnackBar('Image generation failed: ${response.statusCode}');
         setState(() {
           _isGeneratingImage = false;
           _imageGenerated = false;
         });
       }
+    } on StorageException catch (e) {
+      debugPrint("Supabase Storage Exception: ${e.message}");
+      _showErrorSnackBar('Storage Error: Check bucket name or RLS policy.');
+      setState(() {
+        _isGeneratingImage = false;
+      });
     } catch (e) {
-      print("Exception: $e");
+      debugPrint("Exception: $e");
+      _showErrorSnackBar('An unknown error occurred: $e');
       setState(() {
         _isGeneratingImage = false;
         _imageGenerated = false;
       });
     }
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('🛑 $message'),
+        backgroundColor: Colors.red.shade700,
+        duration: const Duration(seconds: 4),
+      ),
+    );
   }
 
   void _regenerateImage() {
@@ -118,18 +174,21 @@ class _AiImageGeneratorScreenState extends State<AiImageGeneratorScreen> {
       _descriptionController.clear();
       _isDescriptionEmpty = true;
       _isGeneratingImage = false;
-      _imageBytes = null;
+      _imageUrl = null;
     });
   }
 
   void _useThisImage() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('🖼️ Image selected and used!'),
-        duration: Duration(seconds: 2),
-      ),
-    );
-    Navigator.of(context).pop();
+    if (_imageUrl != null) {
+      // Pass the generated URL back to the calling screen
+      Navigator.of(context).pop(_imageUrl);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('🖼️ Image selected and used!'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   @override
@@ -215,6 +274,7 @@ class _AiImageGeneratorScreenState extends State<AiImageGeneratorScreen> {
             ),
             const SizedBox(height: 25),
             if (_imageGenerated) ...[
+              // Updated to use the URL state
               _buildGeneratedImageSection(
                 mainBlue,
                 darkBlue,
@@ -223,6 +283,9 @@ class _AiImageGeneratorScreenState extends State<AiImageGeneratorScreen> {
               ),
               const SizedBox(height: 25),
             ],
+            if (_isGeneratingImage)
+              _buildLoadingIndicator(), // Show loading outside the image card
+            const SizedBox(height: 25),
             _buildProTipsCard(
               mainBlue,
               darkBlue,
@@ -233,6 +296,19 @@ class _AiImageGeneratorScreenState extends State<AiImageGeneratorScreen> {
             _buildBackButton(lightBlue, darkBlue, scaffoldBackground),
           ],
         ),
+      ),
+    );
+  }
+
+  // New Loading Widget
+  Widget _buildLoadingIndicator() {
+    return const Center(
+      child: Column(
+        children: [
+          CircularProgressIndicator(),
+          SizedBox(height: 10),
+          Text("Generating image, please wait..."),
+        ],
       ),
     );
   }
@@ -411,6 +487,7 @@ class _AiImageGeneratorScreenState extends State<AiImageGeneratorScreen> {
     );
   }
 
+  // MODIFIED WIDGET: Displays image using Image.network from Supabase URL
   Widget _buildGeneratedImageSection(
     Color mainBlue,
     Color darkBlue,
@@ -479,17 +556,38 @@ class _AiImageGeneratorScreenState extends State<AiImageGeneratorScreen> {
             const SizedBox(height: 15),
             ClipRRect(
               borderRadius: BorderRadius.circular(10),
-              child: _imageBytes != null
-                  ? Image.memory(
-                      _imageBytes!,
+              child: _imageUrl != null
+                  ? Image.network(
+                      // Use Image.network for Supabase URL
+                      _imageUrl!,
                       height: 200,
                       width: double.infinity,
                       fit: BoxFit.cover,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return Container(
+                          height: 200,
+                          color: lightBlue.withOpacity(0.7),
+                          child: const Center(
+                            child: CircularProgressIndicator(),
+                          ),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        height: 200,
+                        color: Colors.red.shade100,
+                        child: Center(
+                          child: Text(
+                            'Image Load Error: $error',
+                            style: TextStyle(color: Colors.red),
+                          ),
+                        ),
+                      ),
                     )
                   : Container(
                       height: 200,
                       color: lightBlue.withOpacity(0.5),
-                      child: const Center(child: Text('No image generated')),
+                      child: const Center(child: Text('No image URL')),
                     ),
             ),
             const SizedBox(height: 20),

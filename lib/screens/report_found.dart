@@ -7,6 +7,8 @@ import 'upload_image.dart';
 import '../theme_provider.dart'; // Import the ThemeProvider
 import 'bottom_navigation.dart';
 
+import 'package:tracelink/firebase_service.dart';
+
 final supabase = Supabase.instance.client;
 
 // --- Color Palette for Blue Theme (Used as Primary/Accent) ---
@@ -22,6 +24,36 @@ class ReportFoundItemScreen extends StatefulWidget {
 }
 
 class _ReportFoundItemScreenState extends State<ReportFoundItemScreen> {
+  // Map for Firebase data: 'fullName', 'studentId', 'email' are expected keys
+  Map<String, dynamic>? userData;
+  bool isLoading = true; // Loading state
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData(); // Load real data when screen starts
+  }
+
+  // This will refresh the data when you come back to the profile page
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Only reload if data is null or if the provider/route changes significantly
+    // We already load in initState, so calling it here too ensures refresh on navigation back
+    if (userData == null && !isLoading) {
+      _loadUserData();
+    }
+  }
+
+  Future<void> _loadUserData() async {
+    // Assuming FirebaseService.getUserData() fetches the required data (full name, student ID, email)
+    Map<String, dynamic>? data = await FirebaseService.getUserData();
+    setState(() {
+      userData = data;
+      isLoading = false;
+    });
+  }
+
   // Global key for the form
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
@@ -77,6 +109,10 @@ class _ReportFoundItemScreenState extends State<ReportFoundItemScreen> {
     if (!_formKey.currentState!.validate()) {
       return; // Stop submission if validation fails
     }
+    // Include reporter information in the postData
+    final String reporterName = userData?['fullName'] ?? 'Unknown Reporter';
+    final String reporterEmail = userData?['email'] ?? 'unknown@example.com';
+    final String reporterStudentId = userData?['studentId'] ?? 'N/A';
 
     try {
       // 1. Prepare the data Map
@@ -91,6 +127,9 @@ class _ReportFoundItemScreenState extends State<ReportFoundItemScreen> {
         'Image': _uploadedImageUrl, // Can be null
         // Use ?? 'anonymous' if the user might not be logged in, otherwise just null/omitted
         //'User Id': supabase.auth.currentUser,
+        'User Name': reporterName,
+        'User Email': reporterEmail,
+        'User ID': reporterStudentId,
       };
 
       // 2. Insert data into the 'Found' table

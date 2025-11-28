@@ -5,8 +5,6 @@ import '../theme_provider.dart';
 import '../supabase_lost_service.dart'; // 🌟 Import the new service
 import '../supabase_found_service.dart'; // 🌟 Import the new service
 
-// Assuming these are defined in their respective files
-import 'home.dart';
 import 'messages.dart';
 import 'claim_submit.dart';
 
@@ -29,6 +27,10 @@ class Item {
   final DateTime datePosted; // Generalizing from dateLost/dateFound
   final String imageUrl; // Matches 'Image' (the URL)
   final String status;
+  final String userInitials;
+  final String userName; // 🌟 Maps to 'Reporter Name'
+  final String userEmail; // 🌟 NEW: To potentially store the reporter's email
+  final String userId; // 🌟 NEW: To store the 'User ID' (Student ID)
 
   Item({
     required this.itemName,
@@ -39,10 +41,24 @@ class Item {
     required this.datePosted,
     required this.imageUrl,
     required this.status,
+    required this.userInitials,
+    required this.userName,
+    required this.userEmail, // Added
+    required this.userId, // Added
   });
 
   // 🌟 Factory constructor to create an Item from a Supabase row (Map)
   factory Item.fromSupabase(Map<String, dynamic> data) {
+    // --- 🎯 FIX: Extract REAL User Data from Supabase Columns ---
+    final fetchedUserName = data['User Name'] as String? ?? 'Community User';
+    final fetchedUserId = data['User ID'] as String? ?? 'N/A';
+    final fetchedUserEmail = data['User Email'] as String? ?? 'N/A';
+
+    final initials = fetchedUserName
+        .split(' ')
+        .map((e) => e.isNotEmpty ? e[0] : '')
+        .join();
+
     // Determine the correct date key to use based on status
     final dateKey = data['status'] == 'Lost' ? 'Date Lost' : 'Date Found';
 
@@ -57,6 +73,12 @@ class Item {
           DateTime.tryParse(data[dateKey] as String? ?? '') ?? DateTime.now(),
       imageUrl: data['Image'] as String? ?? '', // The image URL
       status: data['status'] as String? ?? 'Unknown',
+      userInitials: initials.isEmpty
+          ? 'CU'
+          : initials.toUpperCase(), // Use computed initials
+      userName: fetchedUserName, // Use Reporter Name
+      userEmail: fetchedUserEmail, // Use Reporter Email
+      userId: fetchedUserId, // Use User ID (Student ID)
     );
   }
 }
@@ -365,30 +387,11 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                 ),
               ),
             ),
-            // Top Right Bookmark/Flag Button
-            Positioned(
-              top:
-                  MediaQuery.of(context).padding.top +
-                  10, // Adjust for status bar
-              right: 10,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: _getAppBarIconBackground(isDarkMode),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: IconButton(
-                  icon: Icon(Icons.flag_outlined, color: primaryTextColor),
-                  onPressed: () {
-                    // Handle flag/bookmark action
-                  },
-                ),
-              ),
-            ),
           ],
         ),
         // Details card overlaying the bottom of the image
         Transform.translate(
-          offset: const Offset(0, -30), // Pull the card up
+          offset: const Offset(0, -5), // Pull the card up
           child: Container(
             margin: const EdgeInsets.symmetric(horizontal: 20),
             padding: const EdgeInsets.all(20),
@@ -489,14 +492,17 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
     Color cardOutlineColor,
     Item item, // 🎯 Use the Item object
   ) {
-    // Note: The "Posted By" information is mocked as the Supabase table data doesn't contain a user name.
-    // In a real app, you would fetch the user's details (e.g., John Doe) using the item's poster ID.
-    const String mockUserName = 'John Doe';
-    const String mockUserStatus = 'Posted 2 hours ago';
-    final String initials = mockUserName
-        .split(' ')
-        .map((e) => e.isNotEmpty ? e[0].toUpperCase() : '')
-        .join();
+    // ❌ OLD INCORRECT CODE:
+    // final String initials = Item.userName
+    //     .split(' ')
+    //     .map((e) => e.isNotEmpty ? e[0].toUpperCase() : '')
+    //     .join();
+
+    // The initials are already correctly calculated and stored in item.userInitials
+
+    // We will hardcode 'Student' for the status, as this data isn't provided
+    // in the Item model (only Name, ID, Email).
+    const String userStatus = 'Student';
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -538,7 +544,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                 ),
                 child: Center(
                   child: Text(
-                    initials, // 🎯 Display initials
+                    item.userInitials, // ✅ Display item's initials
                     style: const TextStyle(
                       color: Colors.white, // White Text on bright blue
                       fontWeight: FontWeight.bold,
@@ -554,7 +560,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      mockUserName, // 🎯 Display User Name
+                      item.userName, // ✅ Display User Name from item object
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -562,12 +568,27 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                       ),
                     ),
                     Text(
-                      mockUserStatus, // 🎯 Display User Status
+                      userStatus, // 🎯 Display User Status (Hardcoded for now)
                       style: TextStyle(
                         color: primaryTextColor.withOpacity(
                           0.8,
                         ), // Dynamic Text
                         fontSize: 14,
+                      ),
+                    ),
+                    // Display User ID (Student ID) and Email
+                    Text(
+                      'ID: ${item.userId}', // ✅ Display User ID from item object
+                      style: TextStyle(
+                        color: primaryTextColor.withOpacity(0.6),
+                        fontSize: 12,
+                      ),
+                    ),
+                    Text(
+                      item.userEmail, // ✅ Display User Email from item object
+                      style: TextStyle(
+                        color: primaryTextColor.withOpacity(0.6),
+                        fontSize: 12,
                       ),
                     ),
                   ],

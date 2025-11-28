@@ -1,4 +1,5 @@
 // report_lost.dart
+import 'package:tracelink/firebase_service.dart';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -37,6 +38,36 @@ class ReportLostItemScreen extends StatefulWidget {
 }
 
 class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
+  // Map for Firebase data: 'fullName', 'studentId', 'email' are expected keys
+  Map<String, dynamic>? userData;
+  bool isLoading = true; // Loading state
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData(); // Load real data when screen starts
+  }
+
+  // This will refresh the data when you come back to the profile page
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Only reload if data is null or if the provider/route changes significantly
+    // We already load in initState, so calling it here too ensures refresh on navigation back
+    if (userData == null && !isLoading) {
+      _loadUserData();
+    }
+  }
+
+  Future<void> _loadUserData() async {
+    // Assuming FirebaseService.getUserData() fetches the required data (full name, student ID, email)
+    Map<String, dynamic>? data = await FirebaseService.getUserData();
+    setState(() {
+      userData = data;
+      isLoading = false;
+    });
+  }
+
   // --- Dropdown State & Data ---
   String? _selectedCategory;
   final List<String> _categories = const [
@@ -123,30 +154,31 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
       return;
     }
 
-    // 💡 _uploadedImageUrl already contains the public URL of the image
-    // uploaded to the Supabase 'Lost' bucket, as set by _navigateAndHandleImage.
+    // Include reporter information in the postData
+    final String reporterName = userData?['fullName'] ?? 'Unknown Reporter';
+    final String reporterEmail = userData?['email'] ?? 'unknown@example.com';
+    final String reporterStudentId = userData?['studentId'] ?? 'N/A';
 
     try {
       // 1. Prepare the data Map
       final postData = {
         'Item Name': _itemNameController.text.trim(),
-
         'Category': _selectedCategory,
-
         'Color': _colorController.text.trim(),
-
         'Description': _descriptionController.text.trim(),
-
         'Location': _locationController.text.trim(),
-
         'Date Lost': _selectedDate
             ?.toIso8601String(), // ISO 8601 format for database
-
         'Image': _uploadedImageUrl, // Can be null
+        // --- NEW: Add Reporter Info to the submission ---
+        'User Name': reporterName,
+        'User Email': reporterEmail,
+        'User ID': reporterStudentId,
+        // --------------------------------------------------
       };
 
       // 2. Insert data into the 'Lost' table
-      // Ensure the 'Lost' table has an 'image_url' column (type: text/varchar)
+      // Ensure the 'Lost' table has columns for all fields, including the new Reporter ones.
       final response = await supabase.from('Lost').insert(postData).select();
 
       print('Report submitted successfully. ID: ${response.first['id']}');
@@ -227,7 +259,38 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
     );
   }
 
-  // --- Build Method and Helper Widgets (The rest of the UI remains the same) ---
+  Widget _buildInfoRow({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: color.withOpacity(0.7)),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              color: color.withOpacity(0.8),
+            ),
+          ),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(color: color),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  // --- END NEW HELPER WIDGETS ---
 
   @override
   Widget build(BuildContext context) {

@@ -1,3 +1,4 @@
+// community_feed.dart
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:provider/provider.dart'; // Import provider to access the theme
@@ -6,7 +7,7 @@ import '../supabase_lost_service.dart'; // 🌟 Import the new service
 import '../supabase_found_service.dart'; // 🌟 Import the new service
 
 // Assuming these files exist in your project structure
-import 'home.dart';
+import 'bottom_navigation.dart';
 import 'item_description.dart';
 
 // --- Define the NEW Color Palette ---
@@ -18,7 +19,9 @@ const Color lightBlueBackground = Color(0xFFE3F2FD); // Very Light Blue
 class Item {
   // Column names from your Supabase table
   final String userInitials;
-  final String userName;
+  final String userName; // 🌟 Maps to 'Reporter Name'
+  final String userEmail; // 🌟 NEW: To potentially store the reporter's email
+  final String userId; // 🌟 NEW: To store the 'User ID' (Student ID)
   final String itemName; // Matches 'Item Name'
   final String category;
   final String color;
@@ -40,6 +43,8 @@ class Item {
   Item({
     required this.userInitials,
     required this.userName,
+    required this.userEmail, // Added
+    required this.userId, // Added
     required this.itemName,
     required this.category,
     required this.color,
@@ -56,19 +61,22 @@ class Item {
 
   // 🌟 Factory constructor to create an Item from a Supabase row (Map)
   factory Item.fromSupabase(Map<String, dynamic> data) {
-    // 🎯 FIX 2: Default user info and placeholder values for missing data
-    // In a real app, user data would be fetched separately via a user_id foreign key
-    final defaultUserName = data['user_id'] != null
-        ? 'User ${data['user_id'].toString().substring(0, 4)}'
-        : 'Community User';
-    final defaultInitials = defaultUserName
+    // --- 🎯 FIX: Extract REAL User Data from Supabase Columns ---
+    final fetchedUserName = data['User Name'] as String? ?? 'Community User';
+    final fetchedUserId = data['User ID'] as String? ?? 'N/A';
+    final fetchedUserEmail = data['User Email'] as String? ?? 'N/A';
+
+    final initials = fetchedUserName
         .split(' ')
         .map((e) => e.isNotEmpty ? e[0] : '')
         .join('');
+    // -------------------------------------------------------------
 
     return Item(
-      userInitials: defaultInitials, // Placeholder/derived
-      userName: defaultUserName, // Placeholder/derived
+      userInitials: initials.isEmpty ? 'CU' : initials, // Use initials
+      userName: fetchedUserName, // Use Reporter Name
+      userEmail: fetchedUserEmail, // Use Reporter Email
+      userId: fetchedUserId, // Use User ID (Student ID)
       itemName: data['Item Name'] as String? ?? 'N/A',
       category: data['Category'] as String? ?? 'N/A',
       color: data['Color'] as String? ?? 'N/A',
@@ -85,17 +93,20 @@ class Item {
       likes: (data['likes'] as int?) ?? 0,
       comments: (data['comments'] as int?) ?? 0,
       isLiked: (data['isLiked'] as bool?) ?? false,
-      isVerified: true, // Placeholder
+      isVerified:
+          fetchedUserId !=
+          'N/A', // Set verified if we successfully fetched a User ID
     );
   }
 
   // Helper method to generate the post text (similar to the old implementation)
   String get postDisplayText {
-    return status == 'Lost' ? '${description}' : '${description}';
+    // Simple description for the feed
+    return description;
   }
 }
 
-// 1. CommunityFeed StatefulWidget
+// 1. CommunityFeed StatefulWidget (No changes needed in State methods except fetching logic is confirmed)
 class CommunityFeed extends StatefulWidget {
   const CommunityFeed({super.key});
 
@@ -275,7 +286,9 @@ class _CommunityFeedState extends State<CommunityFeed> {
                 onPressed: () {
                   Navigator.pushReplacement(
                     context,
-                    MaterialPageRoute(builder: (context) => const HomeScreen()),
+                    MaterialPageRoute(
+                      builder: (context) => const BottomNavScreen(),
+                    ),
                   );
                 },
               ),
@@ -415,6 +428,7 @@ class _FeedPostCard extends StatelessWidget {
     final theme = Theme.of(context);
     final isLost = item.status == 'Lost';
     final Color foundColor = theme.primaryColor;
+    // Use the default color for lost items (secondary in the original, often orange/red)
     final Color lostColor = theme.colorScheme.secondary;
     final Color statusColor = isLost ? lostColor : foundColor;
     final Color initialsColor = foundColor;
@@ -451,7 +465,7 @@ class _FeedPostCard extends StatelessWidget {
                       Row(
                         children: [
                           Text(
-                            item.userName, // Use item user name
+                            item.userName, // Use item user name (Reporter Name)
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               color: bodyTextColor,
@@ -588,11 +602,7 @@ class _FeedPostCard extends StatelessWidget {
                       onTap: onCommentTapped,
                       child: Row(
                         children: [
-                          Icon(
-                            Icons.chat_bubble_outline,
-                            color: bodyTextColor,
-                            size: 24,
-                          ),
+                          Icon(Icons.chat_bubble_outline, color: bodyTextColor),
                           const SizedBox(width: 4),
                           Text(
                             '${item.comments}', // Use item comments
@@ -744,8 +754,7 @@ class _CommentSheetContent extends StatelessWidget {
               onCommentSubmitted: (comment) {
                 onCommentSubmitted(comment);
                 // Important: Close the bottom sheet after submitting the comment.
-                // This is already present in the original code, but kept here for clarity.
-                // Navigator.pop(context); // This logic is in the caller's submit
+                // Navigator.pop(context);
               },
             ),
           ),

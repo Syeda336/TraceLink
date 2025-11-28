@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
+import 'dart:typed_data'; // Required for kIsWeb upload
+import 'dart:io';
 
 // Import the required theme provider
 import '../theme_provider.dart'; // ASSUMING THIS IS THE FILE YOU PROVIDED
-// --- CONDITIONAL IMPORT FIX ---
-import 'dart:io';
 
 // --- DYNAMIC COLOR PALETTE DEFINITION ---
 // Base Colors (Light Mode reference)
@@ -33,15 +35,19 @@ class UploadPhotosScreen extends StatefulWidget {
 }
 
 class _UploadPhotosScreenState extends State<UploadPhotosScreen> {
-  // Stores paths of uploaded images (up to 5)
-  final List<String> _uploadedImagePaths = [];
+  // Stores the public URL of uploaded images (up to 5)
+  final List<String> _uploadedImageUrls = [];
   final ImagePicker _picker = ImagePicker();
   final int _maxPhotos = 5;
 
-  // --- Image Picker Functionality ---
+  // Supabase and UUID initialization
+  final SupabaseClient _supabase = Supabase.instance.client;
+  final Uuid _uuid = const Uuid();
+
+  // --- Image Picker & UPLOAD Functionality (Supabase Integrated) ---
 
   Future<void> _pickImage(ImageSource source) async {
-    if (_uploadedImagePaths.length >= _maxPhotos) {
+    if (_uploadedImageUrls.length >= _maxPhotos) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -55,30 +61,111 @@ class _UploadPhotosScreenState extends State<UploadPhotosScreen> {
     final XFile? pickedFile = await _picker.pickImage(source: source);
 
     if (pickedFile != null) {
-      setState(() {
-        _uploadedImagePaths.add(pickedFile.path);
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('🖼️ Photo uploaded successfully!'),
-          duration: Duration(milliseconds: 1500),
-        ),
-      );
+      // 1. Generate a unique file path for Supabase
+      final String fileExt = pickedFile.name.split('.').last;
+      final String fileName = '${_uuid.v4()}.$fileExt';
+      // Use a folder path structure, e.g., 'public/item-id/filename.jpg'
+      // We'll use a simple 'public/filename.jpg' for this example
+      final String storagePath = 'public/$fileName';
+
+      try {
+        // 2. Upload to Supabase Storage (Bucket name: 'lost_item_images')
+        if (kIsWeb) {
+          // Use uploadBinary for web
+          final Uint8List imageBytes = await pickedFile.readAsBytes();
+          await _supabase.storage
+              .from('ImagesOfItems')
+              .uploadBinary(
+                storagePath,
+                imageBytes,
+                fileOptions: const FileOptions(cacheControl: '3600'),
+              );
+        } else {
+          // Use upload for mobile/desktop
+          final File imageFile = File(pickedFile.path);
+          await _supabase.storage
+              .from('ImagesOfItems')
+              .upload(
+                storagePath,
+                imageFile,
+                fileOptions: const FileOptions(cacheControl: '3600'),
+              );
+        }
+
+        // 3. Get the public URL for display and persistence
+        final String publicUrl = _supabase.storage
+            .from('ImagesOfItems')
+            .getPublicUrl(storagePath);
+
+        setState(() {
+          // Store the public URL instead of the local path
+          _uploadedImageUrls.add(publicUrl);
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('🖼️ Photo uploaded successfully!'),
+            duration: Duration(milliseconds: 1500),
+          ),
+        );
+      } on StorageException catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Supabase Upload Error: ${e.message}'),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error uploading image: $e'),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
     }
   }
 
-  // Function to remove an image
-  void _removeImage(int index) {
+  // Function to remove an image from state AND Supabase Storage
+  void _removeImage(int index) async {
+    final String publicUrl = _uploadedImageUrls[index];
+
+    final String? storagePath = _getStoragePathFromUrl(publicUrl);
+
+    if (storagePath != null) {
+      try {
+        // 1. Remove from Supabase Storage
+        await _supabase.storage.from('lost_item_images').remove([storagePath]);
+      } catch (e) {
+        debugPrint('Error removing file from Supabase: $e');
+      }
+    }
+
+    // 2. Remove from local state
     setState(() {
-      _uploadedImagePaths.removeAt(index);
+      _uploadedImageUrls.removeAt(index);
     });
+  }
+
+  // Helper to extract the storage path (e.g., 'public/filename.jpg') from a public URL
+  String? _getStoragePathFromUrl(String url) {
+    final String bucket = 'lost_item_images/public/';
+    final int bucketIndex = url.indexOf(bucket);
+    if (bucketIndex != -1) {
+      // Start the path after the bucket and 'public' folder
+      final String fullPath = url.substring(bucketIndex + bucket.length);
+      // Supabase remove expects the path relative to the bucket,
+      // which in this case is likely the path *including* the folder.
+      return 'public/$fullPath';
+    }
+    return null;
   }
 
   // Function to handle "Continue" logic
   void _continue() {
-    if (_uploadedImagePaths.isNotEmpty) {
-      // Returns the path of the *first* uploaded image to the previous screen.
-      Navigator.of(context).pop(_uploadedImagePaths.first);
+    if (_uploadedImageUrls.isNotEmpty) {
+      // Returns the URL of the *first* uploaded image to the previous screen.
+      Navigator.of(context).pop(_uploadedImageUrls.first);
     }
   }
 
@@ -107,7 +194,7 @@ class _UploadPhotosScreenState extends State<UploadPhotosScreen> {
         ? darkTextColor.withOpacity(0.7)
         : Colors.white70;
 
-    final int photoCount = _uploadedImagePaths.length;
+    final int photoCount = _uploadedImageUrls.length; // Use URL list
     final bool isButtonActive = photoCount > 0;
 
     final Color buttonTextColor = isButtonActive
@@ -224,7 +311,7 @@ class _UploadPhotosScreenState extends State<UploadPhotosScreen> {
     );
   }
 
-  // --- Helper Widgets (Updated to accept dynamic colors) ---
+  // --- Helper Widgets ---
 
   Widget _buildPhotoTipsCard(
     Color darkBlue,
@@ -398,37 +485,34 @@ class _UploadPhotosScreenState extends State<UploadPhotosScreen> {
         childAspectRatio: 1.0,
       ),
       itemBuilder: (context, index) {
-        final String imagePath = _uploadedImagePaths[index];
-        Widget imageWidget;
+        // Retrieve the Supabase public URL
+        final String imageUrl = _uploadedImageUrls[index];
 
-        if (kIsWeb) {
-          // Placeholder for web since Image.file is not supported
-          imageWidget = Container(
-            color: lightBlueBackground.withOpacity(0.7), // Dynamic color
-            child: Center(
-              child: Icon(
-                Icons.image_not_supported,
-                color: darkBlue,
-                size: 30,
-              ), // Dynamic color
-            ),
-          );
-        } else {
-          // Use Image.file for mobile/desktop. File is available because of 'dart:io' import.
-          imageWidget = Image.file(
-            File(imagePath),
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) => Container(
-              color: Colors.red.shade100,
-              child: const Center(
-                child: Text(
-                  "File Error",
-                  style: TextStyle(color: Colors.red, fontSize: 12),
-                ),
+        final Widget imageWidget = Image.network(
+          imageUrl,
+          fit: BoxFit.cover,
+          // Add a loading and error state for network image
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return Center(
+              child: CircularProgressIndicator(
+                value: loadingProgress.expectedTotalBytes != null
+                    ? loadingProgress.cumulativeBytesLoaded /
+                          loadingProgress.expectedTotalBytes!
+                    : null,
+              ),
+            );
+          },
+          errorBuilder: (context, error, stackTrace) => Container(
+            color: Colors.red.shade100,
+            child: const Center(
+              child: Text(
+                "Load Error",
+                style: TextStyle(color: Colors.red, fontSize: 12),
               ),
             ),
-          );
-        }
+          ),
+        );
 
         return ClipRRect(
           borderRadius: BorderRadius.circular(10),
