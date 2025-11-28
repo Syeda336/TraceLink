@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'welcome_3.dart'; // Import the next screen
+import 'login_screen.dart';
 
 class Welcome2Screen extends StatelessWidget {
   const Welcome2Screen({super.key});
@@ -153,8 +154,13 @@ class Welcome2Screen extends StatelessWidget {
               // --- Skip Link ---
               TextButton(
                 onPressed: () {
-                  // TODO: Implement skip functionality, e.g., navigate to the home screen
-                  print('Skip pressed');
+                  // 2. Navigation logic: Push the Welcome2Screen
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const LoginScreen(),
+                    ),
+                  );
                 },
                 child: const Text(
                   'Skip',

@@ -24,10 +24,6 @@ const Color darkDarkBlue = Color(0xFF90CAF9);
 const Color darkBackground = Color(0xFF121212);
 const Color darkInputBackground = Color(0xFF1E1E1E);
 
-// --- Placeholder Classes for Imports ---
-// If these aren't defined elsewhere, you'll need to define them or remove the imports.
-// For the sake of completeness, I'll add minimal definitions here:
-
 // -------------------------------------------------------------------
 
 class ReportLostItemScreen extends StatefulWidget {

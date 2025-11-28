@@ -4,7 +4,6 @@ import 'package:provider/provider.dart'; // Import provider
 import 'package:tracelink/firebase_service.dart';
 import '../theme_provider.dart'; // Import your ThemeProvider
 import 'settings.dart';
-import 'accessibility.dart';
 import 'logout.dart';
 import 'edit_profile.dart';
 import 'rewards.dart';
@@ -19,8 +18,11 @@ const Color darkBackground = Color(0xFF121212); // Darker background for body
 const Color darkBlueText = Color(0xFF1E3A8A);
 const Color lightBlueText = Color(0xFFE0E0E0); // Light text for Dark Mode
 
-// ---  USER DATA MODEL ---
+// --- Static Icon Colors ---
+const Color _deepPurpleColor = Color(0xFF673AB7);
+const Color _primaryColor = Color(0xFF00B0FF); // Bright Blue
 
+// --- USER DATA MODEL ---
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -86,7 +88,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (isLoading) {
       return Scaffold(
         backgroundColor: bodyBackgroundColor,
-        body: Center(child: CircularProgressIndicator()),
+        body: const Center(child: CircularProgressIndicator()),
       );
     }
 
@@ -236,16 +238,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             fontSize: 16,
                           ),
                         ),
-
-                        //adding phone number if available (new) remove after testing
-                        /* if (userData?['phoneNumber'] != null && userData!['phoneNumber'].isNotEmpty)
-                            Text(
-                              'Phone: ${userData!['phoneNumber']}',
-                              style: const TextStyle(
-                                color: Colors.white70,
-                                fontSize: 16,
-                              ),
-                            ), */
 
                         // Verified Student Badge
                         Container(
@@ -415,17 +407,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const SizedBox(height: 10),
 
-                    // Language & Accessibility
-                    _SettingsItem(
-                      title: 'Language & Accessibility',
-                      subtitle: 'Change language and accessibility options',
-                      icon: Icons.language,
-                      iconColor: const Color.fromARGB(255, 154, 47, 173),
-                      isOutlined: true,
-                      cardBackgroundColor: cardBackgroundColor, // Dynamic
-                      onTap: () {
-                        _navigateTo(context, const AccessibilityScreen());
-                      },
+                    // Language Dropdown (REPLACEMENT FOR Language & Accessibility)
+                    _LanguageSettingTile(
+                      cardBackgroundColor: cardBackgroundColor,
                     ),
 
                     const SizedBox(height: 30),
@@ -535,6 +519,7 @@ class _SettingsItem extends StatelessWidget {
   final bool isOutlined;
   final Color cardBackgroundColor; // New parameter
   final VoidCallback? onTap;
+  final Widget? trailingWidget; // New optional parameter for custom trailing
 
   const _SettingsItem({
     required this.title,
@@ -544,6 +529,7 @@ class _SettingsItem extends StatelessWidget {
     this.isOutlined = false,
     required this.cardBackgroundColor,
     this.onTap,
+    this.trailingWidget,
   });
 
   @override
@@ -561,6 +547,12 @@ class _SettingsItem extends StatelessWidget {
       51,
       134,
     ).withOpacity(0.6);
+
+    final actualTrailing =
+        trailingWidget ??
+        (onTap != null
+            ? const Icon(Icons.arrow_forward_ios, color: Colors.grey, size: 16)
+            : null);
 
     if (isOutlined) {
       // Outlined Card Style
@@ -610,7 +602,7 @@ class _SettingsItem extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(Icons.arrow_forward_ios, color: Colors.grey, size: 16),
+              if (actualTrailing != null) actualTrailing,
             ],
           ),
         ),
@@ -633,12 +625,134 @@ class _SettingsItem extends StatelessWidget {
         style: TextStyle(fontWeight: FontWeight.bold, color: mainTextColor),
       ),
       subtitle: Text(subtitle, style: TextStyle(color: subTextColor)),
-      trailing: const Icon(
-        Icons.arrow_forward_ios,
-        color: Colors.grey,
-        size: 16,
-      ),
+      trailing: actualTrailing,
       onTap: onTap,
+    );
+  }
+}
+
+// --- NEW Widget for Language Setting with Dropdown (Stateful to manage selection) ---
+
+class _LanguageSettingTile extends StatefulWidget {
+  final Color cardBackgroundColor;
+
+  const _LanguageSettingTile({required this.cardBackgroundColor});
+
+  @override
+  State<_LanguageSettingTile> createState() => __LanguageSettingTileState();
+}
+
+class __LanguageSettingTileState extends State<_LanguageSettingTile> {
+  // Initial values for settings
+  String _selectedLanguage = 'English'; // Default
+  final List<String> _languages = ['English', 'Urdu'];
+
+  @override
+  Widget build(BuildContext context) {
+    // The dark blue outline color
+    final outlineColor = const Color.fromARGB(
+      255,
+      20,
+      51,
+      134,
+    ).withOpacity(0.6);
+
+    // Determine text colors dynamically based on the card background
+    final mainTextColor = widget.cardBackgroundColor == Colors.white
+        ? const Color.fromARGB(255, 17, 48, 134)
+        : Colors.white;
+
+    return Container(
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: widget.cardBackgroundColor, // Dynamic background
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(
+          color: outlineColor, // Static outline, or could be dynamic
+          width: 1.5,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: _deepPurpleColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(
+              Icons.language,
+              color: _deepPurpleColor,
+              size: 28,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Language',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: mainTextColor, // Dynamic Text Color
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                // Dropdown Button
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10.0),
+                  decoration: BoxDecoration(
+                    color: mainTextColor.withOpacity(
+                      0.05,
+                    ), // Light background for dropdown
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: _primaryColor.withOpacity(0.5)),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      isExpanded: true,
+                      value: _selectedLanguage,
+                      icon: const Icon(
+                        Icons.keyboard_arrow_down,
+                        color: _primaryColor,
+                      ),
+                      dropdownColor: widget
+                          .cardBackgroundColor, // Dynamic dropdown background
+                      style: TextStyle(color: mainTextColor, fontSize: 16),
+                      items: _languages.map<DropdownMenuItem<String>>((
+                        String item,
+                      ) {
+                        return DropdownMenuItem<String>(
+                          value: item,
+                          child: Text(
+                            item,
+                            style: TextStyle(color: mainTextColor),
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (newValue) {
+                        if (newValue != null) {
+                          setState(() {
+                            _selectedLanguage = newValue;
+                          });
+                          // TODO: Implement actual language change logic here
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Language set to $newValue'),
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
