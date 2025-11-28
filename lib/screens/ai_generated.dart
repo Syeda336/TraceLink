@@ -4,13 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 
-// NEW SUPABASE IMPORTS
+// SUPABASE IMPORTS
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
 import '../theme_provider.dart';
-
-//***************Using Cloudflare to hide the Api key********************** */
 
 // --- DYNAMIC COLOR PALETTE DEFINITIONS ---
 
@@ -51,9 +49,9 @@ class _AiImageGeneratorScreenState extends State<AiImageGeneratorScreen> {
   bool _isGeneratingImage = false; // State for loading indicator
   bool _imageGenerated = false; // State to show/hide generated image section
 
-  // MODIFIED STATE: Store the public URL instead of bytes
+  // State: Store the public URL
   String? _imageUrl;
-  // We keep bytes temporarily for upload, but we don't store them long-term
+  // We keep bytes temporarily for upload
   Uint8List? _imageBytes;
 
   // SUPABASE AND UUID INSTANCES
@@ -94,7 +92,7 @@ class _AiImageGeneratorScreenState extends State<AiImageGeneratorScreen> {
     });
 
     try {
-      // 1. CALL CLOUDFLARE WORKER TO GENERATE IMAGE BYTES
+      // 1. CALL CLOUDFLARE WORKER FOR IMAGE GENERATION
       final response = await http.post(
         //********using workers URL from cloudflare************** */
         Uri.parse("https://imageapi.251723892.workers.dev"),
@@ -108,13 +106,14 @@ class _AiImageGeneratorScreenState extends State<AiImageGeneratorScreen> {
       if (response.statusCode == 200) {
         _imageBytes = response.bodyBytes;
 
-        // 2. UPLOAD BYTES TO SUPABASE STORAGE
-        final String fileExt = 'png'; // Assuming the AI model returns PNG
+        // 2. UPLOAD BYTES TO SUPABASE STORAGE BUCKET
+        final String fileExt = 'png';
         final String fileName = '${_uuid.v4()}.$fileExt';
-        final String storagePath = 'generated/$fileName'; // 'generated' folder
+        final String storagePath =
+            'public/$fileName'; // Ensure 'public' directory exists or is appropriate
 
         await _supabase.storage
-            .from(_bucketName)
+            .from(_bucketName) // Uploads to 'ImagesOfItems' bucket
             .uploadBinary(
               storagePath,
               _imageBytes!,
@@ -143,8 +142,15 @@ class _AiImageGeneratorScreenState extends State<AiImageGeneratorScreen> {
         });
       }
     } on StorageException catch (e) {
+      // This catches RLS errors or wrong bucket names
       debugPrint("Supabase Storage Exception: ${e.message}");
-      _showErrorSnackBar('Storage Error: Check bucket name or RLS policy.');
+      _showErrorSnackBar(
+        'Storage Error: Check bucket name or RLS policy for $_bucketName.',
+      );
+      setState(() {
+        _isGeneratingImage = false;
+      });
+    } on PostgrestException catch (e) {
       setState(() {
         _isGeneratingImage = false;
       });
@@ -274,7 +280,6 @@ class _AiImageGeneratorScreenState extends State<AiImageGeneratorScreen> {
             ),
             const SizedBox(height: 25),
             if (_imageGenerated) ...[
-              // Updated to use the URL state
               _buildGeneratedImageSection(
                 mainBlue,
                 darkBlue,
@@ -283,8 +288,7 @@ class _AiImageGeneratorScreenState extends State<AiImageGeneratorScreen> {
               ),
               const SizedBox(height: 25),
             ],
-            if (_isGeneratingImage)
-              _buildLoadingIndicator(), // Show loading outside the image card
+            if (_isGeneratingImage) _buildLoadingIndicator(),
             const SizedBox(height: 25),
             _buildProTipsCard(
               mainBlue,
