@@ -1,57 +1,40 @@
-import com.android.build.gradle.BaseExtension
-
-buildscript {
-    repositories {
-        google()
-        mavenCentral()
-    }
-    dependencies {
-        // Ensure this version matches your setup (7.4.2 or 8.x)
-        classpath("com.android.tools.build:gradle:7.4.2")
-        classpath("com.google.gms:google-services:4.3.15")
-    }
+plugins {
+    id("com.android.application")
+    id("kotlin-android")
+    id("dev.flutter.flutter-gradle-plugin")
+    id("com.google.gms.google-services")
 }
 
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
+android {
+    namespace = "com.example.tracelink"
+    compileSdk = flutter.compileSdkVersion
+    ndkVersion = flutter.ndkVersion
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+
     }
-}
 
-val newBuildDir: Directory = rootProject.layout.buildDirectory
-    .dir("../../build")
-    .get()
-rootProject.layout.buildDirectory.value(newBuildDir)
+    kotlinOptions {
+        jvmTarget = "1.8"
+    }
 
-subprojects {
-    val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
-    project.layout.buildDirectory.value(newSubprojectBuildDir)
+    defaultConfig {
+        applicationId = "com.example.tracelink"
+        minSdk = flutter.minSdkVersion
+        targetSdk = flutter.targetSdkVersion
+        versionCode = flutter.versionCode
+        versionName = flutter.versionName
+    }
 
-    // --- FIX: Inject Desugaring into the 'app' module ---
-    if (project.name == "app") {
-        project.afterEvaluate {
-            // 1. Enable Core Library Desugaring in Compile Options
-            project.extensions.configure<BaseExtension> {
-                compileOptions {
-                    isCoreLibraryDesugaringEnabled = true
-                    // Ensure Java 8 compatibility
-                    sourceCompatibility = JavaVersion.VERSION_1_8
-                    targetCompatibility = JavaVersion.VERSION_1_8
-                }
-            }
-
-            // 2. Add the required Desugaring Dependency
-            project.dependencies.add("coreLibraryDesugaring", "com.android.tools:desugar_jdk_libs:2.0.4")
+    buildTypes {
+        release {
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 }
 
-subprojects {
-    project.evaluationDependsOn(":app")
-}
-
-// Ensure clean task is registered only once
-tasks.register<Delete>("clean") {
-    delete(rootProject.layout.buildDirectory)
+flutter {
+    source = "../.."
 }
