@@ -1,12 +1,10 @@
 // community_feed.dart
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:tracelink/firebase_service.dart';
-
-// MOCK SERVICES (ASSUMED TO EXIST)
-import '../supabase_lost_service.dart';
-import '../supabase_found_service.dart';
-import '../supabase_comments_service.dart';
+import 'package:provider/provider.dart'; // Import provider to access the theme
+import '../theme_provider.dart'; // Import your dynamic theme provider
+import '../supabase_lost_service.dart'; // 🌟 Import the new service
+import '../supabase_found_service.dart'; // 🌟 Import the new service
 
 // Assuming these files exist in your project structure
 import 'bottom_navigation.dart';
@@ -17,33 +15,36 @@ const Color primaryBlue = Color(0xFF42A5F5); // Bright Blue
 const Color darkBlue = Color(0xFF1977D2); // Dark Blue
 const Color lightBlueBackground = Color(0xFFE3F2FD); // Very Light Blue
 
-// --- 1. Item Model Definition (No changes needed here) ---
+// 🎯 FIX 1: Complete the Item model with sensible defaults and methods
 class Item {
   // Column names from your Supabase table
   final String userInitials;
-  final String userName; // Maps to 'Reporter Name'
-  final String userEmail; // Reporter's email
-  final String userId; // 'User ID' (Student ID)
+  final String userName; // 🌟 Maps to 'Reporter Name'
+  final String userEmail; // 🌟 NEW: To potentially store the reporter's email
+  final String userId; // 🌟 NEW: To store the 'User ID' (Student ID)
   final String itemName; // Matches 'Item Name'
   final String category;
   final String color;
   final String description;
   final String location;
-  final DateTime dateLost;
-  final String imageUrl;
+  final DateTime dateLost; // Matches 'Date Lost' (or Date Found)
+  final String imageUrl; // Matches 'Image' (the URL)
+
   final String status; // 'Lost' or 'Found'
 
   // Variables for local state management (likes/comments)
   int likes;
   int comments;
   bool isLiked;
+
+  // Added a placeholder for verification
   final bool isVerified;
 
   Item({
     required this.userInitials,
     required this.userName,
-    required this.userEmail,
-    required this.userId,
+    required this.userEmail, // Added
+    required this.userId, // Added
     required this.itemName,
     required this.category,
     required this.color,
@@ -52,54 +53,60 @@ class Item {
     required this.dateLost,
     required this.imageUrl,
     required this.status,
-    this.likes = 0,
-    this.comments = 0,
-    this.isLiked = false,
-    this.isVerified = true,
+    this.likes = 0, // sensible default
+    this.comments = 0, // sensible default
+    this.isLiked = false, // sensible default
+    this.isVerified = true, // sensible default
   });
 
-  // Factory constructor to create an Item from a Supabase row (Map)
+  // 🌟 Factory constructor to create an Item from a Supabase row (Map)
   factory Item.fromSupabase(Map<String, dynamic> data) {
+    // --- 🎯 FIX: Extract REAL User Data from Supabase Columns ---
     final fetchedUserName = data['User Name'] as String? ?? 'Community User';
-    final fetchedUserId =
-        data['id']?.toString() ?? data['User ID'] as String? ?? 'N/A';
+    final fetchedUserId = data['User ID'] as String? ?? 'N/A';
     final fetchedUserEmail = data['User Email'] as String? ?? 'N/A';
 
-    // Generate initials
     final initials = fetchedUserName
         .split(' ')
         .map((e) => e.isNotEmpty ? e[0] : '')
         .join('');
+    // -------------------------------------------------------------
 
     return Item(
-      userInitials: initials.isEmpty ? 'CU' : initials,
-      userName: fetchedUserName,
-      userEmail: fetchedUserEmail,
-      userId: fetchedUserId,
+      userInitials: initials.isEmpty ? 'CU' : initials, // Use initials
+      userName: fetchedUserName, // Use Reporter Name
+      userEmail: fetchedUserEmail, // Use Reporter Email
+      userId: fetchedUserId, // Use User ID (Student ID)
       itemName: data['Item Name'] as String? ?? 'N/A',
       category: data['Category'] as String? ?? 'N/A',
       color: data['Color'] as String? ?? 'N/A',
       description: data['Description'] as String? ?? 'N/A',
       location: data['Location'] as String? ?? 'N/A',
+      // Supabase dates are usually ISO strings. Using 'Date Lost' for both for simplicity.
       dateLost:
           DateTime.tryParse(data['Date Lost'] as String? ?? '') ??
           DateTime.tryParse(data['Date Found'] as String? ?? '') ??
           DateTime.now(),
-      imageUrl: data['Image'] as String? ?? '',
+      imageUrl: data['Image'] as String? ?? '', // The image URL
       status: data['status'] as String? ?? 'Unknown',
+      // Simulating likes/comments (In a real app, these would be fetched from separate tables)
       likes: (data['likes'] as int?) ?? 0,
       comments: (data['comments'] as int?) ?? 0,
       isLiked: (data['isLiked'] as bool?) ?? false,
-      isVerified: fetchedUserId != 'N/A',
+      isVerified:
+          fetchedUserId !=
+          'N/A', // Set verified if we successfully fetched a User ID
     );
   }
 
+  // Helper method to generate the post text (similar to the old implementation)
   String get postDisplayText {
+    // Simple description for the feed
     return description;
   }
 }
 
-// --- 2. CommunityFeed StatefulWidget ---
+// 1. CommunityFeed StatefulWidget (No changes needed in State methods except fetching logic is confirmed)
 class CommunityFeed extends StatefulWidget {
   const CommunityFeed({super.key});
 
@@ -108,57 +115,49 @@ class CommunityFeed extends StatefulWidget {
 }
 
 class _CommunityFeedState extends State<CommunityFeed> {
-  // 🎯 FIX 1: Renamed to hold current, logged-in user data for commenting
-  Map<String, dynamic>? _currentCommenterData;
-
+  // 🎯 FIX 3: Use the correct list name and Item model
   bool _isLoading = true;
   bool _hasError = false;
-  List<Item> _masterItems = [];
+  List<Item> _masterItems = []; // Correct list for fetched items
 
-  // 🎯 FIX 2: Map for simulating comments locally. Key is post index.
-  // Value is a list of formatted comments (e.g., "UserName: Comment Text")
+  // 🎯 FIX 4: Use a Map<String, List<String>> to store comments,
+  // mapping an item's unique ID/index to its comments. Using index for simplicity.
   late Map<int, List<String>> _commentData;
 
   @override
   void initState() {
     super.initState();
     _commentData = {};
-    // 🎯 FIX 3: Combine user data and feed data fetching
-    _loadInitialData();
+    _fetchItemsFromSupabase(); // 🌟 Start data fetching
   }
 
-  // 🎯 FIX 4: Redundant lifecycle methods removed.
+  // Helper to simulate time ago logic
+  String _timeAgo(DateTime date) {
+    final difference = DateTime.now().difference(date);
+    if (difference.inDays > 7) {
+      return '${(difference.inDays / 7).floor()} weeks ago';
+    } else if (difference.inDays > 0) {
+      return '${difference.inDays} days ago';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours} hours ago';
+    } else {
+      return 'Just now';
+    }
+  }
 
-  // 🌟 NEW/CORRECTED: Single function to load both user and item data
-  Future<void> _loadInitialData() async {
-    if (!mounted) return;
-
+  // 🌟 NEW: Fetch data from Supabase (Provided in the prompt, kept for completeness)
+  Future<void> _fetchItemsFromSupabase() async {
     setState(() {
       _isLoading = true;
       _hasError = false;
     });
 
     try {
-      // --- 1. Load Current User Data from Firebase ---
-      final userDataFuture = FirebaseService.getUserData();
-
-      // --- 2. Load Feed Items from Supabase ---
       final lostItemsFuture = SupabaseLostService.fetchLostItems();
       final foundItemsFuture = SupabaseFoundService.fetchFoundItems();
 
-      // Wait for all data simultaneously
-      final results = await Future.wait([
-        userDataFuture,
-        lostItemsFuture,
-        foundItemsFuture,
-      ]);
-
-      final Map<String, dynamic>? userData =
-          results[0] as Map<String, dynamic>?;
-      final List<Map<String, dynamic>> lostData =
-          results[1] as List<Map<String, dynamic>>;
-      final List<Map<String, dynamic>> foundData =
-          results[2] as List<Map<String, dynamic>>;
+      final List<Map<String, dynamic>> lostData = await lostItemsFuture;
+      final List<Map<String, dynamic>> foundData = await foundItemsFuture;
 
       final List<Map<String, dynamic>> lostItemsWithStatus = lostData.map((
         row,
@@ -181,22 +180,15 @@ class _CommunityFeedState extends State<CommunityFeed> {
           .map((row) => Item.fromSupabase(row))
           .toList();
 
-      // Sort the items by dateLost (most recent first)
+      // 🎯 FIX 5: Sort the items by dateLost (most recent first)
       items.sort((a, b) => b.dateLost.compareTo(a.dateLost));
 
-      if (!mounted) return;
       setState(() {
-        _currentCommenterData = userData; // Store fetched user data
         _masterItems = items;
         _isLoading = false;
       });
-
-      // ignore: avoid_print
-      print('✅ Current User Data Loaded: $_currentCommenterData');
     } catch (e) {
-      // ignore: avoid_print
-      print('Failed to load initial data: $e');
-      if (!mounted) return;
+      print('Failed to fetch data: $e');
       setState(() {
         _isLoading = false;
         _hasError = true;
@@ -204,20 +196,7 @@ class _CommunityFeedState extends State<CommunityFeed> {
     }
   }
 
-  // Helper to simulate time ago logic
-  String _timeAgo(DateTime date) {
-    final difference = DateTime.now().difference(date);
-    if (difference.inDays > 7) {
-      return '${(difference.inDays / 7).floor()} weeks ago';
-    } else if (difference.inDays > 0) {
-      return '${difference.inDays} days ago';
-    } else if (difference.inHours > 0) {
-      return '${difference.inHours} hours ago';
-    } else {
-      return 'Just now';
-    }
-  }
-
+  // 🎯 FIX 6: Update feature handlers to use the correct list and Item model
   void _toggleLike(int index) {
     setState(() {
       final post = _masterItems[index];
@@ -230,12 +209,14 @@ class _CommunityFeedState extends State<CommunityFeed> {
     });
   }
 
+  // 🎯 FIX 7: Update share logic to use Item properties
   void _sharePost(Item post) {
     final String shareText =
         '${post.status} Item: ${post.itemName} - Found/Lost at/Near: ${post.location}. Contact ${post.userName} on our app.';
     Share.share(shareText, subject: '${post.status} Item in Community Feed');
   }
 
+  // 🎯 FIX 8: Update comment sheet to use Item properties
   void _showCommentSheet(int index) {
     showModalBottomSheet(
       context: context,
@@ -246,8 +227,6 @@ class _CommunityFeedState extends State<CommunityFeed> {
           // Pass the Item object
           postData: _masterItems[index],
           currentComments: _commentData[index] ?? [],
-          // 🎯 FIX 5: Pass the current commenter's data
-          currentCommenterData: _currentCommenterData,
           onCommentSubmitted: (comment) {
             _addCommentToPost(index, comment);
           },
@@ -256,73 +235,34 @@ class _CommunityFeedState extends State<CommunityFeed> {
     );
   }
 
-  // 🎯 IMPORTANT FIX: Use CURRENT USER data for saving the comment
-  Future<void> _addCommentToPost(int index, String comment) async {
-    final Item post = _masterItems[index];
-
-    // --- Get CURRENT Commenter Details from Firebase Data ---
-    final String commenterUserId =
-        _currentCommenterData?['studentId'] as String? ?? 'Anonymous';
-    final String commenterUserName =
-        _currentCommenterData?['fullName'] as String? ?? 'Anonymous User';
-    final String commenterUserEmail =
-        _currentCommenterData?['email'] as String? ?? 'anonymous@example.com';
-    // --------------------------------------------------------
-
-    // 1. Optimistically update the local UI first
+  void _addCommentToPost(int index, String comment) {
     setState(() {
-      post.comments++;
-      // Locally display the comment with the actual commenter's name
-      // This is crucial for 🎯 FIX 7 in _CommentSheetContent
-      final displayComment = '$commenterUserName: $comment';
+      _masterItems[index].comments++;
       _commentData.update(
         index,
-        (comments) => [...comments, displayComment],
-        ifAbsent: () => [displayComment],
+        (comments) => [...comments, comment],
+        ifAbsent: () => [comment],
       );
     });
 
-    try {
-      // 2. Call the Supabase service to save the comment
-      await SupabaseCommentsService.saveComment(
-        userId: commenterUserId, // <-- CORRECT: Use CURRENT USER ID
-        userName: commenterUserName, // <-- CORRECT: Use CURRENT USER NAME
-        userEmail: commenterUserEmail, // <-- CORRECT: Use CURRENT USER EMAIL
-        itemName: post.itemName,
-        commentText: comment,
-      );
+    _saveCommentToFile(postId: index.toString(), commentText: comment);
 
-      if (mounted) {
-        // Show success snackbar
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✅ Comment submitted to database!'),
-            duration: Duration(seconds: 1),
-          ),
-        );
-      }
-    } catch (e) {
-      // ignore: avoid_print
-      print('Failed to save comment to Supabase: $e');
-      if (mounted) {
-        // 3. Rollback the optimistic update if saving fails
-        setState(() {
-          post.comments--;
-          _commentData[index]?.removeLast();
-        });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('✅ Comment submitted! (Saved locally/simulated)'),
+        duration: Duration(seconds: 1),
+      ),
+    );
+  }
 
-        // Show failure snackbar
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text(
-              '❌ Failed to submit comment. Please try again.',
-            ),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
-    }
+  void _saveCommentToFile({
+    required String postId,
+    required String commentText,
+  }) {
+    print('--- Database Write Simulation ---');
+    print('Saving to comments.json: Post ID $postId, Comment: "$commentText"');
+    print('New Comments for Post $postId: ${_commentData[int.parse(postId)]}');
+    print('---------------------------------');
   }
 
   @override
@@ -362,6 +302,7 @@ class _CommunityFeedState extends State<CommunityFeed> {
         ),
       ),
 
+      // 🎯 FIX 9: Use _masterItems instead of the non-existent _feedPosts
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _hasError
@@ -371,7 +312,7 @@ class _CommunityFeedState extends State<CommunityFeed> {
                 children: [
                   const Text('Failed to load feed data 😔'),
                   ElevatedButton(
-                    onPressed: _loadInitialData, // Call the combined loader
+                    onPressed: _fetchItemsFromSupabase,
                     child: const Text('Try Again'),
                   ),
                 ],
@@ -380,16 +321,16 @@ class _CommunityFeedState extends State<CommunityFeed> {
           : _masterItems.isEmpty
           ? const Center(child: Text('No lost or found items posted yet.'))
           : CustomScrollView(
-              physics: const BouncingScrollPhysics(),
               slivers: [
                 SliverList(
                   delegate: SliverChildListDelegate([
                     ..._masterItems.asMap().entries.map((entry) {
                       int index = entry.key;
-                      Item post = entry.value;
+                      Item post = entry.value; // Use Item model
 
                       return Column(
                         children: [
+                          // 🎯 FIX 10: Use _FeedPostCard with the correct Item model
                           _FeedPostCard(
                             item: post,
                             timeAgo: _timeAgo(post.dateLost),
@@ -414,9 +355,10 @@ class _CommunityFeedState extends State<CommunityFeed> {
   }
 }
 
-// --- 3. Enhanced Feed Post Card Widget (No functional changes) ---
+// --- Enhanced Feed Post Card Widget (Theme Adapted) ---
+// 🎯 FIX 11: Update _FeedPostCard to use the Item model
 class _FeedPostCard extends StatelessWidget {
-  final Item item;
+  final Item item; // Use Item model
   final String timeAgo;
   final VoidCallback onLikeTapped;
   final VoidCallback onCommentTapped;
@@ -430,7 +372,15 @@ class _FeedPostCard extends StatelessWidget {
     required this.onShareTapped,
   });
 
+  // Helper to extract the item name for description screen/details
+  String _itemNameFromPostText(String text) {
+    final regex = RegExp(r'\*\*(.*?)\*\*');
+    final match = regex.firstMatch(text);
+    return match?.group(1)?.trim() ?? 'Item';
+  }
+
   void _openItemDescription(BuildContext context) {
+    // Pass the actual item name
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -439,6 +389,7 @@ class _FeedPostCard extends StatelessWidget {
     );
   }
 
+  // Helper to get the correct image widget (NetworkImage or Placeholder)
   Widget _getItemImage(BuildContext context) {
     final theme = Theme.of(context);
     if (item.imageUrl.isNotEmpty &&
@@ -477,6 +428,7 @@ class _FeedPostCard extends StatelessWidget {
     final theme = Theme.of(context);
     final isLost = item.status == 'Lost';
     final Color foundColor = theme.primaryColor;
+    // Use the default color for lost items (secondary in the original, often orange/red)
     final Color lostColor = theme.colorScheme.secondary;
     final Color statusColor = isLost ? lostColor : foundColor;
     final Color initialsColor = foundColor;
@@ -501,7 +453,7 @@ class _FeedPostCard extends StatelessWidget {
                 CircleAvatar(
                   backgroundColor: initialsColor,
                   child: Text(
-                    item.userInitials,
+                    item.userInitials, // Use item initials
                     style: TextStyle(color: theme.colorScheme.onPrimary),
                   ),
                 ),
@@ -513,13 +465,13 @@ class _FeedPostCard extends StatelessWidget {
                       Row(
                         children: [
                           Text(
-                            item.userName,
+                            item.userName, // Use item user name (Reporter Name)
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               color: bodyTextColor,
                             ),
                           ),
-                          if (item.isVerified)
+                          if (item.isVerified) // Use item isVerified
                             Padding(
                               padding: const EdgeInsets.only(left: 4.0),
                               child: Icon(
@@ -531,7 +483,7 @@ class _FeedPostCard extends StatelessWidget {
                         ],
                       ),
                       Text(
-                        timeAgo,
+                        timeAgo, // Use calculated time ago
                         style: TextStyle(color: bodyTextColor.withOpacity(0.6)),
                       ),
                     ],
@@ -547,7 +499,7 @@ class _FeedPostCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    item.status,
+                    item.status, // Use item status
                     style: TextStyle(
                       color: theme.colorScheme.onPrimary,
                       fontSize: 12,
@@ -564,7 +516,11 @@ class _FeedPostCard extends StatelessWidget {
             child: SizedBox(
               width: double.infinity,
               height: 350,
-              child: ClipRRect(child: _getItemImage(context)),
+              child: ClipRRect(
+                child: _getItemImage(
+                  context,
+                ), // 🎯 FIX 12: Use Image network or placeholder
+              ),
             ),
           ),
 
@@ -575,7 +531,7 @@ class _FeedPostCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${item.status}: ${item.itemName}',
+                  '${item.status}: ${item.itemName}', // Use item name
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
@@ -583,8 +539,12 @@ class _FeedPostCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 4),
+                // Display the full post text which includes the description
                 Text(
-                  item.postDisplayText.replaceAll('**', ''),
+                  item.postDisplayText.replaceAll(
+                    '**',
+                    '',
+                  ), // Use item post display text
                   style: TextStyle(fontSize: 14, color: bodyTextColor),
                 ),
               ],
@@ -605,7 +565,7 @@ class _FeedPostCard extends StatelessWidget {
                     Icon(Icons.location_on, color: bodyTextColor, size: 16),
                     const SizedBox(width: 4),
                     Text(
-                      item.location,
+                      item.location, // Use item location
                       style: TextStyle(color: bodyTextColor.withOpacity(0.8)),
                     ),
                   ],
@@ -628,7 +588,7 @@ class _FeedPostCard extends StatelessWidget {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            '${item.likes}',
+                            '${item.likes}', // Use item likes
                             style: TextStyle(
                               fontSize: 16,
                               color: bodyTextColor,
@@ -645,7 +605,7 @@ class _FeedPostCard extends StatelessWidget {
                           Icon(Icons.chat_bubble_outline, color: bodyTextColor),
                           const SizedBox(width: 4),
                           Text(
-                            '${item.comments}',
+                            '${item.comments}', // Use item comments
                             style: TextStyle(
                               fontSize: 16,
                               color: bodyTextColor,
@@ -674,19 +634,17 @@ class _FeedPostCard extends StatelessWidget {
   }
 }
 
-// --- 4. Widget for Comment Modal Content ---
+// --- Widget for Comment Modal Content (Theme Adapted) ---
+// 🎯 FIX 13: Update _CommentSheetContent to use Item model
 class _CommentSheetContent extends StatelessWidget {
-  final Item postData;
+  final Item postData; // Use Item model
   final List<String> currentComments;
   final Function(String) onCommentSubmitted;
-  // 🎯 FIX 6: Accept current commenter data
-  final Map<String, dynamic>? currentCommenterData;
 
   const _CommentSheetContent({
     required this.postData,
     required this.currentComments,
     required this.onCommentSubmitted,
-    this.currentCommenterData, // Required for input bar avatar
   });
 
   @override
@@ -694,17 +652,6 @@ class _CommentSheetContent extends StatelessWidget {
     final theme = Theme.of(context);
     final isDarkMode = theme.brightness == Brightness.dark;
     final Color textColor = theme.textTheme.bodyMedium!.color!;
-
-    // Helper function to get initials from the Firebase user data
-    String getCommenterInitials() {
-      final String fullName =
-          currentCommenterData?['fullName'] as String? ?? 'A';
-      final initials = fullName
-          .split(' ')
-          .map((e) => e.isNotEmpty ? e[0] : '')
-          .join('');
-      return initials.isEmpty ? 'A' : initials;
-    }
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.8,
@@ -747,26 +694,10 @@ class _CommentSheetContent extends StatelessWidget {
             child: ListView.builder(
               itemCount: currentComments.length,
               itemBuilder: (context, index) {
-                final String fullComment = currentComments[index];
-
-                // 🎯 FIX 7: Parse the locally stored comment for display (Format: "UserName: Comment")
-                final parts = fullComment.split(': ');
-                final String userName = parts.length > 1
-                    ? parts.first
-                    : 'Anonymous';
-                final String commentText = parts.length > 1
-                    ? parts.sublist(1).join(': ')
-                    : fullComment;
-                // Generate initials for the comment avatar based on the name in the stored comment
-                final String initials =
-                    userName.isEmpty || userName == 'Anonymous'
-                    ? '?'
-                    : userName
-                          .split(' ')
-                          .map((e) => e.isNotEmpty ? e[0] : '')
-                          .join('')
-                          .substring(0, 1) // Take only the first letter
-                          .toUpperCase();
+                final String commentText = currentComments[index];
+                final String userName = index.isEven
+                    ? 'Guest User'
+                    : 'Community Member';
 
                 return Padding(
                   padding: const EdgeInsets.symmetric(
@@ -780,7 +711,7 @@ class _CommentSheetContent extends StatelessWidget {
                         radius: 18,
                         backgroundColor: theme.primaryColor.withOpacity(0.5),
                         child: Text(
-                          initials,
+                          userName[0],
                           style: TextStyle(
                             color: theme.colorScheme.onPrimary,
                             fontSize: 14,
@@ -820,10 +751,10 @@ class _CommentSheetContent extends StatelessWidget {
               bottom: MediaQuery.of(context).viewInsets.bottom,
             ),
             child: _CommentInputBar(
-              // 🎯 FIX 8: Pass the commenter initials to the input bar
-              userInitials: getCommenterInitials(),
               onCommentSubmitted: (comment) {
                 onCommentSubmitted(comment);
+                // Important: Close the bottom sheet after submitting the comment.
+                // Navigator.pop(context);
               },
             ),
           ),
@@ -833,16 +764,11 @@ class _CommentSheetContent extends StatelessWidget {
   }
 }
 
-// --- 5. Separated Input Bar Widget ---
+// --- Separated Input Bar Widget (Theme Adapted) ---
 class _CommentInputBar extends StatefulWidget {
   final Function(String) onCommentSubmitted;
-  // 🎯 FIX 9: Accept user initials
-  final String userInitials;
 
-  const _CommentInputBar({
-    required this.onCommentSubmitted,
-    required this.userInitials,
-  });
+  const _CommentInputBar({required this.onCommentSubmitted});
 
   @override
   State<_CommentInputBar> createState() => _CommentInputBarState();
@@ -873,10 +799,9 @@ class _CommentInputBarState extends State<_CommentInputBar> {
 
   void _submitComment() {
     if (_isCommentValid) {
-      // Use widget.onCommentSubmitted
       widget.onCommentSubmitted(_commentController.text.trim());
       _commentController.clear();
-      _validateComment(); // This sets _isCommentValid back to false
+      _validateComment();
     }
   }
 
@@ -891,57 +816,38 @@ class _CommentInputBarState extends State<_CommentInputBar> {
         color: isDarkMode ? Colors.grey[850] : lightBlueBackground,
         border: Border(top: BorderSide(color: theme.dividerColor)),
       ),
-      child: Row(
-        children: [
-          // 🎯 FIX 10: Display user initials avatar
-          CircleAvatar(
-            radius: 18,
-            backgroundColor: theme.primaryColor.withOpacity(0.5),
-            child: Text(
-              widget.userInitials,
-              style: TextStyle(
-                color: theme.colorScheme.onPrimary,
-                fontSize: 14,
-              ),
-            ),
+      child: TextField(
+        controller: _commentController,
+        maxLines: null,
+        minLines: 1,
+        keyboardType: TextInputType.multiline,
+        style: theme.textTheme.bodyMedium,
+        decoration: InputDecoration(
+          hintText: 'Write your comment...',
+          fillColor: isDarkMode ? Colors.grey[900] : Colors.white,
+          filled: true,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(25),
+            borderSide: BorderSide.none,
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: TextField(
-              controller: _commentController,
-              maxLines: null,
-              minLines: 1,
-              keyboardType: TextInputType.multiline,
-              style: theme.textTheme.bodyMedium,
-              decoration: InputDecoration(
-                hintText: 'Write your comment...',
-                fillColor: isDarkMode ? Colors.grey[900] : Colors.white,
-                filled: true,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(25),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    Icons.send,
-                    color: _isCommentValid ? theme.primaryColor : Colors.grey,
-                  ),
-                  onPressed: _isCommentValid ? _submitComment : null,
-                ),
-              ),
-            ),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 8,
           ),
-        ],
+          suffixIcon: IconButton(
+            icon: Icon(
+              Icons.send,
+              color: _isCommentValid ? theme.primaryColor : Colors.grey,
+            ),
+            onPressed: _isCommentValid ? _submitComment : null,
+          ),
+        ),
       ),
     );
   }
 }
 
-// --- 6. Placeholder Image Widget (No changes) ---
+// The PlaceholderImage class remains the same
 class PlaceholderImage extends StatelessWidget {
   final Color color;
   final IconData icon;
