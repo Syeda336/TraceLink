@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../theme_provider.dart';
 
+//for online/offline status 
+import 'package:firebase_auth/firebase_auth.dart'; 
+import '../firebase_service.dart';                
+
 // Placeholders for navigation
 import 'profile_page.dart';
 import 'login_screen.dart';
@@ -173,7 +177,7 @@ class LogoutConfirmationScreen extends StatelessWidget {
 
           // Title and Subtitle
           const Text(
-            'Leaving Already? 🥺',
+            'Leaving Already? ',
             style: TextStyle(
               color: Colors.white,
               fontSize: 26,
@@ -182,7 +186,7 @@ class LogoutConfirmationScreen extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           const Text(
-            "We'll miss you! Are you sure you want to logout? ✨",
+            "Are you sure you want to logout? ",
             textAlign: TextAlign.center,
             style: TextStyle(color: Colors.white70, fontSize: 16),
           ),
@@ -321,12 +325,23 @@ class LogoutConfirmationScreen extends StatelessWidget {
           gradient: gradient, // Dynamic Gradient for button
         ),
         child: ElevatedButton.icon(
-          onPressed: () {
-            // Navigate to 'login_screen.dart'
-            Navigator.of(context).pushReplacement(
-              MaterialPageRoute(builder: (context) => const LoginScreen()),
-            );
+          
+          onPressed: () async {
+            // 1. Mark user as OFFLINE
+            await FirebaseService.updateUserStatus(false);
+            
+            // 2. Actually Sign Out
+            await FirebaseAuth.instance.signOut();
+
+            // 3. Navigate to Login Screen
+            if (context.mounted) {
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (context) => const LoginScreen()),
+                (route) => false,
+              );
+            }
           },
+
           icon: const Icon(Icons.arrow_forward, color: Colors.white),
           label: const Text(
             'Yes, Logout',

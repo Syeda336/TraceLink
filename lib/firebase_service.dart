@@ -3,21 +3,156 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'package:firebase_messaging/firebase_messaging.dart';
+//for multiple login notifications
+import 'dart:async';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'notifications_service.dart'; // <--- new
 import 'firebase_options.dart';
 
 class FirebaseService {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  static final FirebaseMessaging _messaging = FirebaseMessaging.instance;
+  // Initialize Local Notifications Plugin
+  static final FlutterLocalNotificationsPlugin _localNotifications =
+      FlutterLocalNotificationsPlugin();
+
+  // Subscription to watch for account changes
+  static StreamSubscription<DocumentSnapshot>? _userProfileSubscription;
+
+  Future<int> getUserCount() async {
+    var snapshot = await FirebaseFirestore.instance.collection("users").get();
+    return snapshot.docs.length;
+  }
 
   static Future<void> initialize() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+
+    // 1. Initialize Local Notifications
+    const AndroidInitializationSettings initializationSettingsAndroid =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+
+    final DarwinInitializationSettings initializationSettingsDarwin =
+        DarwinInitializationSettings();
+
+    final InitializationSettings initializationSettings =
+        InitializationSettings(
+          android: initializationSettingsAndroid,
+          iOS: initializationSettingsDarwin,
+        );
+
+    await _localNotifications.initialize(initializationSettings);
+
+    // Create notification channel for Android 8.0+
+    const AndroidNotificationChannel loginChannel = AndroidNotificationChannel(
+      'login_notifications',
+      'Login Notifications',
+      description: 'Notifications for account login activities',
+      importance: Importance.high,
+    );
+
+    await _localNotifications
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >()
+        ?.createNotificationChannel(loginChannel);
+
+    // --- 3. Create CHAT Channel (NEW) ---
+    // This is required for the new popup messages to work
+    const AndroidNotificationChannel chatChannel = AndroidNotificationChannel(
+      'high_importance_channel', // matches the ID in showLocalNotification
+      'High Importance Notifications',
+      description: 'Notifications for new chat messages',
+      importance: Importance.max,
+    );
+
+    await _localNotifications
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >()
+        ?.createNotificationChannel(chatChannel);
+
+    // --- 4. Request Permissions (NEW - REQUIRED FOR ANDROID 13+) ---
+    await _localNotifications
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >()
+        ?.requestNotificationsPermission();
+
+    // Start listening for security events if user is already logged in
+    // 4. *** NEW: WATCH FOR LOGIN/LOGOUT *** // This runs every time the user logs in or out
+    _auth.authStateChanges().listen((User? user) {
+      if (user != null) {
+        print("✅ User just logged in: ${user.email}");
+
+        // Start Security Listener
+        _startSecurityListener();
+
+        // Start Chat Listener (The missing part)
+        NotificationsService.initializeNotificationListener();
+      } else {
+        print("❌ User logged out");
+        // Optional: You could add a method to stop the listener here
+      }
+    });
   }
 
-  Future<int> getUserCount() async {
-    var snapshot = await FirebaseFirestore.instance.collection("users").get();
-    return snapshot.docs.length;
+  // -----------------------
+  // Login Notification Method
+  // -----------------------
+  static Future<void> sendLoginNotification() async {
+    try {
+      User? user = _auth.currentUser;
+      if (user == null) return;
+
+      // Get user's privacy settings
+      Map<String, dynamic>? privacySettings = await getPrivacySettings();
+      bool loginNotificationsEnabled =
+          privacySettings?['loginNotifications'] ?? true;
+
+      // Only send notification if user has enabled login notifications
+      if (!loginNotificationsEnabled) {
+        print('Login notifications are disabled by user');
+        return;
+      }
+
+      // Get user data for personalized notification
+      Map<String, dynamic>? userData = await getUserData();
+      String userName = userData?['fullName'] ?? 'User';
+
+      // Get current time for notification message
+      String time =
+          '${DateTime.now().hour}:${DateTime.now().minute.toString().padLeft(2, '0')}';
+
+      // Create and show local notification
+      const AndroidNotificationDetails androidPlatformChannelSpecifics =
+          AndroidNotificationDetails(
+            'login_notifications',
+            'Login Notifications',
+            channelDescription: 'Notifications for account login activities',
+            importance: Importance.high,
+            priority: Priority.high,
+            showWhen: true,
+          );
+
+      const NotificationDetails platformChannelSpecifics = NotificationDetails(
+        android: androidPlatformChannelSpecifics,
+      );
+
+      await _localNotifications.show(
+        0, // Notification ID
+        'Login Activity Detected',
+        'Hello $userName! Your account was accessed at $time.',
+        platformChannelSpecifics,
+      );
+
+      print('Login notification sent successfully');
+    } catch (e) {
+      print('Error sending login notification: $e');
+    }
   }
 
   // -----------------------
@@ -38,9 +173,22 @@ class FirebaseService {
         'studentId': studentId,
         'email': email,
         'createdAt': FieldValue.serverTimestamp(),
+        'lastLogin': FieldValue.serverTimestamp(),
+        'privacySettings': {
+          'showEmail': false,
+          'showPhoneNumber': false,
+          'loginNotifications': true,
+          'profileVisibility': true,
+          'twoFactorAuth': false,
+        },
       });
 
-      print('Sign up success for uid: ${userCredential.user!.uid}');
+      // Start listening after successful signup
+      _startSecurityListener();
+
+      // Send welcome notification
+      await sendLoginNotification();
+
       return userCredential.user;
     } on FirebaseAuthException catch (e) {
       print('Sign up FirebaseAuthException: ${e.code} - ${e.message}');
@@ -63,25 +211,35 @@ class FirebaseService {
         email: email,
         password: password,
       );
-      print('Sign in success: ${userCredential.user?.uid}');
+
+      // Update lastLogin timestamp
+      await _updateLoginTimestamp(userCredential.user!.uid);
+
+      // Start listening
+      _startSecurityListener();
+
+      // Send login notification
+      await sendLoginNotification();
+
       return userCredential.user;
     } on FirebaseAuthException catch (e) {
-      print('Sign in error: ${e.code} - ${e.message}');
-      return null;
+      print('Firebase Sign in Error: ${e.code} - ${e.message}');
+      rethrow;
     } catch (e) {
-      print('Sign in general error: $e');
-      return null;
+      print('General Sign in Error: $e');
+      rethrow;
     }
   }
 
   // -----------------------
-  // Sign in with STUDENT ID
+  // Sign in with STUDENT ID (Modified for 2FA Check)
   // -----------------------
   static Future<User?> signInWithStudentId({
     required String studentId,
     required String password,
   }) async {
     try {
+      // 1. Find user by Student ID
       QuerySnapshot querySnapshot = await _firestore
           .collection('users')
           .where('studentId', isEqualTo: studentId)
@@ -89,37 +247,87 @@ class FirebaseService {
           .get();
 
       if (querySnapshot.docs.isEmpty) {
-        print('Student ID sign-in: no user found for studentId=$studentId');
-        return null;
+        throw 'Student ID not found.';
       }
 
       final doc = querySnapshot.docs.first;
       final data = doc.data() as Map<String, dynamic>;
 
+      // 2. CHECK: Is 2FA Enabled? [NEW LOGIC]
+      final privacySettings = data['privacySettings'] as Map<String, dynamic>?;
+      final bool is2FAEnabled = privacySettings?['twoFactorAuth'] ?? false;
+
+      // If 2FA is NOT enabled, block Student ID login
+      if (!is2FAEnabled) {
+        throw 'Student ID login is disabled. Please enable 2FA in settings or login using Email.';
+      }
+
+      // 3. If allowed, proceed to get email and login
       if (data['email'] == null) {
-        print('Student ID sign-in: user document missing an email field.');
-        return null;
+        throw 'Account has no email linked.';
       }
 
       final String email = data['email'] as String;
-      print('Student ID sign-in: found email $email for studentId $studentId');
 
-      try {
-        UserCredential userCredential = await _auth.signInWithEmailAndPassword(
-          email: email,
-          password: password,
-        );
-        print('Student ID sign-in success: ${userCredential.user?.uid}');
-        return userCredential.user;
-      } on FirebaseAuthException catch (e) {
-        print(
-          'Student ID sign-in auth error for email $email: ${e.code} - ${e.message}',
-        );
-        return null;
-      }
+      UserCredential userCredential = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      // Update lastLogin timestamp
+      await _updateLoginTimestamp(userCredential.user!.uid);
+
+      // Start listening
+      _startSecurityListener();
+
+      // Send login notification
+      await sendLoginNotification();
+
+      return userCredential.user;
     } catch (e) {
+      if (e.toString().contains('Student ID login is disabled')) {
+        rethrow;
+      }
       print('Student ID sign-in general error: $e');
+      if (e is String) rethrow;
       return null;
+    }
+  }
+
+  // --- Helper to update login timestamp ---
+  static Future<void> _updateLoginTimestamp(String uid) async {
+    try {
+      await _firestore.collection('users').doc(uid).update({
+        'lastLogin': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      print('Error updating login timestamp: $e');
+    }
+  }
+
+  //*********************allows to search multiple users with similar name******************************* */
+
+  static Future<List<Map<String, dynamic>>> searchUsers(String query) async {
+    try {
+      if (query.isEmpty) return [];
+
+      String endQuery =
+          query.substring(0, query.length - 1) +
+          String.fromCharCode(query.codeUnitAt(query.length - 1) + 1);
+
+      QuerySnapshot snapshot = await _firestore
+          .collection('users')
+          .where('fullName', isGreaterThanOrEqualTo: query)
+          .where('fullName', isLessThan: endQuery)
+          .get();
+
+      return snapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        return {'uid': doc.id, ...data};
+      }).toList();
+    } catch (e) {
+      print('Error searching users: $e');
+      return [];
     }
   }
 
@@ -135,8 +343,8 @@ class FirebaseService {
     required String bio,
     String? currentPassword,
   }) async {
-    print('🔥 updateUserProfile STARTED');
-    print('🔥 Email: $email, FullName: $fullName');
+    print(' updateUserProfile STARTED');
+    print(' Email: $email, FullName: $fullName');
 
     try {
       User? user = _auth.currentUser;
@@ -221,13 +429,13 @@ class FirebaseService {
     required String bio,
     required String currentPassword,
   }) async {
-    print('🔥 updateUserProfileWithPassword STARTED');
-    print('🔥 FullName: $fullName');
+    print(' updateUserProfileWithPassword STARTED');
+    print(' FullName: $fullName');
 
     try {
       User? user = _auth.currentUser;
       if (user == null) {
-        print('🔥 ERROR: No authenticated user');
+        print(' ERROR: No authenticated user');
         return false;
       }
 
@@ -238,9 +446,9 @@ class FirebaseService {
           password: currentPassword,
         );
         await user.reauthenticateWithCredential(credential);
-        print('✅ Password verification successful for uid: ${user.uid}');
+        print(' Password verification successful for uid: ${user.uid}');
       } on FirebaseAuthException catch (e) {
-        print('❌ Password verification failed: ${e.code} - ${e.message}');
+        print(' Password verification failed: ${e.code} - ${e.message}');
         return false;
       }
 
@@ -256,10 +464,10 @@ class FirebaseService {
         };
 
         await _firestore.collection('users').doc(user.uid).update(updateData);
-        print('✅ Firestore user document updated for uid: ${user.uid}');
+        print(' Firestore user document updated for uid: ${user.uid}');
         print('Updated data: $updateData');
       } catch (e) {
-        print('❌ Firestore update error: $e');
+        print(' Firestore update error: $e');
         return false;
       }
 
@@ -276,7 +484,7 @@ class FirebaseService {
   }
 
   // -----------------------
-  // Update email only including reauthentication
+  // Update email only including reauthentication  updated to the new firebase version
   // -----------------------
   static Future<bool> updateEmail(
     String newEmail, {
@@ -302,9 +510,9 @@ class FirebaseService {
         return false;
       }
 
-      // 2️⃣ Update email in Firebase Auth
-      await user.updateEmail(newEmail);
-      print('Auth email updated to $newEmail for uid: ${user.uid}');
+      // 2️⃣ Verify and Update Email (The Change)
+      await user.verifyBeforeUpdateEmail(newEmail);
+      print('Verification email sent to $newEmail for uid: ${user.uid}');
 
       // 3️⃣ Sync Firestore
       try {
@@ -346,6 +554,28 @@ class FirebaseService {
       print('getUserData error: $e');
       return null;
     }
+  }
+
+  //Implementing User online and offline Status
+
+  // ---------------------------------------------------
+  // ONLINE STATUS HELPERS
+  // ---------------------------------------------------
+
+  // 1. Update MY status (Online/Offline)
+  static Future<void> updateUserStatus(bool isOnline) async {
+    User? user = _auth.currentUser;
+    if (user != null) {
+      await _firestore.collection('users').doc(user.uid).update({
+        'isOnline': isOnline,
+        'lastActive': FieldValue.serverTimestamp(),
+      });
+    }
+  }
+
+  // 2. Stream a specific user's data (to see if THEY are online)
+  static Stream<DocumentSnapshot> getUserStream(String uid) {
+    return _firestore.collection('users').doc(uid).snapshots();
   }
 
   // -----------------------
@@ -462,10 +692,6 @@ class FirebaseService {
   // -----------------------
   // Send a message
   // -----------------------
-  // --- ⭐️ CHANGE 1: OPTIMIZED METHOD ⭐️ ---
-  // This version fetches the current user's data only ONCE,
-  // making it much more efficient than the previous version
-  // that called `await getUserData()` multiple times.
   static Future<bool> sendMessage({
     required String receiverId,
     required String message,
@@ -480,13 +706,12 @@ class FirebaseService {
         return false;
       }
 
-      // --- ⭐️ OPTIMIZATION: Fetch current user data ONCE ⭐️ ---
+      // Fetch current user data ONCE
       final currentUserData = await getUserData();
       final String currentUserName = currentUserData?['fullName'] ?? 'Unknown';
       final String currentUserInitials = _getInitials(currentUserName);
 
       // Determine sender and receiver based on whether it's an initial message
-      // (Assuming 'initial message' means it's FROM the receiver TO the current user)
       final String finalSenderId = isInitialMessage ? receiverId : user.uid;
       final String finalSenderName = isInitialMessage
           ? receiverName
@@ -595,6 +820,158 @@ class FirebaseService {
       print('Get conversations error: $e');
       rethrow;
     }
+  }
+
+  //********** email & emergency alerts notifications************** */
+
+  // --- NEW: Notification Setup ---
+  static Future<void> _initializeNotifications() async {
+    // 1. Request Permission
+    NotificationSettings settings = await _messaging.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
+    if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+      // 2. Get FCM Token
+      String? token = await _messaging.getToken();
+      if (token != null) {
+        await _saveTokenToUser(token);
+      }
+
+      // 3. Listen for token refresh
+      _messaging.onTokenRefresh.listen(_saveTokenToUser);
+    }
+  }
+
+  static Future<void> _saveTokenToUser(String token) async {
+    User? user = _auth.currentUser;
+    if (user != null) {
+      await _firestore.collection('users').doc(user.uid).set({
+        'fcmToken': token,
+        'lastTokenUpdate': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    }
+  }
+
+  // --- NEW: Update Notification Settings (Email parameter removed) ---
+  static Future<void> updateNotificationPreferences({
+    required bool pushEnabled,
+    required bool emergencyEnabled,
+  }) async {
+    User? user = _auth.currentUser;
+    if (user == null) return;
+
+    print(' Updating notification preferences:');
+    print('   - Push: $pushEnabled');
+    print('   - Emergency: $emergencyEnabled');
+
+    // 1. Handle General Push Notifications Subscription
+    if (pushEnabled) {
+      await _messaging.subscribeToTopic('general_notifications');
+    } else {
+      await _messaging.unsubscribeFromTopic('general_notifications');
+    }
+
+    // 2. Handle Emergency Alerts Subscription
+    if (emergencyEnabled) {
+      await _messaging.subscribeToTopic('emergency_alerts');
+    } else {
+      await _messaging.unsubscribeFromTopic('emergency_alerts');
+    }
+
+    // 3. Save to Firestore
+    await _firestore.collection('users').doc(user.uid).set({
+      'notificationSettings': {
+        'pushEnabled': pushEnabled,
+        'emergencyEnabled': emergencyEnabled,
+      },
+      'lastSettingsUpdate': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    print(' Notification preferences saved to Firestore');
+  }
+
+  // --- NEW: Get Notification Settings ---
+  static Future<Map<String, dynamic>?> getNotificationSettings() async {
+    User? user = _auth.currentUser;
+    if (user == null) return null;
+
+    DocumentSnapshot doc = await _firestore
+        .collection('users')
+        .doc(user.uid)
+        .get();
+    if (doc.exists && doc.data() != null) {
+      final data = doc.data() as Map<String, dynamic>;
+      return data['notificationSettings'] as Map<String, dynamic>?;
+    }
+    return null;
+  }
+
+  //********background notifications*********** */
+
+  static void setupForegroundMessages() {
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      print(' Foreground message received!');
+      print('   Title: ${message.notification?.title}');
+      print('   Body: ${message.notification?.body}');
+      print('   Data: ${message.data}');
+
+      // Show system notification
+      _showSystemNotification(message);
+    });
+  }
+
+  static void _showSystemNotification(RemoteMessage message) {
+    final notification = message.notification;
+    if (notification != null) {
+      print(' Showing system notification: ${notification.title}');
+    }
+  }
+
+  static Future<List<String>> getCurrentTopics() async {
+    final settings = await getNotificationSettings();
+    List<String> topics = [];
+
+    if (settings?['pushEnabled'] == true) {
+      topics.add('general_notifications');
+    }
+    if (settings?['emergencyEnabled'] == true) {
+      topics.add('emergency_alerts');
+    }
+
+    return topics;
+  }
+
+  //********************Local notifications********************************* */
+  // --- NEW: Helper to show a local notification manually ---
+  static Future<void> showLocalNotification({
+    required String id,
+    required String title,
+    required String body,
+    required String payload,
+  }) async {
+    const AndroidNotificationDetails
+    androidPlatformChannelSpecifics = AndroidNotificationDetails(
+      'high_importance_channel', // Must match your channel ID in AndroidManifest
+      'High Importance Notifications',
+      importance: Importance.max,
+      priority: Priority.high,
+      showWhen: true,
+    );
+
+    const NotificationDetails platformChannelSpecifics = NotificationDetails(
+      android: androidPlatformChannelSpecifics,
+    );
+
+    await _localNotifications.show(
+      id.hashCode, // Unique ID for the notification
+      title,
+      body,
+      platformChannelSpecifics,
+      payload: payload, // Passes data to the click handler
+    );
   }
 
   // -----------------------
@@ -776,14 +1153,14 @@ class FirebaseService {
   }
 
   // ==========================================================
-  // ⭐️ NEW METHOD: Get unread count as a Stream ⭐️
+  //  NEW METHOD: Get unread count as a Stream
   // ==========================================================
   static Stream<int> getUnreadCountStream(String chatRoomId) {
     try {
       User? user = _auth.currentUser;
       if (user == null) {
         print('Get unread count stream: No user logged in.');
-        return Stream.value(0); // Return a stream with a single value of 0
+        return Stream.value(0);
       }
 
       return _firestore
@@ -793,12 +1170,10 @@ class FirebaseService {
           .where('receiverId', isEqualTo: user.uid)
           .where('read', isEqualTo: false)
           .snapshots()
-          .map(
-            (snapshot) => snapshot.docs.length,
-          ); // Map the snapshot to its length
+          .map((snapshot) => snapshot.docs.length);
     } catch (e) {
       print('Get unread count stream error: $e');
-      return Stream.value(0); // Return a stream with 0 in case of an error
+      return Stream.value(0);
     }
   }
 
@@ -823,13 +1198,13 @@ class FirebaseService {
     required String campus,
     required String bio,
   }) async {
-    print('🔥 updateUserProfileWithoutEmail STARTED');
-    print('🔥 FullName: $fullName');
+    print(' updateUserProfileWithoutEmail STARTED');
+    print(' FullName: $fullName');
 
     try {
       User? user = _auth.currentUser;
       if (user == null) {
-        print('🔥 ERROR: No authenticated user');
+        print(' ERROR: No authenticated user');
         return false;
       }
 
@@ -937,4 +1312,97 @@ class FirebaseService {
       return false;
     }
   }
-}
+
+  // -----------------------
+  // Update Privacy Settings
+  // -----------------------
+  static Future<bool> updatePrivacySettings({
+    required bool showEmail,
+    required bool showPhoneNumber,
+    required bool loginNotifications,
+    required bool profileVisibility,
+    required bool twoFactorAuth,
+  }) async {
+    try {
+      User? user = _auth.currentUser;
+      if (user == null) return false;
+
+      await _firestore.collection('users').doc(user.uid).update({
+        'privacySettings': {
+          'showEmail': showEmail,
+          'showPhoneNumber': showPhoneNumber,
+          'loginNotifications': loginNotifications,
+          'profileVisibility': profileVisibility,
+          'twoFactorAuth': twoFactorAuth,
+        },
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      print('Privacy settings updated successfully');
+      return true;
+    } catch (e) {
+      print('Error updating privacy settings: $e');
+      return false;
+    }
+  }
+
+  // -----------------------
+  // Get Privacy Settings
+  // -----------------------
+  static Future<Map<String, dynamic>?> getPrivacySettings() async {
+    try {
+      User? user = _auth.currentUser;
+      if (user == null) return null;
+
+      DocumentSnapshot userDoc = await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      if (userDoc.exists) {
+        final data = userDoc.data() as Map<String, dynamic>?;
+        return data?['privacySettings'] as Map<String, dynamic>?;
+      }
+      return null;
+    } catch (e) {
+      print('Error getting privacy settings: $e');
+      return null;
+    }
+  }
+
+  // -----------------------
+  // Security Listener (for account changes)
+  // -----------------------
+  static void _startSecurityListener() {
+    User? user = _auth.currentUser;
+    if (user == null) return;
+
+    // --- NEW: Force Start Chat Listener Here ---
+    print("🔒 Security Listener starting, triggering Chat Listener...");
+    NotificationsService.initializeNotificationListener();
+    // -------------------------------------------
+
+    // Cancel existing subscription if any
+    _userProfileSubscription?.cancel();
+
+    // Listen for changes in user's document
+    _userProfileSubscription = _firestore
+        .collection('users')
+        .doc(user.uid)
+        .snapshots()
+        .listen((DocumentSnapshot snapshot) {
+          if (snapshot.exists) {
+            final data = snapshot.data() as Map<String, dynamic>?;
+            // You can add logic here to handle security-related changes
+            print('User profile updated: ${snapshot.id}');
+          }
+        });
+  }
+
+  // -----------------------
+  // Cleanup method
+  // -----------------------
+  static void dispose() {
+    _userProfileSubscription?.cancel();
+  }
+} //ending brace

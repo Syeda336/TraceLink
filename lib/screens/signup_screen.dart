@@ -31,8 +31,25 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
 
+  // Validation states for real-time feedback
+  String? _emailErrorText;
+  String? _passwordErrorText;
+  String? _confirmPasswordErrorText;
+
+  @override
+  void initState() {
+    super.initState();
+    // Add listeners for real-time validation
+    _emailController.addListener(_validateEmailRealTime);
+    _passwordController.addListener(_validatePasswordRealTime);
+    _confirmPasswordController.addListener(_validateConfirmPasswordRealTime);
+  }
+
   @override
   void dispose() {
+    _emailController.removeListener(_validateEmailRealTime);
+    _passwordController.removeListener(_validatePasswordRealTime);
+    _confirmPasswordController.removeListener(_validateConfirmPasswordRealTime);
     _fullNameController.dispose();
     _studentIdController.dispose();
     _emailController.dispose();
@@ -41,10 +58,87 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     super.dispose();
   }
 
+  // Email validation method
+  bool _validateEmail(String email) {
+    if (email.isEmpty) return true; // No error if empty
+    
+    // University email pattern - matches .edu domains and common university patterns
+    final universityEmailRegex = RegExp(
+      r'^[\w-\.]+@(.*\.)?(edu|ac\.[a-z]{2,}|university|college|school|institute)\.([a-z]{2,})',
+      caseSensitive: false,
+    );
+    
+    // Basic email pattern as fallback
+    final basicEmailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    
+    return universityEmailRegex.hasMatch(email) || basicEmailRegex.hasMatch(email);
+  }
+
+  // Password validation method
+  bool _validatePassword(String password) {
+    if (password.isEmpty) return true; // No error if empty
+    return password.length >= 7;
+  }
+
+  // Confirm password validation method
+  bool _validateConfirmPassword(String confirmPassword) {
+    if (confirmPassword.isEmpty) return true; // No error if empty
+    return confirmPassword == _passwordController.text;
+  }
+
+  // Real-time validation methods
+  void _validateEmailRealTime() {
+    final email = _emailController.text;
+    setState(() {
+      if (email.isNotEmpty && !_validateEmail(email)) {
+        _emailErrorText = 'Please enter a valid university email address';
+      } else {
+        _emailErrorText = null;
+      }
+    });
+  }
+
+  void _validatePasswordRealTime() {
+    final password = _passwordController.text;
+    setState(() {
+      if (password.isNotEmpty && !_validatePassword(password)) {
+        _passwordErrorText = 'Password must be at least 7 characters long';
+      } else {
+        _passwordErrorText = null;
+      }
+      // Also re-validate confirm password when password changes
+      _validateConfirmPasswordRealTime();
+    });
+  }
+
+  void _validateConfirmPasswordRealTime() {
+    final confirmPassword = _confirmPasswordController.text;
+    setState(() {
+      if (confirmPassword.isNotEmpty && !_validateConfirmPassword(confirmPassword)) {
+        _confirmPasswordErrorText = 'Passwords do not match';
+      } else {
+        _confirmPasswordErrorText = null;
+      }
+    });
+  }
+
   // --- Form Validation and Navigation Logic ---
   void _register() async {
     // Validate all fields and terms agreement
     if (_formKey.currentState!.validate() && _agreedToTerms) {
+      // Final validation check
+      if (!_validateEmail(_emailController.text) || 
+          !_validatePassword(_passwordController.text) ||
+          !_validateConfirmPassword(_confirmPasswordController.text)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please fix the validation errors before submitting.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
       // Check if passwords match
       if (_passwordController.text != _confirmPasswordController.text) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -105,12 +199,18 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     required String hint,
     required IconData icon,
     Widget? suffixIcon,
+    String? errorText,
   }) {
     return InputDecoration(
       hintText: hint,
       hintStyle: const TextStyle(color: _darkBlue),
       prefixIcon: Icon(icon, color: _darkBlue),
       suffixIcon: suffixIcon,
+      errorText: errorText,
+      errorStyle: const TextStyle(
+        color: Colors.red,
+        fontSize: 12,
+      ),
       filled: true,
       fillColor: Colors.white,
       border: OutlineInputBorder(
@@ -124,6 +224,14 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10.0),
         borderSide: const BorderSide(color: _outlineDarkBlue, width: 2.0),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10.0),
+        borderSide: const BorderSide(color: Colors.red, width: 1.0),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10.0),
+        borderSide: const BorderSide(color: Colors.red, width: 2.0),
       ),
       contentPadding: const EdgeInsets.symmetric(
         vertical: 15.0,
@@ -140,11 +248,10 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     required IconData icon,
     bool obscureText = false,
     String? Function(String?)? validator,
-    required bool
-    isPassword, // New parameter to handle password visibility toggle
-    required bool isVisibleState, // New parameter for current visibility state
-    required ValueChanged<bool>
-    toggleVisibility, // New parameter for state update
+    required bool isPassword,
+    required bool isVisibleState,
+    required ValueChanged<bool> toggleVisibility,
+    String? errorText,
   }) {
     // Build suffix icon for password fields
     Widget? suffixIcon;
@@ -174,22 +281,15 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
           const SizedBox(height: 8),
           TextFormField(
             controller: controller,
-            // Use obscureText flag correctly based on current state
             obscureText: isPassword ? !isVisibleState : obscureText,
             style: const TextStyle(color: _darkBlue),
             decoration: _buildInputDecoration(
               hint: hint,
               icon: icon,
               suffixIcon: suffixIcon,
+              errorText: errorText,
             ),
-            validator:
-                validator ??
-                (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter your $label';
-                  }
-                  return null;
-                },
+            validator: validator,
           ),
         ],
       ),
@@ -272,6 +372,12 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                           isPassword: false,
                           isVisibleState: false,
                           toggleVisibility: (_) {},
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please enter your full name';
+                            }
+                            return null;
+                          },
                         ),
                         // Student ID Field
                         _buildTextFormField(
@@ -282,6 +388,12 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                           isPassword: false,
                           isVisibleState: false,
                           toggleVisibility: (_) {},
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please enter your student ID';
+                            }
+                            return null;
+                          },
                         ),
                         // University Email Field
                         _buildTextFormField(
@@ -292,12 +404,13 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                           isPassword: false,
                           isVisibleState: false,
                           toggleVisibility: (_) {},
+                          errorText: _emailErrorText,
                           validator: (value) {
                             if (value == null || value.isEmpty) {
-                              return 'Please enter your University Email';
+                              return 'Please enter your university email';
                             }
-                            if (!value.contains('@') || !value.contains('.')) {
-                              return 'Enter a valid email address';
+                            if (!_validateEmail(value)) {
+                              return 'Please enter a valid university email address';
                             }
                             return null;
                           },
@@ -309,17 +422,17 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                           hint: 'Create a password',
                           icon: Icons.lock_outline,
                           isPassword: true, // It is a password field
-                          isVisibleState:
-                              _isPasswordVisible, // Use dedicated state
+                          isVisibleState: _isPasswordVisible,
                           toggleVisibility: (newValue) {
                             setState(() => _isPasswordVisible = newValue);
                           },
+                          errorText: _passwordErrorText,
                           validator: (value) {
                             if (value == null || value.isEmpty) {
                               return 'Please create a password';
                             }
-                            if (value.length < 6) {
-                              return 'Password must be at least 6 characters';
+                            if (value.length < 7) {
+                              return 'Password must be at least 7 characters long';
                             }
                             return null;
                           },
@@ -331,13 +444,11 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                           hint: 'Re-enter password',
                           icon: Icons.lock_outline,
                           isPassword: true, // It is a password field
-                          isVisibleState:
-                              _isConfirmPasswordVisible, // Use dedicated state
+                          isVisibleState: _isConfirmPasswordVisible,
                           toggleVisibility: (newValue) {
-                            setState(
-                              () => _isConfirmPasswordVisible = newValue,
-                            );
+                            setState(() => _isConfirmPasswordVisible = newValue);
                           },
+                          errorText: _confirmPasswordErrorText,
                           validator: (value) {
                             if (value == null || value.isEmpty) {
                               return 'Please confirm your password';
@@ -383,8 +494,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                           child: ElevatedButton(
                             onPressed: _register,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor:
-                                  Colors.transparent, // Show gradient
+                              backgroundColor: Colors.transparent,
                               shadowColor: Colors.transparent,
                               padding: const EdgeInsets.symmetric(
                                 vertical: 15.0,
@@ -407,7 +517,6 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                         // Already have an account? Login link
                         GestureDetector(
                           onTap: () {
-                            // Action for "Login": close this screen as requested
                             Navigator.of(context).pop();
                           },
                           child: const Text(
@@ -423,9 +532,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(
-                  height: 40,
-                ), // Extra padding for scrolling clearance
+                const SizedBox(height: 40),
               ],
             ),
           ),

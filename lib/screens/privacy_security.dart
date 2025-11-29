@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'settings.dart'; // Import the settings page
-import '../theme_provider.dart'; // Import the ThemeProvider
+//import 'settings.dart'; // Import the settings page
+import '../../../theme_provider.dart'; // Import the ThemeProvider
+import 'package:tracelink/firebase_service.dart';
+
 
 // Define theme colors
 const Color _brightBlue = Color(
@@ -46,27 +48,61 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
     );
   }
 
-  // Generic function to handle switch changes
-  void _handleSwitchChange(String settingName, bool newValue) {
-    setState(() {
-      // Update the correct state variable based on the setting name
-      if (settingName == 'Profile Visibility') {
-        _profileVisibility = newValue;
-      } else if (settingName == 'Show Email') {
-        _showEmail = newValue;
-      } else if (settingName == 'Show Phone Number') {
-        _showPhoneNumber = newValue;
-      } else if (settingName == 'Two-Factor Authentication') {
-        _twoFactorAuth = newValue;
-      } else if (settingName == 'Login Notifications') {
-        _loginNotifications = newValue;
-      }
-    });
+  // Update the _handleSwitchChange function in privacy_security.dart
+void _handleSwitchChange(String settingName, bool newValue) async {
+  setState(() {
+    // Update the correct state variable based on the setting name
+    if (settingName == 'Profile Visibility') {
+      _profileVisibility = newValue;
+    } else if (settingName == 'Show Email') {
+      _showEmail = newValue;
+    } else if (settingName == 'Show Phone Number') {
+      _showPhoneNumber = newValue;
+    } else if (settingName == 'Two-Factor Authentication') {
+      _twoFactorAuth = newValue;
+    } else if (settingName == 'Login Notifications') {
+      _loginNotifications = newValue;
+    }
+  });
 
-    // Determine the action for the popup message
-    String action = newValue ? 'enabled' : 'disabled';
-    _showStatusMessage('$settingName $action.');
+  // Save to Firebase
+  bool success = await FirebaseService.updatePrivacySettings(
+    showEmail: _showEmail,
+    showPhoneNumber: _showPhoneNumber,
+    loginNotifications: _loginNotifications,
+    profileVisibility: _profileVisibility,
+    twoFactorAuth: _twoFactorAuth,
+  );
+
+  // Determine the action for the popup message
+  String action = newValue ? 'enabled' : 'disabled';
+  String message = success 
+      ? '$settingName $action.'
+      : 'Failed to update $settingName. Please try again.';
+  
+  _showStatusMessage(message);
+}
+
+// Add this method to load privacy settings when the screen initializes
+@override
+void initState() {
+  super.initState();
+  _loadPrivacySettings();
+}
+
+Future<void> _loadPrivacySettings() async {
+  Map<String, dynamic>? privacySettings = await FirebaseService.getPrivacySettings();
+  
+  if (privacySettings != null) {
+    setState(() {
+      _profileVisibility = privacySettings['profileVisibility'] ?? true;
+      _showEmail = privacySettings['showEmail'] ?? false;
+      _showPhoneNumber = privacySettings['showPhoneNumber'] ?? false;
+      _twoFactorAuth = privacySettings['twoFactorAuth'] ?? false;
+      _loginNotifications = privacySettings['loginNotifications'] ?? true;
+    });
   }
+}
 
   // --- Widget Builders ---
 
@@ -199,9 +235,7 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
               icon: Icon(Icons.arrow_back, color: _whiteText), // White icon
               onPressed: () {
                 // Navigate to SettingsPage when top left button is clicked
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(builder: (context) => SettingsScreen()),
-                );
+                Navigator.of(context).pop();
               },
             ),
             flexibleSpace: FlexibleSpaceBar(
@@ -293,7 +327,7 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
                       icon: Icons.lock_outline,
                       iconColor: _brightBlue, // Bright blue icon
                       title: 'Two-Factor Authentication',
-                      subtitle: 'Add an extra layer of security',
+                      subtitle: 'Enable to allow login via Student ID',
                       value: _twoFactorAuth,
                       onChanged: (newValue) => _handleSwitchChange(
                         'Two-Factor Authentication',

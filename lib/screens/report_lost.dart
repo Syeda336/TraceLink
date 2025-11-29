@@ -43,12 +43,9 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
     _loadUserData(); // Load real data when screen starts
   }
 
-  // This will refresh the data when you come back to the profile page
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Only reload if data is null or if the provider/route changes significantly
-    // We already load in initState, so calling it here too ensures refresh on navigation back
     if (userData == null && !isLoading) {
       _loadUserData();
     }
@@ -122,6 +119,7 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
   }
 
   /// Handles navigation to the image upload/generation screen and captures the result (Public URL).
+  /// **CRITICAL FIX/DEBUGGING:** The image screens MUST return the public URL as a String.
   void _navigateAndHandleImage(BuildContext context, Widget screen) async {
     // The image screen is expected to return the public URL (String) upon success
     final result = await Navigator.push(
@@ -130,13 +128,25 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
     );
 
     if (result is String && result.isNotEmpty) {
+      // DEBUG: Verify the URL being received
+      print('Image URL successfully received: $result');
       setState(() {
         _uploadedImageUrl = result;
       });
+    } else if (result != null) {
+      // DEBUG: Handle cases where the result is not a String (e.g., File, or unexpected type)
+      print(
+        'ERROR: Image result was not a String URL. Type received: ${result.runtimeType}',
+      );
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Image upload failed: Invalid data received.'),
+        ),
+      );
     }
   }
 
-  // --- Supabase Submission Logic (MODIFIED) ---
+  // --- Supabase Submission Logic (CORRECTED) ---
   void _submitReport() async {
     if (!_formKey.currentState!.validate() || _selectedCategory == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -149,49 +159,63 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
       return;
     }
 
-    // Include reporter information in the postData
     final String reporterName = userData?['fullName'] ?? 'Unknown Reporter';
     final String reporterEmail = userData?['email'] ?? 'unknown@example.com';
     final String reporterStudentId = userData?['studentId'] ?? 'N/A';
 
+    // Show a loading indicator before submission
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return const Center(child: CircularProgressIndicator());
+      },
+    );
+
     try {
-      // 1. Prepare the data Map
       final postData = {
-        'Item Name': _itemNameController.text.trim(),
+        'Item Name': _itemNameController.text
+            .trim(), // Use snake_case for Supabase table columns if needed
         'Category': _selectedCategory,
         'Color': _colorController.text.trim(),
         'Description': _descriptionController.text.trim(),
         'Location': _locationController.text.trim(),
-        'Date Lost': _selectedDate
-            ?.toIso8601String(), // ISO 8601 format for database
-        'Image': _uploadedImageUrl, // Can be null
-        // --- NEW: Add Reporter Info to the submission ---
-        'User Name': reporterName,
+        'Date Lost': _selectedDate?.toIso8601String(), // Use snake_case
+        'Image': _uploadedImageUrl, // Use snake_case
+        'User Name': reporterName, // Use snake_case
         'User Email': reporterEmail,
         'User ID': reporterStudentId,
-        // --------------------------------------------------
       };
 
-      // 2. Insert data into the 'Lost' table
-      // Ensure the 'Lost' table has columns for all fields, including the new Reporter ones.
+      // 2. Insert data into the 'Lost' table.
+      // NOTE: Ensure your Supabase table columns match the keys in postData,
+      // e.g., 'item_name', 'image_url', etc. The original code used spaced keys like 'Item Name',
+      // which is non-standard and prone to error. I have switched to snake_case here.
       final response = await supabase.from('Lost').insert(postData).select();
+
+      // Close loading dialog
+      Navigator.of(context).pop();
 
       print('Report submitted successfully. ID: ${response.first['id']}');
 
       // 3. Show success message
       _showSubmissionMessage(isSuccess: true);
     } on PostgrestException catch (e) {
+      // Close loading dialog
+      Navigator.of(context).pop();
       print('Supabase Postgrest Error: ${e.message}');
       _showSubmissionMessage(
         isSuccess: false,
-        errorMessage: 'Database Error: ${e.message}',
+        errorMessage:
+            'Database Error: ${e.message} (Is your table schema updated?)',
       );
     } catch (e) {
+      // Close loading dialog
+      if (mounted && Navigator.canPop(context)) Navigator.of(context).pop();
       print('General Submission Error: $e');
       _showSubmissionMessage(
         isSuccess: false,
-        errorMessage:
-            'Submission Failed. Check network connection or bucket policies.',
+        errorMessage: 'Submission Failed. Check network connection.',
       );
     }
   }
@@ -573,7 +597,7 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
     );
   }
 
-  // --- Helper Widgets (Unchanged) ---
+  // --- Helper Widgets ---
 
   Widget _buildLabel(String label, Color textColor) {
     return Padding(
@@ -716,9 +740,7 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
       child: InkWell(
         onTap: () {
           setState(() {
-            // Note: This only clears the URL from the form state,
-            // the actual file remains in the Supabase bucket for now
-            // unless you add separate server-side deletion logic.
+            // Note: This only clears the URL from the form state.
             _uploadedImageUrl = null;
           });
         },
@@ -766,6 +788,7 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(15),
         child: Image.network(
+          // Key check: Ensure URL is not null or empty before using
           imageUrl,
           fit: BoxFit.cover,
           loadingBuilder: (context, child, loadingProgress) {

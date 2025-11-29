@@ -6,6 +6,9 @@ import 'package:tracelink/supabase_lost_service.dart';
 import 'package:tracelink/supabase_found_service.dart';
 import 'admin_logout.dart';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../notifications_service.dart';
+
 import 'package:tracelink/supabase_claims_service.dart';
 import 'package:tracelink/supabase_reports_problems.dart';
 
@@ -318,6 +321,277 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
     }
   }
 
+  // Helper method to get user ID from username/email in the report
+  Future<String?> _getUserIdFromReport(Report report) async {
+    try {
+      print('🔍 Looking up user ID for: ${report.reportedUser}');
+
+      // Query users collection to find the user by their name or email
+      QuerySnapshot userQuery = await FirebaseFirestore.instance
+          .collection('users')
+          .where('fullName', isEqualTo: report.reportedUser)
+          .limit(1)
+          .get();
+
+      // If not found by fullName, try by email
+      if (userQuery.docs.isEmpty) {
+        userQuery = await FirebaseFirestore.instance
+            .collection('users')
+            .where('email', isEqualTo: report.reportedUser)
+            .limit(1)
+            .get();
+      }
+
+      if (userQuery.docs.isNotEmpty) {
+        final userId = userQuery.docs.first.id;
+        print(' Found user ID: $userId for ${report.reportedUser}');
+        return userId;
+      } else {
+        print(' User not found: ${report.reportedUser}');
+        // Fallback: Try to extract from reportedBy if reportedUser is not found
+        QuerySnapshot reporterQuery = await FirebaseFirestore.instance
+            .collection('users')
+            .where('fullName', isEqualTo: report.reportedBy)
+            .limit(1)
+            .get();
+
+        if (reporterQuery.docs.isNotEmpty) {
+          final userId = reporterQuery.docs.first.id;
+          print('✅ Using reporter ID as fallback: $userId');
+          return userId;
+        }
+
+        return null;
+      }
+    } catch (e) {
+      print(' Error looking up user ID: $e');
+      return null;
+    }
+  }
+
+  // Updated warn user method with real notification
+  void _warnUser(Report report) async {
+    // Show loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return const Center(child: CircularProgressIndicator());
+      },
+    );
+
+    final String? targetUserId = await _getUserIdFromReport(report);
+
+    // Hide loading
+    Navigator.of(context).pop();
+
+    if (targetUserId != null && targetUserId.isNotEmpty) {
+      // Send real notification to the user
+      await NotificationsService.sendWarningNotification(
+        targetUserId: targetUserId,
+        itemTitle: report.title,
+        itemId: report.itemId,
+        adminMessage:
+            'Please return the item immediately to avoid further action.',
+      );
+
+      print('⚠️ Warning notification sent to user: $targetUserId');
+
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Warning sent to ${report.reportedUser}'),
+          backgroundColor: Colors.green.shade600,
+        ),
+      );
+    } else {
+      print(' Could not find user ID for report');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not find user ${report.reportedUser}'),
+          backgroundColor: Colors.red.shade600,
+        ),
+      );
+    }
+
+    // Show the splash screen
+    _navigateToScreen(
+      context,
+      UserWarnedSplash(
+        report: report,
+        onFinishNavigation: () {
+          // Any cleanup after navigation
+        },
+      ),
+    );
+  }
+
+  // Updated contact user method with real notification
+  void _contactUser(Report report) async {
+    // Show loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return const Center(child: CircularProgressIndicator());
+      },
+    );
+
+    final String? targetUserId = await _getUserIdFromReport(report);
+
+    // Hide loading
+    Navigator.of(context).pop();
+
+    if (targetUserId != null && targetUserId.isNotEmpty) {
+      // Send contact notification
+      await NotificationsService.addNotification(
+        userId: targetUserId,
+        title: 'Admin Contact',
+        message: 'Administrator has contacted you regarding "${report.title}"',
+        type: 'message',
+        data: {
+          'screen': 'chat',
+          'adminContact': true,
+          'itemTitle': report.title,
+        },
+      );
+
+      print('📧 Contact notification sent to user: $targetUserId');
+
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Contact message sent to ${report.reportedUser}'),
+          backgroundColor: Colors.green.shade600,
+        ),
+      );
+    } else {
+      print(' Could not find user ID for report');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not find user ${report.reportedUser}'),
+          backgroundColor: Colors.red.shade600,
+        ),
+      );
+    }
+
+    // Show the splash screen
+    _navigateToScreen(
+      context,
+      UserContactedSplash(
+        report: report,
+        onFinishNavigation: () {
+          // Any cleanup after navigation
+        },
+      ),
+    );
+  }
+
+  // Method to ban user with notification
+  void _banUser(Report report) async {
+    final String? targetUserId = await _getUserIdFromReport(report);
+
+    if (targetUserId != null && targetUserId.isNotEmpty) {
+      // Send ban notification
+      await NotificationsService.addNotification(
+        userId: targetUserId,
+        title: 'Account Suspended',
+        message:
+            'Your account has been temporarily suspended due to misconduct.',
+        type: 'warning',
+        data: {'screen': 'warning_admin', 'banReason': report.misconductDetail},
+      );
+
+      print('🔨 Ban notification sent to user: $targetUserId');
+    }
+
+    // Navigate to ban confirmation screens
+    _navigateToScreen(context, const AdminSplashUserBanned());
+  }
+
+  // Method to mark item as returned with notification
+  void _markItemReturned(Item item, String claimedByUser) async {
+    final String? targetUserId = await _getUserIdFromName(claimedByUser);
+
+    if (targetUserId != null && targetUserId.isNotEmpty) {
+      // Send return notification
+      await NotificationsService.addNotification(
+        userId: targetUserId,
+        title: 'Item Returned',
+        message: 'Your item "${item.title}" has been marked as returned.',
+        type: 'claim',
+        data: {
+          'itemTitle': item.title,
+          'status': 'returned',
+          'screen': 'claims',
+        },
+      );
+
+      print('✅ Return notification sent to user: $targetUserId');
+    }
+  }
+
+  // Helper method to get user ID from name (for item returns)
+  Future<String?> _getUserIdFromName(String userName) async {
+    try {
+      QuerySnapshot userQuery = await FirebaseFirestore.instance
+          .collection('users')
+          .where('fullName', isEqualTo: userName)
+          .limit(1)
+          .get();
+
+      if (userQuery.docs.isNotEmpty) {
+        return userQuery.docs.first.id;
+      }
+      return null;
+    } catch (e) {
+      print('❌ Error looking up user by name: $e');
+      return null;
+    }
+  }
+
+  // Method to show delete confirmation and send notification
+  void _showDeleteConfirmation(Report report) async {
+    final String? targetUserId = await _getUserIdFromReport(report);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Report'),
+        content: Text(
+          'Are you sure you want to delete the report for "${report.title}"?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.of(context).pop();
+
+              // Send deletion notification to the user if applicable
+              if (targetUserId != null) {
+                await NotificationsService.addNotification(
+                  userId: targetUserId,
+                  title: 'Report Resolved',
+                  message:
+                      'The report regarding "${report.title}" has been resolved by admin.',
+                  type: 'item_update',
+                  data: {'itemTitle': report.title, 'status': 'resolved'},
+                );
+              }
+
+              // Delete the report
+              _deleteReport(report);
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
   // Method to delete a report from the list (UPDATED to use _reports)
   void _deleteReport(Report report) {
     if (!mounted) return;
@@ -522,6 +796,142 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// NEW STUB SCREEN: USER BANNED (BRIGHT BLUE THEME WITH WHITE TEXT)
+class AdminSplashUserBanned extends StatelessWidget {
+  const AdminSplashUserBanned({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    // Bright blue theme with white text
+    Color brightBlue = Colors.lightBlue.shade700;
+    Color whiteText = Colors.white;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('User Banned', style: TextStyle(color: whiteText)),
+        backgroundColor: brightBlue,
+        iconTheme: IconThemeData(color: whiteText), // Back button icon color
+      ),
+      backgroundColor: brightBlue,
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.do_not_disturb_on_outlined, size: 80, color: whiteText),
+            const SizedBox(height: 20),
+            Text(
+              'User Banned Successfully!',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: whiteText,
+              ),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                // Navigate to the confirmation screen (White theme, Dark Blue text)
+                _navigateToScreen(context, const AdminSplashUserBanConfirmed());
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: whiteText,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 30,
+                  vertical: 15,
+                ),
+              ),
+              child: Text(
+                'Confirm',
+                style: TextStyle(
+                  color: brightBlue,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// NEW STUB SCREEN: USER BAN CONFIRMATION (WHITE THEME WITH DARK BLUE TEXT)
+class AdminSplashUserBanConfirmed extends StatelessWidget {
+  const AdminSplashUserBanConfirmed({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    // White theme with dark blue text
+    Color whiteBackground = Colors.white;
+    Color darkBlueText = Colors.blue.shade900;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Ban Confirmed', style: TextStyle(color: darkBlueText)),
+        backgroundColor: whiteBackground,
+        iconTheme: IconThemeData(color: darkBlueText), // Back button icon color
+        elevation: 1,
+      ),
+      backgroundColor: whiteBackground,
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.check_circle_outline, size: 80, color: darkBlueText),
+            const SizedBox(height: 20),
+            Text(
+              'Ban Action Logged and Completed!',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: darkBlueText,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 40.0),
+              child: Text(
+                'The user has been successfully restricted from accessing the platform.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: darkBlueText.withOpacity(0.7),
+                ),
+              ),
+            ),
+            const SizedBox(height: 30),
+            ElevatedButton(
+              onPressed: () {
+                // Pop both the Ban Confirmed screen and the Ban splash screen
+                Navigator.of(context).pop();
+                Navigator.of(context).pop();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: darkBlueText,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 40,
+                  vertical: 15,
+                ),
+              ),
+              child: const Text(
+                'Go Back to Dashboard',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -9,6 +9,8 @@ import 'community_feed.dart';
 import 'messages.dart';
 import 'profile_page.dart';
 import 'home.dart';
+//NEW
+import '../notifications_service.dart'; 
 
 /// A wrapper StatefulWidget to manage the visible screen based on the navigation bar state.
 class BottomNavScreen extends StatefulWidget {
@@ -21,6 +23,16 @@ class BottomNavScreen extends StatefulWidget {
 class _BottomNavScreenState extends State<BottomNavScreen> {
   // 0: Home (this screen), 1: Browse/Search, 2: Feed, 3: Chat, 4: Profile
   int _selectedIndex = 0;
+
+  // -----------------------------------------------------------
+  // PASTE THIS PART HERE (Step 3) NEW
+  // -----------------------------------------------------------
+  @override
+  void initState() {
+    super.initState();
+    // This starts the listener when the user logs in and sees the menu
+    NotificationsService.initializeNotificationListener();
+  }
 
   // IMPORTANT: Remove _navigateToScreen for bottom bar items.
   // We use IndexedStack for non-Home tabs.

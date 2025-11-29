@@ -4,15 +4,12 @@ import 'package:tracelink/theme_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../firebase_service.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 // --- Define the Color Palette ---
 const Color primaryBlue = Color(0xFF42A5F5); // Bright Blue (Header, My Bubble)
-const Color darkBlue = Color(
-  0xFF1977D2,
-); // Dark Blue (Body text, partner bubble text)
-const Color lightBlueBackground = Color(
-  0xFFE3F2FD,
-); // Very Light Blue (Background)
+const Color darkBlue = Color(0xFF1977D2); // Dark Blue (Body text, partner bubble text)
+const Color lightBlueBackground = Color(0xFFE3F2FD); // Very Light Blue (Background)
 const Color myBubbleColor = primaryBlue;
 const Color partnerBubbleColor = lightBlueBackground;
 
@@ -28,7 +25,7 @@ class ChatScreen extends StatefulWidget {
   final String chatPartnerInitials;
   final bool isOnline;
   final Color avatarColor;
-  final String? receiverId; // Add receiver ID for Firebase
+  final String? receiverId; // Now critical for fetching real chats
 
   const ChatScreen({
     super.key,
@@ -36,7 +33,7 @@ class ChatScreen extends StatefulWidget {
     required this.chatPartnerInitials,
     this.isOnline = false,
     required this.avatarColor,
-    this.receiverId, // Make it optional for backward compatibility
+    this.receiverId,
   });
 
   @override
@@ -46,34 +43,101 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  final List<Map<String, dynamic>> _messages = []; // To store chat messages
+  
+  // Speech to text variables
+  final stt.SpeechToText _speech = stt.SpeechToText();
+  bool _isListening = false;
+  bool _speechInitialized = false;
+  String _lastWords = '';
+
+  // Firebase variables
   Stream<QuerySnapshot>? _messagesStream;
   bool _isLoading = true;
-  bool _useFirebase = false;
 
   @override
   void initState() {
     super.initState();
     _initializeChat();
+    _initSpeech();
+  }
+
+  void _initSpeech() async {
+    try {
+      _speechInitialized = await _speech.initialize(
+        onStatus: (status) {
+          // print('Speech status: $status'); // Debug
+          setState(() {
+            _isListening = status == 'listening';
+          });
+        },
+        onError: (error) {
+          // print('Speech error: $error'); // Debug
+          setState(() {
+            _isListening = false;
+          });
+        },
+      );
+    } catch (e) {
+      print('Speech initialization error: $e');
+      _speechInitialized = false;
+    }
+  }
+
+  void _startListening() async {
+    if (!_speechInitialized) {
+      print('Speech not initialized');
+      return;
+    }
+
+    _lastWords = '';
+    
+    setState(() {
+      _isListening = true;
+    });
+    
+    _speech.listen(
+      onResult: (result) {
+        setState(() {
+          _lastWords = result.recognizedWords;
+        });
+      },
+      listenFor: const Duration(seconds: 30),
+      pauseFor: const Duration(seconds: 5),
+      partialResults: true,
+      localeId: 'en_US',
+    );
+  }
+
+  void _stopListening() {
+    if (!_speechInitialized) return;
+    
+    _speech.stop();
+    setState(() {
+      _isListening = false;
+      // When listening stops, populate the text field
+      if (_lastWords.isNotEmpty) {
+        _messageController.text = _lastWords;
+      }
+    });
+  }
+
+  void _toggleListening() {
+    if (_isListening) {
+      _stopListening();
+    } else {
+      _startListening();
+    }
   }
 
   void _initializeChat() async {
-    // Check if we have a receiver ID for Firebase
     if (widget.receiverId != null && widget.receiverId!.isNotEmpty) {
       try {
-        _useFirebase = true;
         _messagesStream = FirebaseService.getMessages(widget.receiverId!);
-
         // Mark messages as read when opening chat
         await FirebaseService.markMessagesAsRead(widget.receiverId!);
       } catch (e) {
         print('Error initializing Firebase chat: $e');
-        _useFirebase = false;
-        _loadHardcodedMessages();
       }
-    } else {
-      _useFirebase = false;
-      _loadHardcodedMessages();
     }
 
     setState(() {
@@ -84,38 +148,6 @@ class _ChatScreenState extends State<ChatScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
   }
 
-  void _loadHardcodedMessages() {
-    // Initialize with example messages (only if not using Firebase)
-    _messages.addAll([
-      {
-        'text': 'Hi! I found your wallet at the library',
-        'isMe': false,
-        'time': '10:30 AM',
-        'senderId': 'partner',
-      },
-      {
-        'text': 'Oh thank you so much! Where exactly did you find it?',
-        'isMe': true,
-        'time': '10:32 AM',
-        'senderId': 'current',
-      },
-      {
-        'text':
-            'It was on the table near study room 12. I turned it in to the front desk.',
-        'isMe': false,
-        'time': '10:33 AM',
-        'senderId': 'partner',
-      },
-      {
-        'text': 'Perfect! I can pick it up today. Thank you again!',
-        'isMe': true,
-        'time': '10:35 AM',
-        'senderId': 'current',
-      },
-    ]);
-  }
-
-  // Helper function to scroll to the bottom
   void _scrollToBottom() {
     if (_scrollController.hasClients) {
       _scrollController.animateTo(
@@ -126,11 +158,11 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  // Clean up controllers
   @override
   void dispose() {
     _messageController.dispose();
     _scrollController.dispose();
+    _speech.stop();
     super.dispose();
   }
 
@@ -138,9 +170,8 @@ class _ChatScreenState extends State<ChatScreen> {
     if (_messageController.text.trim().isEmpty) return;
 
     final messageText = _messageController.text.trim();
-    final currentTime = TimeOfDay.now().format(context);
 
-    if (_useFirebase && widget.receiverId != null) {
+    if (widget.receiverId != null) {
       // Send message via Firebase
       bool success = await FirebaseService.sendMessage(
         receiverId: widget.receiverId!,
@@ -151,30 +182,22 @@ class _ChatScreenState extends State<ChatScreen> {
 
       if (success) {
         _messageController.clear();
+        _lastWords = ''; // Clear speech buffer
+        _scrollToBottom();
       } else {
-        // Fallback: add to local list if Firebase fails
-        _addMessageToLocalList(messageText, true, currentTime);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Failed to send message")),
+        );
       }
     } else {
-      // Use local messages
-      _addMessageToLocalList(messageText, true, currentTime);
+        // If no receiver ID is present (e.g. error state)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Error: No user selected to chat with.")),
+        );
     }
   }
 
-  void _addMessageToLocalList(String text, bool isMe, String time) {
-    setState(() {
-      _messages.add({
-        'text': text,
-        'isMe': isMe,
-        'time': time,
-        'senderId': isMe ? 'current' : 'partner',
-      });
-    });
-    _messageController.clear();
-    _scrollToBottom();
-  }
-
-  // Convert Firebase document to message format
+  // Convert Firebase document to message map
   Map<String, dynamic> _firebaseDocToMessage(
     DocumentSnapshot doc,
     String currentUserId,
@@ -183,7 +206,7 @@ class _ChatScreenState extends State<ChatScreen> {
     final isMe = data['senderId'] == currentUserId;
 
     // Format timestamp
-    String time = '10:00 AM'; // Default
+    String time = '';
     if (data['timestamp'] != null) {
       final timestamp = data['timestamp'] as Timestamp;
       final dateTime = timestamp.toDate();
@@ -202,7 +225,6 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final isDarkMode = themeProvider.isDarkMode;
-    final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
 
     return Scaffold(
       resizeToAvoidBottomInset: true,
@@ -210,7 +232,7 @@ class _ChatScreenState extends State<ChatScreen> {
         backgroundColor: isDarkMode ? darkSurfaceColor : primaryBlue,
         elevation: 1,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.white),
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () {
             Navigator.pop(context);
           },
@@ -265,9 +287,8 @@ class _ChatScreenState extends State<ChatScreen> {
         children: [
           Expanded(
             child: _isLoading
-                ? Center(child: CircularProgressIndicator())
-                : _useFirebase
-                ? StreamBuilder<QuerySnapshot>(
+                ? const Center(child: CircularProgressIndicator())
+                : StreamBuilder<QuerySnapshot>(
                     stream: _messagesStream,
                     builder: (context, snapshot) {
                       if (snapshot.hasError) {
@@ -275,7 +296,18 @@ class _ChatScreenState extends State<ChatScreen> {
                       }
 
                       if (snapshot.connectionState == ConnectionState.waiting) {
-                        return Center(child: CircularProgressIndicator());
+                        return const Center(child: CircularProgressIndicator());
+                      }
+
+                      if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                        return Center(
+                          child: Text(
+                            "Say Hello!",
+                            style: TextStyle(
+                              color: isDarkMode ? darkHintColor : Colors.grey,
+                            ),
+                          ),
+                        );
                       }
 
                       final messages = snapshot.data!.docs;
@@ -286,8 +318,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         itemBuilder: (context, index) {
                           final message = _firebaseDocToMessage(
                             messages[index],
-                            FirebaseAuth.instance.currentUser?.uid ??
-                                '', // <-- This is the fix
+                            FirebaseAuth.instance.currentUser?.uid ?? '',
                           );
                           return _MessageBubble(
                             message: message['text'],
@@ -299,23 +330,42 @@ class _ChatScreenState extends State<ChatScreen> {
                         },
                       );
                     },
-                  )
-                : ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.all(16.0),
-                    itemCount: _messages.length,
-                    itemBuilder: (context, index) {
-                      final message = _messages[index];
-                      return _MessageBubble(
-                        message: message['text'],
-                        isMe: message['isMe'],
-                        time: message['time'],
-                        chatPartnerInitials: widget.chatPartnerInitials,
-                        chatPartnerAvatarColor: widget.avatarColor,
-                      );
-                    },
                   ),
           ),
+          
+          // Speech recognition overlay
+          if (_isListening)
+            Container(
+              padding: const EdgeInsets.all(16),
+              color: isDarkMode ? darkSurfaceColor : Colors.white,
+              child: Column(
+                children: [
+                  const Icon(
+                    Icons.mic,
+                    color: Colors.red,
+                    size: 30,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Listening...',
+                    style: TextStyle(
+                      color: isDarkMode ? darkTextColor : darkBlue,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _lastWords.isEmpty ? 'Speak now' : _lastWords,
+                    style: TextStyle(
+                      color: isDarkMode ? darkHintColor : Colors.grey,
+                      fontStyle: _lastWords.isEmpty ? FontStyle.italic : FontStyle.normal,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+            
           // Message Input Area
           SizedBox(
             height: 100,
@@ -367,12 +417,12 @@ class _ChatScreenState extends State<ChatScreen> {
                             ),
                             suffixIcon: IconButton(
                               icon: Icon(
-                                Icons.mic,
-                                color: isDarkMode ? darkPrimaryColor : darkBlue,
+                                _isListening ? Icons.mic_off : Icons.mic,
+                                color: _isListening 
+                                    ? Colors.red 
+                                    : (isDarkMode ? darkPrimaryColor : darkBlue),
                               ),
-                              onPressed: () {
-                                // Voice message functionality
-                              },
+                              onPressed: _toggleListening,
                             ),
                           ),
                           style: TextStyle(
@@ -405,7 +455,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 }
 
-// _MessageBubble class remains the same but with theme support
+// _MessageBubble class remains exactly the same
 class _MessageBubble extends StatelessWidget {
   final String message;
   final bool isMe;
