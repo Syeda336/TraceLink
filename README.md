@@ -11,56 +11,26 @@ It ensures **safe, quick, and reliable** communication between finders and owner
 #  Target Audience
 - University students  
 - Faculty and administrative staff  
-- Campus security departments  
+ 
 
 # -- Key App Features--
 
-# 1. User Profile & Rating System
-- Users can **rate and review** each other after successful returns (honesty, helpfulness, reliability).  
-- Builds a **trust-based community** and highlights responsible users.
-
-# 2. Priority Notifications
-- **Emergency alerts** for critical or sensitive items (like ID cards, wallets, laptops).  
-- Notifications broadcast only to users in the **target university area**.
-- Users can enable priority notification settings for specific categories.
--  Helps students act quickly if they spot the item.
-
-# 3. Anonymous & Safe Returns
-- Finders can submit found items **anonymously**.  
-- Example: “Item left with block guard” → visible in app for pickup.
-
-# 4. Lost & Found Tabs
-- Dedicated section to browse or post items under **Lost** and **Found** 
-- Organized layout for faster searching.
-
-# 5. Accessibility Features
-- Notifications available in **voice + text** formats.  
-- **Multi-language support** for diverse student communities.
-
-# 6. AI-Powered Image Generation
-- If the owner lacks a photo, they can **describe the item**, and the app will **generate an image using AI (Gemini API)**.  
+- **Gallery & Camera Image Upload:** Upload existing images or take a new photo of items.  
+- **Messaging System:** In-app chat between users.  
+- **AI Item Image Generator:**  If the owner lacks a photo, they can *describe the item, and the app will **generate an image using AI (Gemini API)*.  
 - Helps match items visually even with limited info.
+- **Community Feed:** Displays all lost and found posts in real time.  
+- **Report Lost, Found & Claim Items:** Submit reports for lost items or claim any found item. 
+- **Search Items:** Search for specific items by name.  
+- **Speech-to-Text in Chats:** Option to use microphone for messages.  
+- **2FA & Firebase Authentication:** Secure login with student ID or university email.  
+- **Dark / Light Mode:** Toggle between themes.  
+- **Admin Panel:** Admins can view, approve, and manage posts and users.  
+- **Profile Management:** Users can update basic details in their profile  
 
-# 7. Secure Claim Process
-- Prevents fraud: Owners must pass a short **verification process** before claiming items.
-- Example: Finder can ask what is the wallpaper of your phone to verify the right person  
-
-# 8. Messaging System
-- In-app chat allows communication between finders and owners.  
-- Messages are secured and monitored to prevent misuse.
-
-# 9. Camera Integration
-- **Instant Photo Capture** - Take pictures directly within the app when finding items
-- **Gallery Access** - Choose existing photos from your device
-
-# -- Core Functionalities --
-
-- University Authentication -> Secure login via student ID/university email
-- Smart Reporting -> Detailed lost/found reports with images & descriptions
-- Advanced Search -> Filter by category, color, location, date
-- Community Ratings -> Rate finders for honesty and helpfulness
-- Multi-language Support -> English + local language options
-- Option to choose dark/light mode
-- Camera access
-- Profile Management (basic details, verified student ID).
-- Community Board (latest lost & found posts).
+## Tech Stack
+- **Frontend:** Flutter (Dart)  
+- **Backend:** Firebase Authentication, Firestore, Firebase Storage, Supabase  
+- **Security:** Cloudflare
+- **Design:** Figma  
+- **Platform:** Android
