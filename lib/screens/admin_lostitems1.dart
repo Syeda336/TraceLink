@@ -4,17 +4,15 @@ import 'dart:async';
 
 import 'package:tracelink/supabase_lost_service.dart';
 import 'package:tracelink/supabase_found_service.dart';
-import 'package:tracelink/supabase_reports_problems.dart';
 import 'admin_logout.dart';
 
 // -----------------------------------------------------------------------------
-// DATA MODELS (MODIFIED)
+// DATA MODELS
 // -----------------------------------------------------------------------------
 class Item {
   final String title;
   final String description;
-  final String
-  reportedBy; // Will now hold the formatted string "Name (ID: XXX)"
+  final String reportedBy;
   final String imageUrl;
   final String status; // 'Lost', 'Found', 'Returned'
 
@@ -35,33 +33,24 @@ class Item {
     this.contact = 'N/A',
   });
 
-  /// Factory constructor to create an Item from Supabase data map.
-  ///
-  /// IMPORTANT: The column names 'Reporter Name' and 'Reporter ID' must match
-  /// the actual columns in your 'Lost' and 'Found' Supabase tables.
+  // Factory constructor to create an Item from Supabase data map
   factory Item.fromSupabase(Map<String, dynamic> data, String statusType) {
-    // --- START MODIFIED CODE ---
-
-    // 1. Extract the name and ID from the data map.
-    // Use fallback strings like 'Unknown Name' or 'N/A' if the data is missing.
-    final reporterName = data['User Name'] ?? 'Unknown User Name';
-    final reporterId = data['User ID'] ?? 'N/A';
-
-    // 2. Format the reportedBy string dynamically.
-    final reportedByString = '$reporterName (ID: $reporterId)';
-
-    // --- END MODIFIED CODE ---
+    // Determine the reported by field based on status (simple mock)
+    // NOTE: Supabase tables might have different column names for the user who reported.
+    final reportedBy = statusType == 'Lost'
+        ? 'Lost User (ID: L001)'
+        : 'Found User (ID: F005)';
 
     return Item(
       title: data['Item Name'] ?? 'No Title',
       description: data['Description'] ?? 'No description provided.',
-      reportedBy: reportedByString, // Use the dynamically generated string
+      reportedBy: reportedBy,
       imageUrl: data['Image'] ?? '',
       status: data['status'] as String? ?? 'Unknown',
       category: data['Category'] ?? 'Uncategorized',
       date: data['Date Lost/Date Found'] ?? 'Unknown Date',
       location: data['Location'] ?? 'Unknown Location',
-      contact: 'Admin Contact: 555-1234', // This remains hardcoded
+      contact: 'Admin Contact: 555-1234',
     );
   }
 }
@@ -93,7 +82,7 @@ class Report {
   final String date;
   final String status; // 'Pending', 'Resolved'
   final String misconductDetail;
-  final String? itemId; // Made nullable since it's marked as optional
+  final String itemId; // Link to the item being discussed (optional)
 
   const Report({
     required this.title,
@@ -102,39 +91,10 @@ class Report {
     required this.date,
     required this.status,
     required this.misconductDetail,
-    this.itemId, // Removed 'required' since it's optional
+    required this.itemId,
   });
 
   // Utility method to create a copy with a new status
-  // This is the factory constructor, renamed from Item.fromSupabase
-  // and corrected to map to Report properties.
-  factory Report.fromSupabase(Map<String, dynamic> data, String s) {
-    // 1. Extract and format who submitted the report (reportedBy).
-    final reporterName = data['reporter_name'] ?? 'Unknown Reporter';
-    final reporterId = data['reporter_id'] ?? 'N/A';
-    final reportedByString = '$reporterName (ID: $reporterId)';
-
-    // 2. Extract and format the reported user's information.
-    // Assuming the reported user's name is in 'user_name'
-    final reportedUserName = data['Reported_User_name'] ?? 'Unknown User';
-    final reportedUserId = data['Reported_User_ID'] ?? 'N/A';
-    final reportedUserString = '$reportedUserName (ID: $reportedUserId)';
-
-    return Report(
-      title: data['report_title'] ?? 'No Title',
-      reportedUser:
-          reportedUserString, // Dynamically generated string for reported user
-      reportedBy: reportedByString, // Dynamically generated string for reporter
-      date:
-          data['created_at'] ??
-          'Unknown Date', // Common field name for creation date
-      status: data['status'] as String? ?? 'Pending',
-      misconductDetail: data['Description'] ?? 'No details provided.',
-      itemId: data['id'], // This maps to the optional itemId field
-    );
-  }
-
-  // Example of the utility method mentioned in the original comment
   Report copyWith({String? status}) {
     return Report(
       title: title,
@@ -147,6 +107,7 @@ class Report {
     );
   }
 }
+
 // -----------------------------------------------------------------------------
 // HELPER METHODS
 // -----------------------------------------------------------------------------
@@ -207,7 +168,6 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
   // State Lists initialized to empty lists
   List<Item> _lostItems = [];
   List<Item> _foundItems = [];
-  List<Report> reports = [];
   bool _isLoading = true;
 
   // Mock data for the claims and reports section (initialized)
@@ -228,6 +188,29 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
             'https://images.unsplash.com/photo-1551213458-eb9c57d7210e?fit=crop&w=400&q=80',
         status: 'Lost',
       ),
+    ),
+  ];
+
+  List<Report> reports = [
+    Report(
+      title: 'Fraudulent Claim Attempt',
+      reportedUser: 'Charlie D.',
+      reportedBy: 'Admin Assistant',
+      date: '2025-11-27',
+      status: 'Pending',
+      misconductDetail:
+          'User attempted to claim the Silver Key without providing verification details. Possible scammer.',
+      itemId: 'KEY-001',
+    ),
+    Report(
+      title: 'Inappropriate Language',
+      reportedUser: 'Eve L.',
+      reportedBy: 'System Bot',
+      date: '2025-11-26',
+      status: 'Resolved',
+      misconductDetail:
+          'Used profanity in a public item description. Warning issued.',
+      itemId: 'ITEM-010',
     ),
   ];
 
@@ -257,17 +240,11 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
           .map((data) => Item.fromSupabase(data, 'Found'))
           .toList();
 
-      final reportsData = await SupabaseReportsService.fetchReports();
-      final fetchedReportItems = reportsData
-          .map((data) => Report.fromSupabase(data, 'ReportProblems'))
-          .toList();
-
       if (mounted) {
         setState(() {
           // Assign fetched data. No need for ?? [] since .toList() returns a List<Item>
           _lostItems = fetchedLostItems;
           _foundItems = fetchedFoundItems;
-          reports = fetchedReportItems;
           _isLoading = false;
         });
       }
@@ -1810,8 +1787,7 @@ class AdminDeleteItemMaskScreen extends StatelessWidget {
 class AdminViewReportDetail extends StatelessWidget {
   final Report report;
   final VoidCallback onDelete;
-  final VoidCallback
-  onResolve; // Callback used after actions like Resolve/Contact/Warn
+  final VoidCallback onResolve;
 
   const AdminViewReportDetail({
     super.key,
@@ -1820,7 +1796,6 @@ class AdminViewReportDetail extends StatelessWidget {
     required this.onResolve,
   });
 
-  // Helper widget to build a consistent detail row
   Widget buildDetailRow(String label, String value, {Color? valueColor}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
@@ -1849,7 +1824,6 @@ class AdminViewReportDetail extends StatelessWidget {
     );
   }
 
-  // Helper widget to build the action buttons at the bottom
   Widget _buildReportActionButton({
     required BuildContext context,
     required IconData icon,
@@ -1887,19 +1861,8 @@ class AdminViewReportDetail extends StatelessWidget {
     Color darkOrange = Colors.orange.shade700;
     Color darkGreen = Colors.green.shade700;
 
-    // Logic to determine status badge color
-    Color statusBgColor = report.status == 'Pending' ? darkOrange : darkGreen;
+    Color statusBgColor = report.status == 'Pending' ? brightBlue : darkGreen;
     Color statusTextColor = whiteText;
-
-    // Adjusting for Pending status badge color based on common practice
-    // Using Orange for pending/warning states, and Green for resolved states.
-    if (report.status == 'Pending') {
-      statusBgColor = darkOrange;
-    } else if (report.status == 'Resolved') {
-      statusBgColor = darkGreen;
-    } else {
-      statusBgColor = brightBlue;
-    }
 
     Widget reportHeader = Container(
       padding: const EdgeInsets.only(
@@ -1963,7 +1926,6 @@ class AdminViewReportDetail extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 12),
-                  // --- Status Badge ---
                   Align(
                     alignment: Alignment.centerRight,
                     child: Container(
@@ -1986,8 +1948,6 @@ class AdminViewReportDetail extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 16),
-
-                  // --- Report Information Section ---
                   Text(
                     'Report Information',
                     style: TextStyle(
@@ -2000,17 +1960,13 @@ class AdminViewReportDetail extends StatelessWidget {
                   buildDetailRow(
                     'Reported User:',
                     report.reportedUser,
-                    valueColor: darkRed, // Highlight the reported user
+                    valueColor: darkRed,
                   ),
                   buildDetailRow('Reported By:', report.reportedBy),
                   buildDetailRow('Date:', report.date),
-
-                  // Optionally include Item ID if available and relevant
-                  // if (report.itemId != null) buildDetailRow('Item ID:', report.itemId!),
+                  buildDetailRow('Item ID:', report.itemId),
                   const Divider(height: 20, thickness: 1),
                   const SizedBox(height: 16),
-
-                  // --- Misconduct Detail Section ---
                   Text(
                     'Misconduct Detail',
                     style: TextStyle(
@@ -2046,8 +2002,7 @@ class AdminViewReportDetail extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 30),
-
-                  // --- Action buttons (Contact/Warn) ---
+                  // Action buttons
                   Row(
                     children: [
                       _buildReportActionButton(
@@ -2056,20 +2011,16 @@ class AdminViewReportDetail extends StatelessWidget {
                         label: 'Contact User',
                         color: brightBlue,
                         onTap: () {
-                          // Navigates to a splash screen
-                          Navigator.of(context)
-                              .push(
-                                MaterialPageRoute(
-                                  builder: (context) => UserContactedSplash(
-                                    report: report,
-                                    onFinishNavigation: onResolve,
-                                  ),
-                                ),
-                              )
-                              .then((_) {
-                                // Pop this AdminViewReportDetail after the splash screen is done
-                                Navigator.of(context).pop();
-                              });
+                          // Navigates to splash screen, which calls onResolve after timer
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => UserContactedSplash(
+                                report: report,
+                                onFinishNavigation:
+                                    onResolve, // This resolves the report and pops this screen
+                              ),
+                            ),
+                          );
                         },
                       ),
                       const SizedBox(width: 12.0),
@@ -2079,20 +2030,16 @@ class AdminViewReportDetail extends StatelessWidget {
                         label: 'Warn User',
                         color: darkOrange,
                         onTap: () {
-                          // Navigates to a splash screen
-                          Navigator.of(context)
-                              .push(
-                                MaterialPageRoute(
-                                  builder: (context) => UserWarnedSplash(
-                                    report: report,
-                                    onFinishNavigation: onResolve,
-                                  ),
-                                ),
-                              )
-                              .then((_) {
-                                // Pop this AdminViewReportDetail after the splash screen is done
-                                Navigator.of(context).pop();
-                              });
+                          // Navigates to splash screen, which calls onResolve after timer
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => UserWarnedSplash(
+                                report: report,
+                                onFinishNavigation:
+                                    onResolve, // This resolves the report and pops this screen
+                              ),
+                            ),
+                          );
                         },
                       ),
                     ],
@@ -2100,7 +2047,6 @@ class AdminViewReportDetail extends StatelessWidget {
 
                   const SizedBox(height: 12.0),
 
-                  // --- Action buttons (Delete/Resolve) ---
                   Row(
                     children: [
                       _buildReportActionButton(
@@ -2108,7 +2054,8 @@ class AdminViewReportDetail extends StatelessWidget {
                         icon: Icons.delete_outline,
                         label: 'Delete Report',
                         color: darkRed,
-                        onTap: onDelete,
+                        onTap:
+                            onDelete, // This deletes the report and pops this screen
                       ),
                       const SizedBox(width: 12.0),
                       _buildReportActionButton(
@@ -2116,7 +2063,8 @@ class AdminViewReportDetail extends StatelessWidget {
                         icon: Icons.check_circle_outline,
                         label: 'Mark as Resolved',
                         color: darkGreen,
-                        onTap: onResolve,
+                        onTap:
+                            onResolve, // This resolves the report and pops this screen
                         borderColor: darkGreen,
                       ),
                     ],
@@ -2131,6 +2079,7 @@ class AdminViewReportDetail extends StatelessWidget {
     );
   }
 }
+
 // -----------------------------------------------------------------------------
 // SPLASH SCREENS (UNCHANGED)
 // -----------------------------------------------------------------------------
@@ -2351,3 +2300,4 @@ class UserContactedSplashScreenState extends State<UserContactedSplash> {
     );
   }
 }
+
