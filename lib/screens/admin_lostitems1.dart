@@ -4,15 +4,17 @@ import 'dart:async';
 
 import 'package:tracelink/supabase_lost_service.dart';
 import 'package:tracelink/supabase_found_service.dart';
+import 'package:tracelink/supabase_reports_problems.dart';
 import 'admin_logout.dart';
 
 // -----------------------------------------------------------------------------
-// DATA MODELS
+// DATA MODELS (MODIFIED)
 // -----------------------------------------------------------------------------
 class Item {
   final String title;
   final String description;
-  final String reportedBy;
+  final String
+  reportedBy; // Will now hold the formatted string "Name (ID: XXX)"
   final String imageUrl;
   final String status; // 'Lost', 'Found', 'Returned'
 
@@ -33,24 +35,33 @@ class Item {
     this.contact = 'N/A',
   });
 
-  // Factory constructor to create an Item from Supabase data map
+  /// Factory constructor to create an Item from Supabase data map.
+  ///
+  /// IMPORTANT: The column names 'Reporter Name' and 'Reporter ID' must match
+  /// the actual columns in your 'Lost' and 'Found' Supabase tables.
   factory Item.fromSupabase(Map<String, dynamic> data, String statusType) {
-    // Determine the reported by field based on status (simple mock)
-    // NOTE: Supabase tables might have different column names for the user who reported.
-    final reportedBy = statusType == 'Lost'
-        ? 'Lost User (ID: L001)'
-        : 'Found User (ID: F005)';
+    // --- START MODIFIED CODE ---
+
+    // 1. Extract the name and ID from the data map.
+    // Use fallback strings like 'Unknown Name' or 'N/A' if the data is missing.
+    final reporterName = data['User Name'] ?? 'Unknown User Name';
+    final reporterId = data['User ID'] ?? 'N/A';
+
+    // 2. Format the reportedBy string dynamically.
+    final reportedByString = '$reporterName (ID: $reporterId)';
+
+    // --- END MODIFIED CODE ---
 
     return Item(
       title: data['Item Name'] ?? 'No Title',
       description: data['Description'] ?? 'No description provided.',
-      reportedBy: reportedBy,
+      reportedBy: reportedByString, // Use the dynamically generated string
       imageUrl: data['Image'] ?? '',
       status: data['status'] as String? ?? 'Unknown',
       category: data['Category'] ?? 'Uncategorized',
       date: data['Date Lost/Date Found'] ?? 'Unknown Date',
       location: data['Location'] ?? 'Unknown Location',
-      contact: 'Admin Contact: 555-1234',
+      contact: 'Admin Contact: 555-1234', // This remains hardcoded
     );
   }
 }

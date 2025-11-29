@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart'; // Import provider package
 
+import 'package:tracelink/firebase_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 // Import your custom ThemeProvider
 import '../theme_provider.dart';
-
+import 'package:uuid/uuid.dart';
 import 'bottom_navigation.dart';
+
+final supabase = Supabase.instance.client;
 
 class ReportProblem extends StatefulWidget {
   const ReportProblem({super.key});
@@ -14,6 +19,36 @@ class ReportProblem extends StatefulWidget {
 }
 
 class _ReportProblemScreenState extends State<ReportProblem> {
+  // Map for Firebase data: 'fullName', 'studentId', 'email' are expected keys
+  Map<String, dynamic>? userData;
+  bool isLoading = true; // Loading state
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData(); // Load real data when screen starts
+  }
+
+  // This will refresh the data when you come back to the profile page
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Only reload if data is null or if the provider/route changes significantly
+    // We already load in initState, so calling it here too ensures refresh on navigation back
+    if (userData == null && !isLoading) {
+      _loadUserData();
+    }
+  }
+
+  Future<void> _loadUserData() async {
+    // Assuming FirebaseService.getUserData() fetches the required data (full name, student ID, email)
+    Map<String, dynamic>? data = await FirebaseService.getUserData();
+    setState(() {
+      userData = data;
+      isLoading = false;
+    });
+  }
+
   // --- Define Color Palettes ---
 
   // Light Mode Colors (Based on original request)
@@ -57,9 +92,36 @@ class _ReportProblemScreenState extends State<ReportProblem> {
   }
 
   // Function to handle form submission
-  void _submitReport() {
+  void _submitReport() async {
     if (_formKey.currentState!.validate()) {
-      _showSuccessDialog();
+      if (userData == null) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("User data not loaded.")));
+        return;
+      }
+
+      final String fullName = userData!['fullName'];
+      final String studentId = userData!['studentId'];
+
+      try {
+        await supabase.from('ReportProblems').insert({
+          'created_at': DateTime.now().toIso8601String(),
+          'Item Name': _itemController.text.trim(),
+          'Description': _descriptionController.text.trim(),
+          'Reported_User_ID': studentId,
+          'Reported_User_name': fullName,
+          'Complaint_User_Name': _usernameController.text.trim(),
+        });
+
+        // If insert succeeds → show success message
+        _showSuccessDialog();
+      } catch (e) {
+        // Insert failed → show error message
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Failed to submit report: $e")));
+      }
     }
   }
 
