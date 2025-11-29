@@ -18,10 +18,6 @@ const Color darkBackground = Color(0xFF121212); // Darker background for body
 const Color darkBlueText = Color(0xFF1E3A8A);
 const Color lightBlueText = Color(0xFFE0E0E0); // Light text for Dark Mode
 
-// --- Static Icon Colors ---
-const Color _deepPurpleColor = Color(0xFF673AB7);
-const Color _primaryColor = Color(0xFF00B0FF); // Bright Blue
-
 // --- USER DATA MODEL ---
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -405,12 +401,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         _navigateTo(context, const SettingsScreen());
                       },
                     ),
-                    const SizedBox(height: 10),
-
-                    // Language Dropdown (REPLACEMENT FOR Language & Accessibility)
-                    _LanguageSettingTile(
-                      cardBackgroundColor: cardBackgroundColor,
-                    ),
 
                     const SizedBox(height: 30),
 
@@ -627,132 +617,6 @@ class _SettingsItem extends StatelessWidget {
       subtitle: Text(subtitle, style: TextStyle(color: subTextColor)),
       trailing: actualTrailing,
       onTap: onTap,
-    );
-  }
-}
-
-// --- NEW Widget for Language Setting with Dropdown (Stateful to manage selection) ---
-
-class _LanguageSettingTile extends StatefulWidget {
-  final Color cardBackgroundColor;
-
-  const _LanguageSettingTile({required this.cardBackgroundColor});
-
-  @override
-  State<_LanguageSettingTile> createState() => __LanguageSettingTileState();
-}
-
-class __LanguageSettingTileState extends State<_LanguageSettingTile> {
-  // Initial values for settings
-  String _selectedLanguage = 'English'; // Default
-  final List<String> _languages = ['English', 'Urdu'];
-
-  @override
-  Widget build(BuildContext context) {
-    // The dark blue outline color
-    final outlineColor = const Color.fromARGB(
-      255,
-      20,
-      51,
-      134,
-    ).withOpacity(0.6);
-
-    // Determine text colors dynamically based on the card background
-    final mainTextColor = widget.cardBackgroundColor == Colors.white
-        ? const Color.fromARGB(255, 17, 48, 134)
-        : Colors.white;
-
-    return Container(
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: widget.cardBackgroundColor, // Dynamic background
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(
-          color: outlineColor, // Static outline, or could be dynamic
-          width: 1.5,
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: _deepPurpleColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(
-              Icons.language,
-              color: _deepPurpleColor,
-              size: 28,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Language',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: mainTextColor, // Dynamic Text Color
-                    fontSize: 16,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                // Dropdown Button
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10.0),
-                  decoration: BoxDecoration(
-                    color: mainTextColor.withOpacity(
-                      0.05,
-                    ), // Light background for dropdown
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: _primaryColor.withOpacity(0.5)),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      isExpanded: true,
-                      value: _selectedLanguage,
-                      icon: const Icon(
-                        Icons.keyboard_arrow_down,
-                        color: _primaryColor,
-                      ),
-                      dropdownColor: widget
-                          .cardBackgroundColor, // Dynamic dropdown background
-                      style: TextStyle(color: mainTextColor, fontSize: 16),
-                      items: _languages.map<DropdownMenuItem<String>>((
-                        String item,
-                      ) {
-                        return DropdownMenuItem<String>(
-                          value: item,
-                          child: Text(
-                            item,
-                            style: TextStyle(color: mainTextColor),
-                          ),
-                        );
-                      }).toList(),
-                      onChanged: (newValue) {
-                        if (newValue != null) {
-                          setState(() {
-                            _selectedLanguage = newValue;
-                          });
-                          // TODO: Implement actual language change logic here
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Language set to $newValue'),
-                            ),
-                          );
-                        }
-                      },
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

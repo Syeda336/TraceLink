@@ -26,4 +26,9 @@ class SupabaseFoundService {
       rethrow;
     }
   }
+
+  Future<int> getFoundCount() async {
+    final response = await supabase.from("Found").select();
+    return response.length;
+  }
 }

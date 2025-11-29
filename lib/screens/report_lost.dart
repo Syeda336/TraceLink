@@ -10,7 +10,6 @@ import 'ai_generated.dart'; // Imports the AI image generator screen
 import '../theme_provider.dart'; // Placeholder for ThemeProvider
 import 'bottom_navigation.dart'; // Placeholder for BottomNavScreen
 
-// --- Global Supabase Client Access ---
 // Ensure Supabase is initialized in main.dart
 final supabase = Supabase.instance.client;
 

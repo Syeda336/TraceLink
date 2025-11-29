@@ -6,8 +6,11 @@ import 'package:tracelink/supabase_lost_service.dart';
 import 'package:tracelink/supabase_found_service.dart';
 import 'admin_logout.dart';
 
+import 'package:tracelink/supabase_claims_service.dart';
+import 'package:tracelink/supabase_reports_problems.dart';
+
 // -----------------------------------------------------------------------------
-// DATA MODELS
+// DATA MODELS (UPDATED)
 // -----------------------------------------------------------------------------
 class Item {
   final String title;
@@ -36,10 +39,11 @@ class Item {
   // Factory constructor to create an Item from Supabase data map
   factory Item.fromSupabase(Map<String, dynamic> data, String statusType) {
     // Determine the reported by field based on status (simple mock)
-    // NOTE: Supabase tables might have different column names for the user who reported.
-    final reportedBy = statusType == 'Lost'
-        ? 'Lost User (ID: L001)'
-        : 'Found User (ID: F005)';
+    final reporterName = data['User Name'] ?? 'Unknown User Name';
+    final reporterId = data['User ID'] ?? 'N/A';
+
+    // 2. Format the reportedBy string dynamically.
+    final reportedBy = '$reporterName (ID: $reporterId)';
 
     return Item(
       title: data['Item Name'] ?? 'No Title',
@@ -53,40 +57,101 @@ class Item {
       contact: 'Admin Contact: 555-1234',
     );
   }
+
+  // Factory constructor from a claims map for linking purposes
+  factory Item.fromClaimData(Map<String, dynamic> claimData) {
+    // Use the nested mock data for the item itself
+    final itemDetails =
+        claimData['Original_Item_Details'] as Map<String, dynamic>?;
+
+    return Item(
+      title: itemDetails?['Item Name'] ?? 'Claimed Item',
+      description:
+          itemDetails?['Description'] ??
+          'Description not available from claim data.',
+      reportedBy: 'N/A', // Not directly in claims table
+      imageUrl: itemDetails?['Image'] ?? '',
+      status: 'Found', // Claim implies the item was found
+      category: 'Claimed',
+      date: 'N/A',
+      location: 'N/A',
+      contact: 'N/A',
+    );
+  }
 }
 
 class Claim {
-  final String title;
-  final String claimedBy;
-  final String foundBy;
-  final String imageUrl;
-  final String date;
+  final String title; // Item Name
+  final String claimedBy; // User Name
+  final String claimedById; // User ID
+  final String
+  foundByNotes; // Additional Notes (used to imply who found it, or just claim detail)
+  final String contact; // Contact
+  final String date; // created_at
+  final String uniqueFeatures; // Unique Features
   final String status; // 'Pending', 'Verified', 'Returned'
+
   final Item item; // Link back to the original item data
 
   const Claim({
     required this.title,
     required this.claimedBy,
-    required this.foundBy,
-    required this.imageUrl,
+    required this.claimedById,
+    required this.foundByNotes,
+    required this.contact,
     required this.date,
+    required this.uniqueFeatures,
     required this.status,
     required this.item,
   });
+
+  // Factory constructor to create a Claim from Supabase data map
+  factory Claim.fromSupabase(Map<String, dynamic> data) {
+    // Create a simplified Item model from the claim data for the detail screen
+    final linkedItem = Item.fromClaimData(data);
+
+    return Claim(
+      title: data['Item Name'] ?? 'No Title',
+      claimedBy: data['User Name'] ?? 'Unknown User',
+      claimedById: data['User ID'] ?? 'N/A',
+      foundByNotes: data['Additional Notes'] ?? 'No notes provided.',
+      contact: data['Contact'] ?? 'N/A',
+      date: data['created_at']?.toString().split('T').first ?? 'Unknown Date',
+      uniqueFeatures: data['Unique Features'] ?? 'None specified',
+      status: data['status'] as String? ?? 'Pending', // Assumed status column
+      item: linkedItem,
+    );
+  }
+
+  Claim copyWith({String? status}) {
+    return Claim(
+      title: title,
+      claimedBy: claimedBy,
+      claimedById: claimedById,
+      foundByNotes: foundByNotes,
+      contact: contact,
+      date: date,
+      uniqueFeatures: uniqueFeatures,
+      status: status ?? this.status,
+      item: item,
+    );
+  }
 }
 
 class Report {
-  final String title;
-  final String reportedUser;
-  final String reportedBy;
-  final String date;
+  final String title; // Title
+  final String reportedUser; // Reported_User_name
+  final String reportedUserId; // Reported_User_ID
+  final String reportedBy; // Complaint_User_Name
+  final String date; // created_at
   final String status; // 'Pending', 'Resolved'
-  final String misconductDetail;
-  final String itemId; // Link to the item being discussed (optional)
+  final String misconductDetail; // Description
+  final String itemId; // Item Name (used as ID/Name)
 
   const Report({
     required this.title,
     required this.reportedUser,
+    required this.reportedUserId,
     required this.reportedBy,
     required this.date,
     required this.status,
@@ -94,11 +159,26 @@ class Report {
     required this.itemId,
   });
 
+  // Factory constructor to create a Report from Supabase data map
+  factory Report.fromSupabase(Map<String, dynamic> data) {
+    return Report(
+      title: data['Title'] ?? 'No Title',
+      reportedUser: data['Complaint_User_name'] ?? 'Unknown User',
+      reportedUserId: data['Reported_User_ID'] ?? 'N/A',
+      reportedBy: data['Reported_User_name'] ?? 'Unknown Reporter',
+      date: data['created_at']?.toString().split('T').first ?? 'Unknown Date',
+      status: data['status'] as String? ?? 'Pending', // Assumed status column
+      misconductDetail: data['Description'] ?? 'No details provided.',
+      itemId: data['Item Name'] ?? 'N/A',
+    );
+  }
+
   // Utility method to create a copy with a new status
   Report copyWith({String? status}) {
     return Report(
       title: title,
       reportedUser: reportedUser,
+      reportedUserId: reportedUserId,
       reportedBy: reportedBy,
       date: date,
       status: status ?? this.status,
@@ -109,7 +189,7 @@ class Report {
 }
 
 // -----------------------------------------------------------------------------
-// HELPER METHODS
+// HELPER METHODS (UNCHANGED)
 // -----------------------------------------------------------------------------
 
 void _navigateToScreen(BuildContext context, Widget screen) {
@@ -168,51 +248,12 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
   // State Lists initialized to empty lists
   List<Item> _lostItems = [];
   List<Item> _foundItems = [];
+  List<Claim> _claims =
+      []; // Changed from 'claims' to '_claims' for consistency
+  List<Report> _reports =
+      []; // Changed from 'reports' to '_reports' for consistency
   bool _isLoading = true;
-
-  // Mock data for the claims and reports section (initialized)
-  List<Claim> claims = [
-    Claim(
-      title: 'Claim for Blue Backpack',
-      claimedBy: 'Alice J.',
-      foundBy: 'Bob K.',
-      imageUrl:
-          'https://images.unsplash.com/photo-1551213458-eb9c57d7210e?fit=crop&w=400&q=80',
-      date: '2025-11-26',
-      status: 'Pending',
-      item: Item(
-        title: 'Blue Backpack',
-        description: 'A small blue hiking backpack...',
-        reportedBy: 'Lost User',
-        imageUrl:
-            'https://images.unsplash.com/photo-1551213458-eb9c57d7210e?fit=crop&w=400&q=80',
-        status: 'Lost',
-      ),
-    ),
-  ];
-
-  List<Report> reports = [
-    Report(
-      title: 'Fraudulent Claim Attempt',
-      reportedUser: 'Charlie D.',
-      reportedBy: 'Admin Assistant',
-      date: '2025-11-27',
-      status: 'Pending',
-      misconductDetail:
-          'User attempted to claim the Silver Key without providing verification details. Possible scammer.',
-      itemId: 'KEY-001',
-    ),
-    Report(
-      title: 'Inappropriate Language',
-      reportedUser: 'Eve L.',
-      reportedBy: 'System Bot',
-      date: '2025-11-26',
-      status: 'Resolved',
-      misconductDetail:
-          'Used profanity in a public item description. Warning issued.',
-      itemId: 'ITEM-010',
-    ),
-  ];
+  bool _hasError = false;
 
   @override
   void initState() {
@@ -220,11 +261,12 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
     _fetchItems();
   }
 
-  // Method to fetch data from Supabase
+  // Method to fetch data from Supabase (UPDATED to include Claims and Reports)
   Future<void> _fetchItems() async {
     if (!mounted) return;
     setState(() {
       _isLoading = true;
+      _hasError = false;
     });
 
     try {
@@ -240,11 +282,24 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
           .map((data) => Item.fromSupabase(data, 'Found'))
           .toList();
 
+      // 3. Fetch Claims (NEW)
+      final claimsData = await SupabaseClaimService.fetchClaimedItems();
+      final fetchedClaims = claimsData
+          .map((data) => Claim.fromSupabase(data))
+          .toList();
+
+      // 4. Fetch Reports (NEW)
+      final reportsData = await SupabaseReportService.fetchReports();
+      final fetchedReports = reportsData
+          .map((data) => Report.fromSupabase(data))
+          .toList();
+
       if (mounted) {
         setState(() {
-          // Assign fetched data. No need for ?? [] since .toList() returns a List<Item>
           _lostItems = fetchedLostItems;
           _foundItems = fetchedFoundItems;
+          _claims = fetchedClaims; // Update state
+          _reports = fetchedReports; // Update state
           _isLoading = false;
         });
       }
@@ -252,22 +307,23 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
       if (mounted) {
         setState(() {
           _isLoading = false;
+          _hasError = true;
         });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Failed to load data. Check console.')),
         );
       }
       // In a real app, you'd log this error
-      debugPrint('Error fetching items from Supabase: $e');
+      debugPrint('Error fetching items/claims/reports from Supabase: $e');
     }
   }
 
-  // Method to delete a report from the list
+  // Method to delete a report from the list (UPDATED to use _reports)
   void _deleteReport(Report report) {
     if (!mounted) return;
     final title = report.title;
     setState(() {
-      reports.remove(report);
+      _reports.remove(report);
     });
     // Pop the detail screen if it's currently open
     // NOTE: This assumes the detail screen is the direct previous route.
@@ -282,16 +338,16 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
     );
   }
 
-  // Method to mark a report as resolved
+  // Method to mark a report as resolved (UPDATED to use _reports)
   void _resolveReport(Report report) {
     if (!mounted) return;
     // Find the index of the report to update
-    final index = reports.indexOf(report);
+    final index = _reports.indexOf(report);
     if (index != -1) {
-      final title = reports[index].title;
+      final title = _reports[index].title;
       setState(() {
         // Use copyWith for immutability and clarity
-        reports[index] = reports[index].copyWith(status: 'Resolved');
+        _reports[index] = _reports[index].copyWith(status: 'Resolved');
       });
       // Close the detail screen
       if (Navigator.of(context).canPop()) {
@@ -301,6 +357,26 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Report for "$title" marked as Resolved.'),
+          backgroundColor: Colors.green.shade600,
+        ),
+      );
+    }
+  }
+
+  // Method to mark a claim as returned (NEW: Mock implementation)
+  void _markClaimAsReturned(Claim claim) {
+    if (!mounted) return;
+    final index = _claims.indexOf(claim);
+    if (index != -1) {
+      final title = _claims[index].title;
+      setState(() {
+        _claims[index] = _claims[index].copyWith(status: 'Returned');
+      });
+      // Refresh item list (or ideally update the specific item)
+      _fetchItems();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Claim for "$title" marked as Returned.'),
           backgroundColor: Colors.green.shade600,
         ),
       );
@@ -331,30 +407,27 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
     } else if (_selectedTab == 'Lost') {
       contentList = _lostItems.map((item) => _ItemCard(item: item)).toList();
       if (contentList.isEmpty) {
-        contentList.add(
-          const _EmptyStateMessage(message: 'No Lost Item reports found.'),
-        );
+        debugPrint('Error fetching items/claims/reports from Supabase: ');
       }
     } else if (_selectedTab == 'Found') {
       contentList = _foundItems
           .map((item) => _FoundItemCard(item: item))
           .toList();
       if (contentList.isEmpty) {
-        contentList.add(
-          const _EmptyStateMessage(message: 'No Found Item reports found.'),
-        );
+        debugPrint('Error fetching items/claims/reports from Supabase: ');
       }
     } else if (_selectedTab == 'Claims') {
-      contentList = claims
-          .map((claim) => _GeneralClaimCard(claim: claim))
-          .toList();
-      if (contentList.isEmpty) {
-        contentList.add(
-          const _EmptyStateMessage(message: 'No pending claims at this time.'),
+      contentList = _claims.map((claim) {
+        return _GeneralClaimCard(
+          claim: claim,
+          onMarkReturned: () => _markClaimAsReturned(claim),
         );
+      }).toList();
+      if (contentList.isEmpty) {
+        debugPrint('Error fetching items/claims/reports from Supabase: ');
       }
     } else if (_selectedTab == 'Reports') {
-      contentList = reports.map((report) {
+      contentList = _reports.map((report) {
         return _ReportCard(
           report: report,
           // When onDelete is called from the card, it triggers the state method
@@ -373,11 +446,7 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
         );
       }).toList();
       if (contentList.isEmpty) {
-        contentList.add(
-          const _EmptyStateMessage(
-            message: 'No user misconduct reports to review.',
-          ),
-        );
+        debugPrint('Error fetching items/claims/reports from Supabase: ');
       }
     }
 
@@ -405,7 +474,7 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
                 ),
               ),
               Text(
-                '${reports.where((r) => r.status == 'Pending').length} pending reports',
+                '${_reports.where((r) => r.status == 'Pending').length} pending reports',
                 style: TextStyle(
                   fontSize: 14,
                   color: Colors.blue.shade700,
@@ -445,7 +514,7 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
                 ),
                 children: [
                   if (_selectedTab == 'Claims' && !_isLoading)
-                    _ClaimsHeader(claims: claims),
+                    _ClaimsHeader(claims: _claims),
                   if (_selectedTab == 'Reports' && !_isLoading) reportHeader,
                   ...contentList,
                 ],
@@ -998,8 +1067,9 @@ class _ClaimsHeader extends StatelessWidget {
 
 class _GeneralClaimCard extends StatelessWidget {
   final Claim claim;
+  final VoidCallback onMarkReturned;
 
-  const _GeneralClaimCard({required this.claim});
+  const _GeneralClaimCard({required this.claim, required this.onMarkReturned});
 
   Color _getStatusColor(String status) {
     switch (status) {
@@ -1037,9 +1107,12 @@ class _GeneralClaimCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final Item item = claim.item;
 
-    String imageUrl = claim.imageUrl.isEmpty
+    // Use a placeholder image URL for the claim card, as the claims table
+    // doesn't directly provide one in the requested columns. We will use the
+    // linked item's image as a proxy.
+    String imageUrl = item.imageUrl.isEmpty
         ? 'https://placehold.co/70x70/cccccc/000000?text=N/A'
-        : claim.imageUrl;
+        : item.imageUrl;
 
     return Card(
       elevation: 4,
@@ -1105,14 +1178,16 @@ class _GeneralClaimCard extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        'Found By: ${claim.foundBy}',
+                        'Unique Features: ${claim.uniqueFeatures}',
                         style: const TextStyle(
                           fontSize: 14,
                           color: Colors.black54,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       Text(
-                        claim.date,
+                        'Claim Date: ${claim.date}',
                         style: const TextStyle(
                           fontSize: 12,
                           color: Colors.black45,
@@ -1133,7 +1208,7 @@ class _GeneralClaimCard extends StatelessWidget {
                     _buildActionButton(
                       context,
                       icon: Icons.remove_red_eye_outlined,
-                      label: 'View Details',
+                      label: 'View Item',
                       onTap: () {
                         _navigateToScreen(
                           context,
@@ -1144,7 +1219,7 @@ class _GeneralClaimCard extends StatelessWidget {
 
                     const SizedBox(width: 8.0),
 
-                    if (claim.status != 'Returned')
+                    if (claim.status == 'Pending' || claim.status == 'Verified')
                       _buildActionButton(
                         context,
                         icon: Icons.check_circle_outline,
@@ -1154,9 +1229,7 @@ class _GeneralClaimCard extends StatelessWidget {
                             context,
                             AdminShowReturnScreen(
                               item: item,
-                              onReturnConfirmed: () {
-                                // TODO: Implement claim status update and item status update
-                              },
+                              onReturnConfirmed: onMarkReturned,
                             ),
                           );
                         },
@@ -1165,24 +1238,25 @@ class _GeneralClaimCard extends StatelessWidget {
                 ),
 
                 const SizedBox(height: 16.0),
-
-                _buildActionButton(
-                  context,
-                  icon: Icons.delete_outline,
-                  label: 'Delete',
-                  color: Colors.red.shade700,
-                  onTap: () {
-                    _navigateToScreen(
-                      context,
-                      AdminDeleteItemMaskScreen(
-                        item: item,
-                        onDeleteConfirmed: () {
-                          // TODO: Implement claim/item deletion
-                        },
-                      ),
-                    );
-                  },
-                ),
+                // Only show delete button if claim hasn't been returned
+                if (claim.status != 'Returned')
+                  _buildActionButton(
+                    context,
+                    icon: Icons.delete_outline,
+                    label: 'Delete Claim',
+                    color: Colors.red.shade700,
+                    onTap: () {
+                      _navigateToScreen(
+                        context,
+                        AdminDeleteItemMaskScreen(
+                          item: item, // Use item to display name in modal
+                          onDeleteConfirmed: () {
+                            // TODO: Implement claim deletion (and refresh state)
+                          },
+                        ),
+                      );
+                    },
+                  ),
               ],
             ),
           ],
@@ -2300,4 +2374,3 @@ class UserContactedSplashScreenState extends State<UserContactedSplash> {
     );
   }
 }
-

@@ -5,12 +5,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 // Global accessor for Supabase Client (assuming it's initialized in main)
 final supabase = Supabase.instance.client;
 
-class SupabaseReportService {
+class SupabaseClaimService {
   // Method to fetch all rows from the 'Lost' table
-  static Future<List<Map<String, dynamic>>> fetchReports() async {
+  static Future<List<Map<String, dynamic>>> fetchClaimedItems() async {
     try {
       final response = await supabase
-          .from('ReportProblems') // 🌟 Your table name
+          .from('claimed_items') // 🌟 Your table name
           .select() // Select all columns
           .order('created_at', ascending: false); // Order by most recent
 
@@ -27,8 +27,8 @@ class SupabaseReportService {
     }
   }
 
-  Future<int> getReports() async {
-    final response = await supabase.from("ReportProblems").select();
+  Future<int> getClaimedCount() async {
+    final response = await supabase.from("claimed_items").select();
     return response.length;
   }
 }

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'home.dart';
+import 'bottom_navigation.dart';
 // Import the ThemeProvider
 import '../theme_provider.dart';
 
@@ -58,7 +58,7 @@ class _SubmittedClaimScreenState extends State<SubmittedClaimScreen>
         // Navigate to HomeScreen and replace all previous routes
         // (so the user can't press back to this success screen)
         Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
+          MaterialPageRoute(builder: (context) => const BottomNavScreen()),
           (Route<dynamic> route) => false,
         );
       }

@@ -15,6 +15,11 @@ class FirebaseService {
     );
   }
 
+  Future<int> getUserCount() async {
+    var snapshot = await FirebaseFirestore.instance.collection("users").get();
+    return snapshot.docs.length;
+  }
+
   // -----------------------
   // Sign up new user
   // -----------------------

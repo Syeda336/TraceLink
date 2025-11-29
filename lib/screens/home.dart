@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart'; // 💡 Import for Supa
 import '../supabase_lost_service.dart'; // 🌟 Import the new service
 import '../supabase_found_service.dart'; // 🌟 Import the new service
 import '../theme_provider.dart'; // Import your ThemeProvider
+import 'package:tracelink/firebase_service.dart';
 
 // Import all destination screens
 import 'notifications.dart';
@@ -78,6 +79,32 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  Map<String, dynamic>? userData; // ← NEW: For Firebase data
+  bool isLoading = true; // ← NEW: Loading state
+
+  // This will refresh the data when you come back to the profile page
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    Map<String, dynamic>? data = await FirebaseService.getUserData();
+    setState(() {
+      userData = data;
+      isLoading = false;
+    });
+  }
+
+  // Manual refresh function
+  Future<void> _refreshData() async {
+    setState(() {
+      isLoading = true;
+    });
+    await _loadUserData();
+  }
+
   // 🌟 NEW STATE VARIABLES
   List<Item> _masterItems = [];
   bool _isLoading = true;
@@ -86,6 +113,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    _loadUserData();
     _fetchItemsFromSupabase(); // 🌟 Start data fetching
   }
 
@@ -200,9 +228,9 @@ class _HomeScreenState extends State<HomeScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Hello, Student! 👋',
-                style: TextStyle(
+              Text(
+                userData?['fullName'] ?? 'User Name', // ← NEW
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 24,
                   fontWeight: FontWeight.bold,

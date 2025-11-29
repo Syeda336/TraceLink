@@ -12,6 +12,7 @@ class SupabaseLostService {
       final response = await supabase
           .from('Lost') // 🌟 Your table name
           .select() // Select all columns
+          .limit(1)
           .order('Date Lost', ascending: false); // Order by most recent
 
       // The response is a List<Map<String, dynamic>>
@@ -25,5 +26,10 @@ class SupabaseLostService {
       print('An unexpected error occurred: $e');
       rethrow;
     }
+  }
+
+  Future<int> getLostCount() async {
+    final response = await supabase.from("Lost").select();
+    return response.length;
   }
 }

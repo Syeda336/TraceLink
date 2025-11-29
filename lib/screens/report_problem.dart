@@ -6,7 +6,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 // Import your custom ThemeProvider
 import '../theme_provider.dart';
-import 'package:uuid/uuid.dart';
 import 'bottom_navigation.dart';
 
 final supabase = Supabase.instance.client;
@@ -23,42 +22,15 @@ class _ReportProblemScreenState extends State<ReportProblem> {
   Map<String, dynamic>? userData;
   bool isLoading = true; // Loading state
 
-  @override
-  void initState() {
-    super.initState();
-    _loadUserData(); // Load real data when screen starts
-  }
-
-  // This will refresh the data when you come back to the profile page
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // Only reload if data is null or if the provider/route changes significantly
-    // We already load in initState, so calling it here too ensures refresh on navigation back
-    if (userData == null && !isLoading) {
-      _loadUserData();
-    }
-  }
-
-  Future<void> _loadUserData() async {
-    // Assuming FirebaseService.getUserData() fetches the required data (full name, student ID, email)
-    Map<String, dynamic>? data = await FirebaseService.getUserData();
-    setState(() {
-      userData = data;
-      isLoading = false;
-    });
-  }
-
-  // --- Define Color Palettes ---
-
-  // Light Mode Colors (Based on original request)
+  // --- Define Color Palettes (Unchanged) ---
+  // Light Mode Colors
   static const Color _light_brightBlue = Color(0xFF1E88E5);
   static const Color _light_lightBlueBackground = Color(0xFFE3F2FD);
   static const Color _light_darkBlueText = Color(0xFF0D47A1);
   static const Color _light_warningRed = Color(0xFFC70039);
   static const Color _light_cardColor = Colors.white;
 
-  // Dark Mode Colors (Custom dark mode interpretation)
+  // Dark Mode Colors
   static const Color _dark_brightBlue = Color(
     0xFF42A5F5,
   ); // Lighter bright blue for contrast
@@ -79,34 +51,70 @@ class _ReportProblemScreenState extends State<ReportProblem> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
   // Text controllers for the input fields
+  // 📢 NEW: _titleController is now used for the report's main title
+  final TextEditingController _titleController = TextEditingController();
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _itemController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    _loadUserData(); // Load real data when screen starts
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (userData == null && !isLoading) {
+      _loadUserData();
+    }
+  }
+
+  Future<void> _loadUserData() async {
+    Map<String, dynamic>? data = await FirebaseService.getUserData();
+    if (mounted) {
+      setState(() {
+        userData = data;
+        isLoading = false;
+      });
+    }
+  }
+
+  @override
   void dispose() {
+    _titleController.dispose();
     _usernameController.dispose();
     _itemController.dispose();
     _descriptionController.dispose();
     super.dispose();
   }
 
-  // Function to handle form submission
+  // Function to handle form submission (MODIFIED to include 'Title')
   void _submitReport() async {
     if (_formKey.currentState!.validate()) {
       if (userData == null) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("User data not loaded.")));
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("User data not loaded.")),
+          );
+        }
         return;
       }
 
       final String fullName = userData!['fullName'];
       final String studentId = userData!['studentId'];
 
+      // Show loading indicator
+      setState(() {
+        isLoading = true;
+      });
+
       try {
         await supabase.from('ReportProblems').insert({
           'created_at': DateTime.now().toIso8601String(),
+          // 📢 NEW: Insert the new 'Title' field
+          'Title': _titleController.text.trim(),
           'Item Name': _itemController.text.trim(),
           'Description': _descriptionController.text.trim(),
           'Reported_User_ID': studentId,
@@ -115,19 +123,37 @@ class _ReportProblemScreenState extends State<ReportProblem> {
         });
 
         // If insert succeeds → show success message
-        _showSuccessDialog();
-      } catch (e) {
+        if (mounted) {
+          setState(() {
+            isLoading = false;
+          });
+          _showSuccessDialog();
+        }
+      } on PostgrestException catch (e) {
         // Insert failed → show error message
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("Failed to submit report: $e")));
+        if (mounted) {
+          setState(() {
+            isLoading = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Failed to submit report: ${e.message}")),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            isLoading = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("An unexpected error occurred: $e")),
+          );
+        }
       }
     }
   }
 
-  // Function to show the success message dialog
+  // Function to show the success message dialog (Unchanged)
   void _showSuccessDialog() {
-    // Get the current theme mode to style the dialog correctly
     final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
     final isDarkMode = themeProvider.isDarkMode;
 
@@ -164,6 +190,7 @@ class _ReportProblemScreenState extends State<ReportProblem> {
                 Navigator.of(context).pop(); // Close the dialog
                 // Clear the form fields
                 _formKey.currentState!.reset();
+                _titleController.clear(); // Clear the new field
                 _usernameController.clear();
                 _itemController.clear();
                 _descriptionController.clear();
@@ -178,7 +205,6 @@ class _ReportProblemScreenState extends State<ReportProblem> {
 
   @override
   Widget build(BuildContext context) {
-    // Get the theme provider and determine the current theme mode
     final themeProvider = Provider.of<ThemeProvider>(context);
     final bool isDarkMode = themeProvider.isDarkMode;
 
@@ -198,7 +224,6 @@ class _ReportProblemScreenState extends State<ReportProblem> {
     final Color textFieldFill = isDarkMode
         ? const Color(0xFF2C2C2C)
         : Colors.white;
-    final Color unselectedIconColor = isDarkMode ? Colors.white54 : Colors.grey;
     final Color appBarTextColor = isDarkMode
         ? Colors.black
         : Colors.white; // Text on the bright blue header
@@ -208,14 +233,13 @@ class _ReportProblemScreenState extends State<ReportProblem> {
       backgroundColor: background,
       body: CustomScrollView(
         slivers: [
-          // --- Header Section (Bright Blue Theme) ---
+          // --- Header Section ---
           SliverAppBar(
             pinned: true,
             automaticallyImplyLeading: false,
             toolbarHeight: 150,
             flexibleSpace: Container(
               decoration: BoxDecoration(
-                // Use the bright blue for the header with a slight gradient
                 gradient: LinearGradient(
                   colors: [
                     brightBlue,
@@ -293,7 +317,7 @@ class _ReportProblemScreenState extends State<ReportProblem> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // Card: Report User Misconduct
+                      // Card: Report User Misconduct (Title updated to generic Report)
                       Card(
                         elevation: isDarkMode ? 4 : 0,
                         color: cardColor,
@@ -314,7 +338,8 @@ class _ReportProblemScreenState extends State<ReportProblem> {
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
-                                    'Report User Misconduct',
+                                    // Removed hardcoded title
+                                    'New Problem Report',
                                     style: TextStyle(
                                       fontSize: 18,
                                       fontWeight: FontWeight.bold,
@@ -324,16 +349,35 @@ class _ReportProblemScreenState extends State<ReportProblem> {
                                 ],
                               ),
                               Text(
-                                'Let us know if someone isn\'t cooperating',
+                                'Please fill out the details below.',
                                 style: TextStyle(
                                   color: darkText.withOpacity(0.6),
                                 ), // Dynamic grey/faded text
                               ),
                               const SizedBox(height: 16),
 
+                              // 📢 NEW FIELD: Report Title
+                              Text(
+                                'Report Title',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: darkText, // Dynamic text color
+                                ),
+                              ),
+                              _buildInputField(
+                                controller: _titleController,
+                                hintText:
+                                    'e.g., User refused to return item or Fake Listing',
+                                icon: Icons.title,
+                                validatorText: 'Report Title is required.',
+                                darkText: darkText,
+                                textFieldFill: textFieldFill,
+                              ),
+                              const SizedBox(height: 16),
+
                               // Username or ID Field
                               Text(
-                                'Username or ID',
+                                'Reported User (Username or ID)',
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   color: darkText, // Dynamic text color
@@ -343,7 +387,7 @@ class _ReportProblemScreenState extends State<ReportProblem> {
                                 controller: _usernameController,
                                 hintText: 'e.g., john_doe or STU123456',
                                 icon: Icons.person_outline,
-                                validatorText: 'Username or ID is required.',
+                                validatorText: 'Reported User ID is required.',
                                 darkText: darkText,
                                 textFieldFill: textFieldFill,
                               ),
@@ -351,7 +395,7 @@ class _ReportProblemScreenState extends State<ReportProblem> {
 
                               // Item Name or ID Field
                               Text(
-                                'Item Name or ID',
+                                'Related Item (Name or ID)',
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   color: darkText, // Dynamic text color
@@ -359,9 +403,10 @@ class _ReportProblemScreenState extends State<ReportProblem> {
                               ),
                               _buildInputField(
                                 controller: _itemController,
-                                hintText: 'e.g., Black Wallet',
+                                hintText: 'e.g., Black Wallet or ITEM789',
                                 icon: Icons.inventory_2_outlined,
-                                validatorText: 'Item Name or ID is required.',
+                                validatorText:
+                                    'Related Item Name or ID is required.',
                                 darkText: darkText,
                                 textFieldFill: textFieldFill,
                               ),
@@ -427,7 +472,9 @@ class _ReportProblemScreenState extends State<ReportProblem> {
 
                       // --- Submit Report Button (Bright Blue Theme) ---
                       ElevatedButton(
-                        onPressed: _submitReport,
+                        onPressed: isLoading
+                            ? null
+                            : _submitReport, // Disable button while loading
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 18),
                           backgroundColor:
@@ -437,15 +484,24 @@ class _ReportProblemScreenState extends State<ReportProblem> {
                           ),
                           elevation: 0,
                         ),
-                        child: Text(
-                          'Submit Report',
-                          style: TextStyle(
-                            color:
-                                appBarTextColor, // White/Black text on the bright blue button
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        child: isLoading
+                            ? const SizedBox(
+                                height: 24.0,
+                                width: 24.0,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 3.0,
+                                ),
+                              )
+                            : Text(
+                                'Submit Report',
+                                style: TextStyle(
+                                  color:
+                                      appBarTextColor, // White/Black text on the bright blue button
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                       ),
                       const SizedBox(height: 40),
                     ],
@@ -459,7 +515,7 @@ class _ReportProblemScreenState extends State<ReportProblem> {
     );
   }
 
-  // Helper function to build the custom TextFormField widgets
+  // Helper function to build the custom TextFormField widgets (Unchanged logic, minor text change)
   Widget _buildInputField({
     required TextEditingController controller,
     required String hintText,
