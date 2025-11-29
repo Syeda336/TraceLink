@@ -17,7 +17,7 @@ It ensures **safe, quick, and reliable** communication between finders and owner
 
 - **Gallery & Camera Image Upload:** Upload existing images or take a new photo of items.  
 - **Messaging System:** In-app chat between users.  
-- **AI Item Image Generator:**  If the owner lacks a photo, they can *describe the item, and the app will **generate an image using AI (Gemini API)*.  
+- **AI Item Image Generator:**  If the owner lacks a photo, they can *describe the item, and the app will **generate an image using AI**.  
 - Helps match items visually even with limited info.
 - **Community Feed:** Displays all lost and found posts in real time.  
 - **Report Lost, Found & Claim Items:** Submit reports for lost items or claim any found item. 
