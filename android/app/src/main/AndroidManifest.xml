@@ -1,8 +1,21 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--  <<< START: Add the Speech-to-Text Permissions Here >>>  -->
+    <!-- ****************************************************** -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.BLUETOOTH" android:required="false" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:required="false" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" android:required="false" />
+    <!--LOGIN NOTIFICATIONS PERMISSION-->
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+
     <application
         android:label="tracelink"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/launcher_icon">
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -30,7 +43,12 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="high_importance_channel" />
     </application>
+    
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and
          https://developer.android.com/reference/android/content/Intent#ACTION_PROCESS_TEXT.
@@ -42,4 +60,5 @@
             <data android:mimeType="text/plain"/>
         </intent>
     </queries>
+
 </manifest>
