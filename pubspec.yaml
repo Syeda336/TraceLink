@@ -69,6 +69,8 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.13.1
+  flutter_native_splash: ^2.4.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -88,6 +90,22 @@ flutter:
 
   assets:
     - lib/images/logo.png
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "lib/images/logo.png"
+  min_sdk_android: 21
+  adaptive_icon_background: "#ffffff" # White background for Android adaptive icons
+  adaptive_icon_foreground: "lib/images/logo.png"
+
+# --- CONFIGURATION 2: SPLASH SCREEN ---
+flutter_native_splash:
+  color: "#ffffff"              # Background color of the loading screen
+  image: "lib/images/logo.png"  # The logo to show in the center
+  android_12:
+    image: "lib/images/logo.png"
+    color: "#ffffff"
     
 
   # An image asset can refer to one or more resolution-specific "variants", see
