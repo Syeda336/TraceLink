@@ -2,13 +2,29 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../theme_provider.dart';
+import '../supabase_alerts_service.dart';
 
-// --- Theme Color Definitions (Now Dynamic) ---
-
-// Base colors (Used as a reference, actual theme colors are pulled from Theme.of(context))
-const Color _brightBlueBase = Color(0xFF1E88E5);
+// --- Theme Color Definitions (Used only for base colors in helper widgets) ---
+// Note: _darkBlueTextBase is used in _AlertItemCard
 const Color _darkBlueTextBase = Color(0xFF0D47A1);
-const Color _lightBlueBackgroundBase = Color(0xFFE3F2FD);
+
+// A simple mapping for icon display based on item name (optional logic)
+IconData _getIconForAlert(String itemName) {
+  final lowerCaseName = itemName.toLowerCase();
+  if (lowerCaseName.contains('id') || lowerCaseName.contains('card')) {
+    return Icons.badge;
+  }
+  if (lowerCaseName.contains('macbook') || lowerCaseName.contains('laptop')) {
+    return Icons.laptop_mac;
+  }
+  if (lowerCaseName.contains('glasses') ||
+      lowerCaseName.contains('spectacles')) {
+    return Icons.remove_red_eye;
+  }
+  return Icons.warning_amber;
+}
+
+// --- EmergencyAlerts Widget (Stateful) ---
 
 class EmergencyAlerts extends StatefulWidget {
   const EmergencyAlerts({super.key});
@@ -18,57 +34,39 @@ class EmergencyAlerts extends StatefulWidget {
 }
 
 class _EmergencyAlertsState extends State<EmergencyAlerts> {
-  // Data structure for an alert item (UNCHANGED)
-  final List<Map<String, dynamic>> _alerts = [
-    // Item 1: Student ID - John Martinez (High Priority)
-    {
-      'itemName': 'Student ID - John Martinez',
-      'description':
-          'Lost student ID card with photo. Urgent - needed for university entrance.',
-      'location': 'Main Building, Room 305',
-      'timeAgo': '15 min ago',
-      'views': '45 views',
-      'isHighPriority': true,
-      'imageIcon': Icons.badge,
-    },
-    // Item 2: MacBook Pro 16" (High Priority)
-    {
-      'itemName': 'MacBook Pro 16"',
-      'description':
-          'Silver MacBook Pro left in library. Contains important project files.',
-      'location': 'Library, Study Room 12',
-      'timeAgo': '1h ago',
-      'views': '89 views',
-      'isHighPriority': true,
-      'imageIcon': Icons.laptop_mac,
-    },
-    // Item 3: Prescription Glasses (Priority)
-    {
-      'itemName': 'Prescription Glasses',
-      'description':
-          'Black frame glasses in blue case. Cannot see without them - urgent.',
-      'location': 'Cafeteria, Table near window',
-      'timeAgo': '2h ago',
-      'views': '34 views',
-      'isHighPriority': false, // Priority
-      'imageIcon': Icons.remove_red_eye,
-    },
-  ];
+  // 1. Use a Future to hold the fetched data
+  late Future<List<Map<String, dynamic>>> _alertsFuture;
 
-  // Functionality for "Mark as Seen" (UNCHANGED)
-  void _markAsSeen(int index) {
-    if (index >= 0 && index < _alerts.length) {
-      String itemName = _alerts[index]['itemName'];
-      setState(() {
-        _alerts.removeAt(index);
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$itemName marked as seen and removed.')),
-      );
-    }
+  @override
+  void initState() {
+    super.initState();
+    // 2. Initialize the Future to fetch data
+    _alertsFuture = SupabaseAlertService.fetchAlerts();
   }
 
-  // Functionality for "Report Sighting" (Modified to use Theme colors)
+  // 3. Function to re-fetch data (for pull-to-refresh or after an action)
+  Future<void> _refreshAlerts() async {
+    setState(() {
+      _alertsFuture = SupabaseAlertService.fetchAlerts();
+    });
+  }
+
+  // Functionality for "Mark as Seen"
+  void _markAsSeen(Map<String, dynamic> alert, int index) {
+    // NOTE: In a real app, you would call SupabaseAlertService.deleteAlert(alert['id'])
+    // and then refresh the list.
+    _refreshAlerts().then((_) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${alert['Item Name']} marked as seen (refreshing list).',
+          ),
+        ),
+      );
+    });
+  }
+
+  // Functionality for "Report Sighting"
   void _reportSighting(String itemName) {
     final brightBlue = Theme.of(context).primaryColor;
 
@@ -101,9 +99,7 @@ class _EmergencyAlertsState extends State<EmergencyAlerts> {
     // Dynamic colors for content
     final darkBlueText = isDarkMode ? Colors.white : _darkBlueTextBase;
     final lightBackground = Theme.of(context).scaffoldBackgroundColor;
-    final cardColor = Theme.of(
-      context,
-    ).cardColor; // Card color is now theme-aware
+    final cardColor = Theme.of(context).cardColor;
 
     return Scaffold(
       backgroundColor: lightBackground,
@@ -169,30 +165,76 @@ class _EmergencyAlertsState extends State<EmergencyAlerts> {
             ),
           ),
 
-          // --- SliverList: Alert Cards (Dynamic Background) ---
-          SliverList(
-            delegate: SliverChildBuilderDelegate((context, index) {
-              final alert = _alerts[index];
-              return Padding(
-                padding: const EdgeInsets.only(top: 16.0),
-                child: _AlertItemCard(
-                  itemName: alert['itemName'],
-                  description: alert['description'],
-                  location: alert['location'],
-                  timeAgo: alert['timeAgo'],
-                  views: alert['views'],
-                  isHighPriority: alert['isHighPriority'],
-                  onMarkAsSeen: () => _markAsSeen(index),
-                  onReportSighting: () => _reportSighting(alert['itemName']),
-                  imageWidget: PlaceholderImage(
-                    color: darkBlueText, // Use theme-aware color
-                    backgroundColor: lightBackground,
-                    icon: alert['imageIcon'],
+          // 4. Use FutureBuilder to handle the asynchronous data fetching
+          FutureBuilder<List<Map<String, dynamic>>>(
+            future: _alertsFuture,
+            builder: (context, snapshot) {
+              // Show a circular progress indicator while loading
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const SliverFillRemaining(
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
+
+              // Show error if data fetching failed
+              if (snapshot.hasError) {
+                return SliverFillRemaining(
+                  child: Center(
+                    child: Text(
+                      'Error loading alerts: ${snapshot.error}',
+                      style: TextStyle(color: darkBlueText),
+                    ),
                   ),
-                  cardColor: cardColor,
-                ),
+                );
+              }
+
+              // Get the alerts list
+              final alerts = snapshot.data ?? [];
+
+              // Show a message if no alerts are found
+              if (alerts.isEmpty) {
+                return const SliverFillRemaining(
+                  child: Center(child: Text('No emergency alerts found.')),
+                );
+              }
+
+              // --- SliverList: Alert Cards (Dynamic Background) ---
+              return SliverList(
+                delegate: SliverChildBuilderDelegate((context, index) {
+                  final alert = alerts[index];
+
+                  // 5. Mapping Supabase columns to widget properties (UPDATED for Image URL)
+                  final itemName = alert['Item Name'] as String? ?? 'N/A';
+                  final description =
+                      alert['Description'] as String? ?? 'No description';
+                  final location =
+                      alert['Location'] as String? ?? 'Unknown Location';
+                  final priority = alert['Priority'] as String? ?? 'Standard';
+                  final imageUrl =
+                      alert['Image'] as String?; // <--- FETCH IMAGE URL
+
+                  // Use created_at timestamp to calculate time ago (simplified)
+                  final timeAgo =
+                      'Found: ${alert['created_at'].toString().split('T')[0]}';
+                  final isHighPriority = priority.toLowerCase() == 'high';
+
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 16.0),
+                    child: _AlertItemCard(
+                      itemName: itemName,
+                      description: description,
+                      location: location,
+                      timeAgo: timeAgo,
+                      isHighPriority: isHighPriority,
+                      imageUrl: imageUrl, // <--- PASS IMAGE URL
+                      onMarkAsSeen: () => _markAsSeen(alert, index),
+                      onReportSighting: () => _reportSighting(itemName),
+                      cardColor: cardColor,
+                    ),
+                  );
+                }, childCount: alerts.length),
               );
-            }, childCount: _alerts.length),
+            },
           ),
           const SliverToBoxAdapter(child: SizedBox(height: 20)),
         ],
@@ -201,45 +243,45 @@ class _EmergencyAlertsState extends State<EmergencyAlerts> {
   }
 }
 
-// --- Alert Item Card Widget (Modified) ---
+// -----------------------------------------------------------------------------
+// --- Alert Item Card Widget (Handles Image.network) ---
+// -----------------------------------------------------------------------------
 class _AlertItemCard extends StatelessWidget {
   final String itemName;
   final String description;
   final String location;
   final String timeAgo;
-  final String views;
   final bool isHighPriority;
-  final Widget imageWidget;
+  final String? imageUrl; // Image URL
   final VoidCallback onMarkAsSeen;
   final VoidCallback onReportSighting;
-  final Color cardColor; // Added to make the card background theme-aware
+  final Color cardColor;
 
   const _AlertItemCard({
     required this.itemName,
     required this.description,
     required this.location,
     required this.timeAgo,
-    required this.views,
     required this.isHighPriority,
-    required this.imageWidget,
     required this.onMarkAsSeen,
     required this.onReportSighting,
-    required this.cardColor, // Required in constructor
+    required this.cardColor,
+    this.imageUrl,
+    super.key,
   });
 
   @override
   Widget build(BuildContext context) {
     final brightBlue = Theme.of(context).primaryColor;
     final isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
-
-    // Theme-aware dark text color
     final darkBlueText = isDarkMode ? Colors.white : _darkBlueTextBase;
 
-    // Determine the priority tag text and color
     final String priorityText = isHighPriority ? 'High Priority' : 'Priority';
     final Color priorityColor = isHighPriority
         ? const Color(0xFFDC3545) // Red for High Priority
         : Colors.orange; // Orange for regular Priority
+
+    final IconData fallbackIcon = _getIconForAlert(itemName);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -268,7 +310,7 @@ class _AlertItemCard extends StatelessWidget {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Item Image/Placeholder
+                    // Item Image/Placeholder (LOGIC FOR IMAGE.NETWORK AND FALLBACK)
                     Container(
                       width: 100,
                       height: 100,
@@ -280,7 +322,47 @@ class _AlertItemCard extends StatelessWidget {
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(10),
-                        child: imageWidget,
+                        child: imageUrl != null && imageUrl!.isNotEmpty
+                            ? Image.network(
+                                // Use Image.network for actual image
+                                imageUrl!,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) =>
+                                    PlaceholderImage(
+                                      // Fallback if network image fails
+                                      color: darkBlueText,
+                                      backgroundColor: Theme.of(
+                                        context,
+                                      ).scaffoldBackgroundColor,
+                                      icon: Icons.broken_image,
+                                    ),
+                                loadingBuilder:
+                                    (context, child, loadingProgress) {
+                                      if (loadingProgress == null) return child;
+                                      return Center(
+                                        child: CircularProgressIndicator(
+                                          value:
+                                              loadingProgress
+                                                      .expectedTotalBytes !=
+                                                  null
+                                              ? loadingProgress
+                                                        .cumulativeBytesLoaded /
+                                                    loadingProgress
+                                                        .expectedTotalBytes!
+                                              : null,
+                                          color: brightBlue,
+                                        ),
+                                      );
+                                    },
+                              )
+                            : PlaceholderImage(
+                                // Fallback to icon if no URL
+                                color: darkBlueText,
+                                backgroundColor: Theme.of(
+                                  context,
+                                ).scaffoldBackgroundColor,
+                                icon: fallbackIcon,
+                              ),
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -288,7 +370,7 @@ class _AlertItemCard extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Priority Tag (UNCHANGED)
+                          // Priority Tag
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 8,
@@ -351,11 +433,6 @@ class _AlertItemCard extends StatelessWidget {
                                 icon: Icons.watch_later_outlined,
                                 text: timeAgo,
                               ),
-                              const SizedBox(width: 16),
-                              _InfoRow(
-                                icon: Icons.remove_red_eye_outlined,
-                                text: views,
-                              ),
                             ],
                           ),
                         ],
@@ -414,12 +491,16 @@ class _AlertItemCard extends StatelessWidget {
   }
 }
 
-// Helper Widget for Info Rows (Modified)
+// -----------------------------------------------------------------------------
+// --- Helper Widgets (UNCHANGED) ---
+// -----------------------------------------------------------------------------
+
+// Helper Widget for Info Rows
 class _InfoRow extends StatelessWidget {
   final IconData icon;
   final String text;
 
-  const _InfoRow({required this.icon, required this.text});
+  const _InfoRow({required this.icon, required this.text, super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -450,7 +531,7 @@ class _InfoRow extends StatelessWidget {
   }
 }
 
-// --- Placeholder Widget for Images (Modified) ---
+// Placeholder Widget for Images (used as fallback)
 class PlaceholderImage extends StatelessWidget {
   final Color color;
   final IconData icon;

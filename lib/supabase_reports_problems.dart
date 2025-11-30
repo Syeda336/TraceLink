@@ -6,7 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 final supabase = Supabase.instance.client;
 
 class SupabaseReportService {
-  // Method to fetch all rows from the 'Lost' table
+  // Method to fetch all rows from the 'ReportProblems' table
   static Future<List<Map<String, dynamic>>> fetchReports() async {
     try {
       final response = await supabase
@@ -31,4 +31,27 @@ class SupabaseReportService {
     final response = await supabase.from("ReportProblems").select();
     return response.length;
   }
+
+  // --- START OF NEW FUNCTION ---
+
+  /// 🗑️ Deletes a specific row from the 'ReportProblems' table by its ID.
+  ///
+  /// The ID is assumed to be the unique primary key of the row.
+  static Future<void> deleteReport(int reportId) async {
+    try {
+      // Use delete() and then eq() to specify the condition for deletion.
+      // Assuming the primary key column is named 'id'.
+      await supabase.from('ReportProblems').delete().eq('id', reportId);
+
+      print('Successfully deleted report with ID: $reportId');
+    } on PostgrestException catch (e) {
+      print('Supabase Delete Error: ${e.message}');
+      rethrow;
+    } catch (e) {
+      print('An unexpected error occurred during deletion: $e');
+      rethrow;
+    }
+  }
+
+  // --- END OF NEW FUNCTION ---
 }

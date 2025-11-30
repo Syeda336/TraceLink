@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'dart:async';
 
+import 'dart:async';
 import 'package:tracelink/supabase_lost_service.dart';
+
 import 'package:tracelink/supabase_found_service.dart';
 import 'admin_logout.dart';
 
@@ -26,6 +27,7 @@ class Item {
   final String date;
   final String location;
   final String contact;
+  final int uniqueId; // Added a unique identifier for deletion
 
   const Item({
     required this.title,
@@ -37,15 +39,13 @@ class Item {
     this.date = 'N/A',
     this.location = 'N/A',
     this.contact = 'N/A',
+    required this.uniqueId, // Default value
   });
 
   // Factory constructor to create an Item from Supabase data map
   factory Item.fromSupabase(Map<String, dynamic> data, String statusType) {
-    // Determine the reported by field based on status (simple mock)
     final reporterName = data['User Name'] ?? 'Unknown User Name';
     final reporterId = data['User ID'] ?? 'N/A';
-
-    // 2. Format the reportedBy string dynamically.
     final reportedBy = '$reporterName (ID: $reporterId)';
 
     return Item(
@@ -58,27 +58,7 @@ class Item {
       date: data['Date Lost/Date Found'] ?? 'Unknown Date',
       location: data['Location'] ?? 'Unknown Location',
       contact: 'Admin Contact: 555-1234',
-    );
-  }
-
-  // Factory constructor from a claims map for linking purposes
-  factory Item.fromClaimData(Map<String, dynamic> claimData) {
-    // Use the nested mock data for the item itself
-    final itemDetails =
-        claimData['Original_Item_Details'] as Map<String, dynamic>?;
-
-    return Item(
-      title: itemDetails?['Item Name'] ?? 'Claimed Item',
-      description:
-          itemDetails?['Description'] ??
-          'Description not available from claim data.',
-      reportedBy: 'N/A', // Not directly in claims table
-      imageUrl: itemDetails?['Image'] ?? '',
-      status: 'Found', // Claim implies the item was found
-      category: 'Claimed',
-      date: 'N/A',
-      location: 'N/A',
-      contact: 'N/A',
+      uniqueId: data['id'] ?? 0,
     );
   }
 }
@@ -94,7 +74,8 @@ class Claim {
   final String uniqueFeatures; // Unique Features
   final String status; // 'Pending', 'Verified', 'Returned'
 
-  final Item item; // Link back to the original item data
+  final String imageUrl;
+  final int uniqueId;
 
   const Claim({
     required this.title,
@@ -105,14 +86,12 @@ class Claim {
     required this.date,
     required this.uniqueFeatures,
     required this.status,
-    required this.item,
+    required this.imageUrl,
+    required this.uniqueId, // Default value
   });
 
   // Factory constructor to create a Claim from Supabase data map
   factory Claim.fromSupabase(Map<String, dynamic> data) {
-    // Create a simplified Item model from the claim data for the detail screen
-    final linkedItem = Item.fromClaimData(data);
-
     return Claim(
       title: data['Item Name'] ?? 'No Title',
       claimedBy: data['User Name'] ?? 'Unknown User',
@@ -121,8 +100,9 @@ class Claim {
       contact: data['Contact'] ?? 'N/A',
       date: data['created_at']?.toString().split('T').first ?? 'Unknown Date',
       uniqueFeatures: data['Unique Features'] ?? 'None specified',
-      status: data['status'] as String? ?? 'Pending', // Assumed status column
-      item: linkedItem,
+      status: data['status'] as String? ?? 'Pending',
+      imageUrl: data['Image'] ?? '',
+      uniqueId: data['id'] ?? 0,
     );
   }
 
@@ -136,20 +116,23 @@ class Claim {
       date: date,
       uniqueFeatures: uniqueFeatures,
       status: status ?? this.status,
-      item: item,
+      imageUrl: imageUrl,
+      uniqueId: uniqueId,
     );
   }
 }
 
 class Report {
   final String title; // Title
-  final String reportedUser; // Reported_User_name
-  final String reportedUserId; // Reported_User_ID
-  final String reportedBy; // Complaint_User_Name
+  final String reportedUser; // Reported_User_name (Target)
+  final String reportedUserId; // Reported_User_ID (Target ID)
+  final String reportedBy; // Complaint_User_Name (Reporter)
   final String date; // created_at
   final String status; // 'Pending', 'Resolved'
   final String misconductDetail; // Description
   final String itemId; // Item Name (used as ID/Name)
+  //final String reportId; // Added for unique identification/deletion
+  final int uniqueId;
 
   const Report({
     required this.title,
@@ -160,10 +143,15 @@ class Report {
     required this.status,
     required this.misconductDetail,
     required this.itemId,
+    //required this.reportId,
+    required this.uniqueId,
   });
 
   // Factory constructor to create a Report from Supabase data map
   factory Report.fromSupabase(Map<String, dynamic> data) {
+    // Use a combination or an actual unique ID from your Supabase row
+    // final uniqueId = data['id'] ?? 0;
+
     return Report(
       title: data['Title'] ?? 'No Title',
       reportedUser: data['Complaint_User_name'] ?? 'Unknown User',
@@ -173,6 +161,7 @@ class Report {
       status: data['status'] as String? ?? 'Pending', // Assumed status column
       misconductDetail: data['Description'] ?? 'No details provided.',
       itemId: data['Item Name'] ?? 'N/A',
+      uniqueId: data['id'] ?? 0, // Using Item Name as a mock ID for now
     );
   }
 
@@ -187,6 +176,8 @@ class Report {
       status: status ?? this.status,
       misconductDetail: misconductDetail,
       itemId: itemId,
+      //reportId: reportId,
+      uniqueId: uniqueId,
     );
   }
 }
@@ -251,10 +242,8 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
   // State Lists initialized to empty lists
   List<Item> _lostItems = [];
   List<Item> _foundItems = [];
-  List<Claim> _claims =
-      []; // Changed from 'claims' to '_claims' for consistency
-  List<Report> _reports =
-      []; // Changed from 'reports' to '_reports' for consistency
+  List<Claim> _claims = [];
+  List<Report> _reports = [];
   bool _isLoading = true;
   bool _hasError = false;
 
@@ -324,7 +313,7 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
   // Helper method to get user ID from username/email in the report
   Future<String?> _getUserIdFromReport(Report report) async {
     try {
-      print('🔍 Looking up user ID for: ${report.reportedUser}');
+      debugPrint('🔍 Looking up user ID for: ${report.reportedUser}');
 
       // Query users collection to find the user by their name or email
       QuerySnapshot userQuery = await FirebaseFirestore.instance
@@ -344,10 +333,10 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
 
       if (userQuery.docs.isNotEmpty) {
         final userId = userQuery.docs.first.id;
-        print(' Found user ID: $userId for ${report.reportedUser}');
+        debugPrint(' Found user ID: $userId for ${report.reportedUser}');
         return userId;
       } else {
-        print(' User not found: ${report.reportedUser}');
+        debugPrint(' User not found: ${report.reportedUser}');
         // Fallback: Try to extract from reportedBy if reportedUser is not found
         QuerySnapshot reporterQuery = await FirebaseFirestore.instance
             .collection('users')
@@ -357,14 +346,14 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
 
         if (reporterQuery.docs.isNotEmpty) {
           final userId = reporterQuery.docs.first.id;
-          print('✅ Using reporter ID as fallback: $userId');
+          debugPrint('✅ Using reporter ID as fallback: $userId');
           return userId;
         }
 
         return null;
       }
     } catch (e) {
-      print(' Error looking up user ID: $e');
+      debugPrint(' Error looking up user ID: $e');
       return null;
     }
   }
@@ -395,7 +384,7 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
             'Please return the item immediately to avoid further action.',
       );
 
-      print('⚠️ Warning notification sent to user: $targetUserId');
+      debugPrint('⚠️ Warning notification sent to user: $targetUserId');
 
       // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
@@ -405,7 +394,7 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
         ),
       );
     } else {
-      print(' Could not find user ID for report');
+      debugPrint(' Could not find user ID for report');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Could not find user ${report.reportedUser}'),
@@ -421,6 +410,8 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
         report: report,
         onFinishNavigation: () {
           // Any cleanup after navigation
+          // We will resolve the report here.
+          _resolveReport(report);
         },
       ),
     );
@@ -456,7 +447,7 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
         },
       );
 
-      print('📧 Contact notification sent to user: $targetUserId');
+      debugPrint('📧 Contact notification sent to user: $targetUserId');
 
       // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
@@ -466,7 +457,7 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
         ),
       );
     } else {
-      print(' Could not find user ID for report');
+      debugPrint(' Could not find user ID for report');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Could not find user ${report.reportedUser}'),
@@ -482,6 +473,8 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
         report: report,
         onFinishNavigation: () {
           // Any cleanup after navigation
+          // We will resolve the report here.
+          _resolveReport(report);
         },
       ),
     );
@@ -502,11 +495,14 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
         data: {'screen': 'warning_admin', 'banReason': report.misconductDetail},
       );
 
-      print('🔨 Ban notification sent to user: $targetUserId');
+      debugPrint('🔨 Ban notification sent to user: $targetUserId');
     }
 
     // Navigate to ban confirmation screens
     _navigateToScreen(context, const AdminSplashUserBanned());
+
+    // Resolve the report after the action is initiated
+    _resolveReport(report);
   }
 
   // Method to mark item as returned with notification
@@ -527,7 +523,7 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
         },
       );
 
-      print('✅ Return notification sent to user: $targetUserId');
+      debugPrint('✅ Return notification sent to user: $targetUserId');
     }
   }
 
@@ -545,85 +541,98 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
       }
       return null;
     } catch (e) {
-      print('❌ Error looking up user by name: $e');
+      debugPrint('❌ Error looking up user by name: $e');
       return null;
     }
   }
 
+  // --- DELETE LOGIC: Reports ---
+
   // Method to show delete confirmation and send notification
-  void _showDeleteConfirmation(Report report) async {
-    final String? targetUserId = await _getUserIdFromReport(report);
+  void _showDeleteConfirmation(Report report, {bool fromDetail = false}) async {
+    // IMPORTANT: Check if the context is still valid before showing dialog
+    if (!mounted) return;
 
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Report'),
-        content: Text(
-          'Are you sure you want to delete the report for "${report.title}"?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.of(context).pop();
-
-              // Send deletion notification to the user if applicable
-              if (targetUserId != null) {
-                await NotificationsService.addNotification(
-                  userId: targetUserId,
-                  title: 'Report Resolved',
-                  message:
-                      'The report regarding "${report.title}" has been resolved by admin.',
-                  type: 'item_update',
-                  data: {'itemTitle': report.title, 'status': 'resolved'},
-                );
-              }
-
-              // Delete the report
-              _deleteReport(report);
-            },
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
-          ),
-        ],
+    _navigateToScreen(
+      context,
+      AdminDeleteItemMaskScreen(
+        itemTitle: report.title,
+        onDeleteConfirmed: () async {
+          await _deleteReport(report, fromDetail: fromDetail);
+        },
       ),
     );
   }
 
   // Method to delete a report from the list (UPDATED to use _reports)
-  void _deleteReport(Report report) {
+  Future<void> _deleteReport(Report report, {bool fromDetail = false}) async {
     if (!mounted) return;
+
+    // 1. Delete from Supabase (MOCK)
+    try {
+      await SupabaseReportService.deleteReport(report.uniqueId as int);
+    } catch (e) {
+      debugPrint('Error deleting report from Supabase: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to delete report for "${report.title}".'),
+          backgroundColor: Colors.red.shade600,
+        ),
+      );
+      return;
+    }
+
+    // 2. Remove from local state and refresh
     final title = report.title;
     setState(() {
-      _reports.remove(report);
+      _reports.removeWhere(
+        (r) =>
+            r.itemId == report.itemId &&
+            r.reportedUserId == report.reportedUserId,
+      );
     });
-    // Pop the detail screen if it's currently open
-    // NOTE: This assumes the detail screen is the direct previous route.
-    if (Navigator.of(context).canPop()) {
+    // Refresh the whole list to ensure UI consistency
+    _fetchItems();
+
+    // 3. Close the detail screen if this action was triggered from there
+    if (fromDetail && Navigator.of(context).canPop()) {
       Navigator.of(context).pop();
     }
+
+    // 4. Show success message
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Report for "$title" deleted.'),
         backgroundColor: Colors.red.shade600,
       ),
     );
+
+    // 5. Optionally send deletion notification after successful delete
+    final String? targetUserId = await _getUserIdFromReport(report);
+    if (targetUserId != null) {
+      await NotificationsService.addNotification(
+        userId: targetUserId,
+        title: 'Report Resolved',
+        message:
+            'The report regarding "${report.title}" has been resolved by admin.',
+        type: 'item_update',
+        data: {'itemTitle': report.title, 'status': 'resolved'},
+      );
+    }
   }
 
   // Method to mark a report as resolved (UPDATED to use _reports)
   void _resolveReport(Report report) {
     if (!mounted) return;
     // Find the index of the report to update
-    final index = _reports.indexOf(report);
+    final index = _reports.indexWhere((r) => r.uniqueId == report.uniqueId);
     if (index != -1) {
       final title = _reports[index].title;
       setState(() {
         // Use copyWith for immutability and clarity
         _reports[index] = _reports[index].copyWith(status: 'Resolved');
       });
-      // Close the detail screen
+      // Close the detail screen if it's currently open
       if (Navigator.of(context).canPop()) {
         Navigator.of(context).pop();
       }
@@ -637,10 +646,10 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
     }
   }
 
-  // Method to mark a claim as returned (NEW: Mock implementation)
+  // Method to mark a claim as returned (FIXED: Calls fetchItems)
   void _markClaimAsReturned(Claim claim) {
     if (!mounted) return;
-    final index = _claims.indexOf(claim);
+    final index = _claims.indexWhere((c) => c.uniqueId == claim.uniqueId);
     if (index != -1) {
       final title = _claims[index].title;
       setState(() {
@@ -655,6 +664,90 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
         ),
       );
     }
+  }
+
+  // --- DELETE LOGIC: Lost Items (FIXED: To use AdminDeleteItemMaskScreen and refresh) ---
+  void _deleteLostItem(Item item) async {
+    if (!mounted) return;
+
+    // 1. Delete from Supabase (MOCK)
+    try {
+      await SupabaseLostService.deleteLostItem(item.uniqueId as int);
+    } catch (e) {
+      debugPrint('Error deleting lost item from Supabase: $e');
+      return;
+    }
+
+    // 2. Remove from local state
+    setState(() {
+      _lostItems.removeWhere((i) => i.uniqueId == item.uniqueId);
+    });
+    // Refresh the whole list
+    _fetchItems();
+
+    // 3. Show success message
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('${item.title} deleted from Lost Items.'),
+        backgroundColor: Colors.red.shade600,
+      ),
+    );
+  }
+
+  // --- DELETE LOGIC: Found Items (FIXED: To use AdminDeleteItemMaskScreen and refresh) ---
+  void _deleteFoundItem(Item item) async {
+    if (!mounted) return;
+
+    // 1. Delete from Supabase (MOCK)
+    try {
+      await SupabaseFoundService.deleteFoundItem(item.uniqueId as int);
+    } catch (e) {
+      debugPrint('Error deleting found item from Supabase: $e');
+      return;
+    }
+
+    // 2. Remove from local state
+    setState(() {
+      _foundItems.removeWhere((i) => i.uniqueId == item.uniqueId);
+    });
+    // Refresh the whole list
+    _fetchItems();
+
+    // 3. Show success message
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('${item.title} deleted from Found Items.'),
+        backgroundColor: Colors.red.shade600,
+      ),
+    );
+  }
+
+  // --- DELETE LOGIC: Claims (FIXED: To use AdminDeleteItemMaskScreen and refresh) ---
+  void _deleteClaim(Claim claim) async {
+    if (!mounted) return;
+
+    // 1. Delete from Supabase (MOCK)
+    try {
+      await SupabaseClaimService.deleteClaimedItem(claim.uniqueId);
+    } catch (e) {
+      debugPrint('Error deleting claim from Supabase: $e');
+      return;
+    }
+
+    // 2. Remove from local state
+    setState(() {
+      _claims.removeWhere((c) => c.uniqueId == claim.uniqueId);
+    });
+    // Refresh the whole list
+    _fetchItems();
+
+    // 3. Show success message
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Claim for ${claim.title} deleted.'),
+        backgroundColor: Colors.red.shade600,
+      ),
+    );
   }
 
   @override
@@ -679,48 +772,99 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
         ),
       ];
     } else if (_selectedTab == 'Lost') {
-      contentList = _lostItems.map((item) => _ItemCard(item: item)).toList();
+      contentList = _lostItems
+          .map(
+            (item) => _ItemCard(
+              item: item,
+              // Use AdminDeleteItemMaskScreen for deletion
+              onDelete: () => _navigateToScreen(
+                context,
+                AdminDeleteItemMaskScreen(
+                  itemTitle: item.title,
+                  onDeleteConfirmed: () => _deleteLostItem(item),
+                ),
+              ),
+            ),
+          )
+          .toList();
       if (contentList.isEmpty) {
-        debugPrint('Error fetching items/claims/reports from Supabase: ');
+        contentList.add(
+          const _EmptyStateMessage(message: 'No lost items reported yet.'),
+        );
       }
     } else if (_selectedTab == 'Found') {
       contentList = _foundItems
-          .map((item) => _FoundItemCard(item: item))
+          .map(
+            (item) => _FoundItemCard(
+              item: item,
+              // Use AdminDeleteItemMaskScreen for deletion
+              onDelete: () => _navigateToScreen(
+                context,
+                AdminDeleteItemMaskScreen(
+                  itemTitle: item.title,
+                  onDeleteConfirmed: () => _deleteFoundItem(item),
+                ),
+              ),
+            ),
+          )
           .toList();
       if (contentList.isEmpty) {
-        debugPrint('Error fetching items/claims/reports from Supabase: ');
+        contentList.add(
+          const _EmptyStateMessage(message: 'No found items reported yet.'),
+        );
       }
     } else if (_selectedTab == 'Claims') {
       contentList = _claims.map((claim) {
         return _GeneralClaimCard(
           claim: claim,
           onMarkReturned: () => _markClaimAsReturned(claim),
+          // Use AdminDeleteItemMaskScreen for deletion
+          onDelete: () => _navigateToScreen(
+            context,
+            AdminDeleteItemMaskScreen(
+              itemTitle: claim.title,
+              onDeleteConfirmed: () => _deleteClaim(claim),
+            ),
+          ),
         );
       }).toList();
       if (contentList.isEmpty) {
-        debugPrint('Error fetching items/claims/reports from Supabase: ');
+        contentList.add(
+          const _EmptyStateMessage(
+            message: 'No item claims have been submitted yet.',
+          ),
+        );
       }
     } else if (_selectedTab == 'Reports') {
       contentList = _reports.map((report) {
         return _ReportCard(
           report: report,
-          // When onDelete is called from the card, it triggers the state method
-          onDelete: () => _deleteReport(report),
+          // Report: Delete logic is now in _showDeleteConfirmation
+          onDelete: () => _showDeleteConfirmation(report),
           onViewDetail: () {
             _navigateToScreen(
               context,
               AdminViewReportDetail(
                 report: report,
-                // Pass the state methods to the detail screen
-                onDelete: () => _deleteReport(report),
+                // Pass a flag to indicate the detail screen needs to be popped on delete/resolve
+                onDelete: () =>
+                    _showDeleteConfirmation(report, fromDetail: true),
                 onResolve: () => _resolveReport(report),
+                onWarnUser: () => _warnUser(report),
+                onContactUser: () => _contactUser(report),
+                onBanUser: () => _banUser(report),
               ),
             );
           },
+          onWarnUser: () => _warnUser(report), // Pass _warnUser directly
         );
       }).toList();
       if (contentList.isEmpty) {
-        debugPrint('Error fetching items/claims/reports from Supabase: ');
+        contentList.add(
+          const _EmptyStateMessage(
+            message: 'No user misconduct reports to review.',
+          ),
+        );
       }
     }
 
@@ -798,6 +942,11 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
         ],
       ),
     );
+  }
+
+  // FIX: Added static method for context access
+  static _AdminDashboardScreenState of(BuildContext context) {
+    return context.findAncestorStateOfType<_AdminDashboardScreenState>()!;
   }
 }
 
@@ -911,6 +1060,9 @@ class AdminSplashUserBanConfirmed extends StatelessWidget {
             ElevatedButton(
               onPressed: () {
                 // Pop both the Ban Confirmed screen and the Ban splash screen
+                // We pop twice because the AdminDashboard calls _navigateToScreen,
+                // which pushes the first splash screen. The splash screen then
+                // calls _navigateToScreen for the confirmed screen.
                 Navigator.of(context).pop();
                 Navigator.of(context).pop();
               },
@@ -977,7 +1129,10 @@ class _HeaderSection extends StatelessWidget {
                   IconButton(
                     icon: const Icon(Icons.home, color: Colors.white),
                     onPressed: () {
-                      Navigator.pop(context);
+                      // Navigate back to previous screen (assuming main menu)
+                      if (Navigator.canPop(context)) {
+                        Navigator.pop(context);
+                      }
                     },
                   ),
                   IconButton(
@@ -1095,7 +1250,9 @@ class _EmptyStateMessage extends StatelessWidget {
 
 class _ItemCard extends StatelessWidget {
   final Item item;
-  const _ItemCard({required this.item});
+  final VoidCallback onDelete; // Added for delete functionality
+
+  const _ItemCard({required this.item, required this.onDelete});
 
   @override
   Widget build(BuildContext context) {
@@ -1210,9 +1367,14 @@ class _ItemCard extends StatelessWidget {
                   icon: Icons.remove_red_eye_outlined,
                   label: 'View',
                   onTap: () {
+                    // Use a generic ItemDetailScreen
                     _navigateToScreen(
                       context,
-                      AdminViewItem1Screen(item: item),
+                      AdminViewItemDetailScreen(
+                        // Pass an Item, or use a new screen for Found/Lost items
+                        item: item,
+                        isClaim: false,
+                      ),
                     );
                   },
                 ),
@@ -1225,7 +1387,7 @@ class _ItemCard extends StatelessWidget {
                     _navigateToScreen(
                       context,
                       AdminShowReturnScreen(
-                        item: item,
+                        itemTitle: item.title,
                         onReturnConfirmed: () {
                           // TODO: Implement actual state update for returning item
                           // This would typically involve calling an update API and refreshing the list.
@@ -1240,18 +1402,7 @@ class _ItemCard extends StatelessWidget {
                   icon: Icons.delete_outline,
                   label: 'Delete',
                   color: Colors.red.shade700,
-                  onTap: () {
-                    _navigateToScreen(
-                      context,
-                      AdminDeleteItemMaskScreen(
-                        item: item,
-                        onDeleteConfirmed: () {
-                          // TODO: Implement actual state update for deleting item
-                          // This would typically involve calling a delete API and refreshing the list.
-                        },
-                      ),
-                    );
-                  },
+                  onTap: onDelete, // Use the provided onDelete callback
                 ),
               ],
             ),
@@ -1264,8 +1415,9 @@ class _ItemCard extends StatelessWidget {
 
 class _FoundItemCard extends StatelessWidget {
   final Item item;
+  final VoidCallback onDelete; // Added for delete functionality
 
-  const _FoundItemCard({required this.item});
+  const _FoundItemCard({required this.item, required this.onDelete});
 
   @override
   Widget build(BuildContext context) {
@@ -1380,7 +1532,7 @@ class _FoundItemCard extends StatelessWidget {
                   onTap: () {
                     _navigateToScreen(
                       context,
-                      AdminViewItem1Screen(item: item),
+                      AdminViewItemDetailScreen(item: item, isClaim: false),
                     );
                   },
                 ),
@@ -1393,7 +1545,7 @@ class _FoundItemCard extends StatelessWidget {
                     _navigateToScreen(
                       context,
                       AdminShowReturnScreen(
-                        item: item,
+                        itemTitle: item.title,
                         onReturnConfirmed: () {
                           // TODO: Implement actual state update for returning item
                         },
@@ -1407,17 +1559,7 @@ class _FoundItemCard extends StatelessWidget {
                   icon: Icons.delete_outline,
                   label: 'Delete',
                   color: Colors.red.shade700,
-                  onTap: () {
-                    _navigateToScreen(
-                      context,
-                      AdminDeleteItemMaskScreen(
-                        item: item,
-                        onDeleteConfirmed: () {
-                          // TODO: Implement actual state update for deleting item
-                        },
-                      ),
-                    );
-                  },
+                  onTap: onDelete, // Use the provided onDelete callback
                 ),
               ],
             ),
@@ -1478,8 +1620,13 @@ class _ClaimsHeader extends StatelessWidget {
 class _GeneralClaimCard extends StatelessWidget {
   final Claim claim;
   final VoidCallback onMarkReturned;
+  final VoidCallback onDelete;
 
-  const _GeneralClaimCard({required this.claim, required this.onMarkReturned});
+  const _GeneralClaimCard({
+    required this.claim,
+    required this.onMarkReturned,
+    required this.onDelete,
+  });
 
   Color _getStatusColor(String status) {
     switch (status) {
@@ -1513,16 +1660,38 @@ class _GeneralClaimCard extends StatelessWidget {
     );
   }
 
+  void _navigateToScreen(BuildContext context, Widget screen) {
+    Navigator.of(context).push(MaterialPageRoute(builder: (context) => screen));
+  }
+
+  // Refactored: Removed 'Expanded' from here.
+  // The caller must wrap this in Expanded if it needs to fill space in a Row/Column.
+  Widget _buildActionButton({
+    required BuildContext context,
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    Color? color,
+  }) {
+    final Color primaryColor = color ?? Theme.of(context).primaryColor;
+
+    return TextButton.icon(
+      icon: Icon(icon, size: 18, color: primaryColor),
+      label: Text(label, style: TextStyle(color: primaryColor)),
+      onPressed: onTap,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final Item item = claim.item;
+    // 1. Determine the URL to use. Use final for local variables.
+    final String imageUrl = claim.imageUrl;
 
-    // Use a placeholder image URL for the claim card, as the claims table
-    // doesn't directly provide one in the requested columns. We will use the
-    // linked item's image as a proxy.
-    String imageUrl = item.imageUrl.isEmpty
-        ? 'https://placehold.co/70x70/cccccc/000000?text=N/A'
-        : item.imageUrl;
+    // Validate URL using Uri.tryParse().isAbsolute for robustness
+    const double imageSize = 70.0;
+    final Color placeholderColor = Colors.grey.shade200;
+
+    final bool isUrlValid = Uri.tryParse(imageUrl)?.isAbsolute == true;
 
     return Card(
       elevation: 4,
@@ -1535,28 +1704,62 @@ class _GeneralClaimCard extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
+                // 2. Image Widget Container
                 ClipRRect(
                   borderRadius: BorderRadius.circular(12.0),
-                  child: Image.network(
-                    imageUrl,
-                    width: 70,
-                    height: 70,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        width: 70,
-                        height: 70,
-                        color: Colors.grey.shade200,
-                        child: const Center(
-                          child: Icon(
-                            Icons.image_not_supported,
-                            size: 30,
-                            color: Colors.grey,
+                  child: isUrlValid
+                      ? Image.network(
+                          imageUrl,
+                          width: imageSize,
+                          height: imageSize,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            // --- Display error icon on failure ---
+                            return Container(
+                              width: imageSize,
+                              height: imageSize,
+                              color: placeholderColor,
+                              child: const Center(
+                                child: Icon(
+                                  Icons.image_not_supported,
+                                  size: 30,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                            );
+                          },
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            // Optional: Show loading progress indicator
+                            return Container(
+                              width: imageSize,
+                              height: imageSize,
+                              color: placeholderColor,
+                              child: Center(
+                                child: CircularProgressIndicator(
+                                  value:
+                                      loadingProgress.expectedTotalBytes != null
+                                      ? loadingProgress.cumulativeBytesLoaded /
+                                            loadingProgress.expectedTotalBytes!
+                                      : null,
+                                ),
+                              ),
+                            );
+                          },
+                        )
+                      : Container(
+                          // --- Display plain container when URL is empty/invalid ---
+                          width: imageSize,
+                          height: imageSize,
+                          color: placeholderColor,
+                          child: const Center(
+                            child: Icon(
+                              Icons.image_not_supported,
+                              size: 30,
+                              color: Colors.grey,
+                            ),
                           ),
                         ),
-                      );
-                    },
-                  ),
                 ),
                 const SizedBox(width: 12.0),
                 Expanded(
@@ -1573,6 +1776,8 @@ class _GeneralClaimCard extends StatelessWidget {
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
                               ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                           _buildStatusTag(claim.status),
@@ -1615,57 +1820,60 @@ class _GeneralClaimCard extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.start,
                   children: [
-                    _buildActionButton(
-                      context,
-                      icon: Icons.remove_red_eye_outlined,
-                      label: 'View Item',
-                      onTap: () {
-                        _navigateToScreen(
-                          context,
-                          AdminViewItem1Screen(item: item),
-                        );
-                      },
-                    ),
-
-                    const SizedBox(width: 8.0),
-
-                    if (claim.status == 'Pending' || claim.status == 'Verified')
-                      _buildActionButton(
-                        context,
-                        icon: Icons.check_circle_outline,
-                        label: 'Mark Returned',
+                    // Wrap with Expanded now that _buildActionButton is just a TextButton.icon
+                    Expanded(
+                      child: _buildActionButton(
+                        context: context,
+                        icon: Icons.remove_red_eye_outlined,
+                        label: 'View Item',
                         onTap: () {
+                          // Navigate to the new detail screen for claims
                           _navigateToScreen(
                             context,
-                            AdminShowReturnScreen(
-                              item: item,
-                              onReturnConfirmed: onMarkReturned,
+                            AdminViewItemDetailScreen(
+                              claim: claim,
+                              isClaim: true,
                             ),
                           );
                         },
                       ),
-                  ],
-                ),
-
-                const SizedBox(height: 16.0),
-                // Only show delete button if claim hasn't been returned
-                if (claim.status != 'Returned')
-                  _buildActionButton(
-                    context,
-                    icon: Icons.delete_outline,
-                    label: 'Delete Claim',
-                    color: Colors.red.shade700,
-                    onTap: () {
-                      _navigateToScreen(
-                        context,
-                        AdminDeleteItemMaskScreen(
-                          item: item, // Use item to display name in modal
-                          onDeleteConfirmed: () {
-                            // TODO: Implement claim deletion (and refresh state)
+                    ),
+                    const SizedBox(width: 8.0),
+                    if (claim.status == 'Pending' || claim.status == 'Verified')
+                      Expanded(
+                        child: _buildActionButton(
+                          context: context,
+                          icon: Icons.check_circle_outline,
+                          label: 'Mark Returned',
+                          onTap: () {
+                            // Navigate to return screen with the item title
+                            _navigateToScreen(
+                              context,
+                              AdminShowReturnScreen(
+                                itemTitle: claim.title,
+                                onReturnConfirmed: onMarkReturned,
+                              ),
+                            );
                           },
                         ),
-                      );
-                    },
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 16.0),
+                // Fix: Wrap the Delete button in a Row to correctly contain the Expanded child
+                if (claim.status != 'Returned')
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildActionButton(
+                          context: context,
+                          icon: Icons.delete_outline,
+                          label: 'Delete Claim',
+                          color: Colors.red.shade700,
+                          onTap: onDelete, // Use the provided onDelete callback
+                        ),
+                      ),
+                    ],
                   ),
               ],
             ),
@@ -1680,11 +1888,14 @@ class _ReportCard extends StatelessWidget {
   final Report report;
   final VoidCallback onDelete;
   final VoidCallback onViewDetail;
+  final VoidCallback onWarnUser;
 
   const _ReportCard({
+    super.key,
     required this.report,
     required this.onDelete,
     required this.onViewDetail,
+    required this.onWarnUser,
   });
 
   Color _getStatusColor(String status) {
@@ -1696,6 +1907,33 @@ class _ReportCard extends StatelessWidget {
       default:
         return Colors.grey.shade600;
     }
+  }
+
+  // Helper for the action buttons at the bottom
+  Widget _buildCardActionButton({
+    required BuildContext context,
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    Color color = Colors.blue,
+  }) {
+    return Expanded(
+      child: OutlinedButton.icon(
+        onPressed: onTap,
+        icon: Icon(icon, size: 20, color: color),
+        label: Text(
+          label,
+          style: TextStyle(color: color, fontWeight: FontWeight.w500),
+        ),
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(vertical: 12.0),
+          side: BorderSide(color: color.withOpacity(0.5)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10.0),
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -1810,8 +2048,8 @@ class _ReportCard extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.start,
                   children: [
-                    _buildActionButton(
-                      context,
+                    _buildCardActionButton(
+                      context: context,
                       icon: Icons.remove_red_eye_outlined,
                       label: 'View Detail',
                       color: Colors.blue.shade700,
@@ -1820,12 +2058,52 @@ class _ReportCard extends StatelessWidget {
 
                     const SizedBox(width: 8.0),
 
-                    _buildActionButton(
-                      context,
+                    // NEW BUTTON: Warn User
+                    _buildCardActionButton(
+                      context: context,
+                      icon: Icons.error_outline,
+                      label: 'Warn User',
+                      color: Colors.orange.shade700,
+                      onTap: () {
+                        // Display the warning confirmation overlay/dialog
+                        _navigateToScreen(
+                          context,
+                          AdminWarnUserMaskScreen(
+                            report: report,
+                            onWarnConfirmed: onWarnUser,
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8.0), // Separator for the next row
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    // NEW BUTTON: Delete
+                    _buildCardActionButton(
+                      context: context,
                       icon: Icons.delete_outline,
-                      label: 'Delete Report',
+                      label: 'Delete',
                       color: Colors.red.shade700,
-                      onTap: onDelete,
+                      onTap: onDelete, // Use the provided onDelete callback
+                    ),
+                    const SizedBox(width: 8.0),
+                    _buildCardActionButton(
+                      context: context,
+                      icon: Icons.check_circle_outline,
+                      label: 'Resolve',
+                      color: Colors.green.shade700,
+                      onTap: () {
+                        // Directly resolve (mock)
+                        // The detail screen handles popping if it was open
+                        if (report.status == 'Pending') {
+                          _AdminDashboardScreenState.of(
+                            context,
+                          )._resolveReport(report);
+                        }
+                      },
                     ),
                   ],
                 ),
@@ -1839,12 +2117,21 @@ class _ReportCard extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// DETAIL SCREENS (UNCHANGED)
+// DETAIL SCREENS (UPDATED/NEW)
 // -----------------------------------------------------------------------------
 
-class AdminViewItem1Screen extends StatelessWidget {
-  final Item item;
-  const AdminViewItem1Screen({super.key, required this.item});
+// NEW DETAIL SCREEN FOR BOTH ITEM AND CLAIM
+class AdminViewItemDetailScreen extends StatelessWidget {
+  final Item? item; // For Lost/Found Items
+  final Claim? claim; // For Claims
+  final bool isClaim;
+
+  const AdminViewItemDetailScreen({
+    super.key,
+    this.item,
+    this.claim,
+    required this.isClaim,
+  }) : assert(item != null || claim != null);
 
   Widget buildDetailRow(String label, String value) {
     return Padding(
@@ -1868,22 +2155,51 @@ class AdminViewItem1Screen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    String title = isClaim ? (claim?.title ?? 'N/A') : (item?.title ?? 'N/A');
+    String description = isClaim
+        ? (claim?.foundByNotes ?? 'N/A')
+        : (item?.description ?? 'N/A');
+    String imageUrl = isClaim
+        ? (claim?.imageUrl ?? '')
+        : (item?.imageUrl ?? '');
+    String status = isClaim
+        ? (claim?.status ?? 'N/A')
+        : (item?.status ?? 'N/A');
+    String reporter = isClaim
+        ? (claim?.claimedBy ?? 'N/A')
+        : (item?.reportedBy ?? 'N/A');
+    String reporterId = isClaim
+        ? (claim?.claimedById ?? 'N/A')
+        : item?.reportedBy.split('(ID: ').last.replaceAll(')', '') ??
+              'N/A'; // Extract ID
+    String date = isClaim ? (claim?.date ?? 'N/A') : (item?.date ?? 'N/A');
+    String location = isClaim ? 'N/A' : (item?.location ?? 'N/A');
+    String category = isClaim ? 'N/A' : (item?.category ?? 'N/A');
+    String contact = isClaim
+        ? (claim?.contact ?? 'N/A')
+        : (item?.contact ?? 'N/A');
+    String uniqueFeatures = isClaim ? (claim?.uniqueFeatures ?? 'N/A') : 'N/A';
+
+    // Determine the actual item/claim object for deletion handling
+    final itemToDelete = item;
+    final claimToDelete = claim;
+
     Color statusColor;
-    if (item.status == 'Lost') {
+    if (status == 'Lost' || status == 'Pending') {
       statusColor = Colors.red.shade400;
-    } else if (item.status == 'Found') {
+    } else if (status == 'Found' || status == 'Verified') {
       statusColor = Colors.orange.shade400;
     } else {
       statusColor = Colors.blue.shade400;
     }
 
-    String imageUrl = item.imageUrl.isEmpty
+    String finalImageUrl = imageUrl.isEmpty
         ? 'https://placehold.co/600x400/cccccc/000000?text=No+Image'
-        : item.imageUrl;
+        : imageUrl;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Item Details'),
+        title: Text(isClaim ? 'Claim Details' : 'Item Details'),
         backgroundColor: Colors.white,
         elevation: 1,
       ),
@@ -1896,8 +2212,9 @@ class AdminViewItem1Screen extends StatelessWidget {
             ClipRRect(
               borderRadius: BorderRadius.circular(16.0),
               child: Image.network(
-                imageUrl,
+                finalImageUrl,
                 height: 200,
+                width: double.infinity,
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) {
                   return Container(
@@ -1914,11 +2231,15 @@ class AdminViewItem1Screen extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  item.title,
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
+                Expanded(
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 Container(
@@ -1931,7 +2252,7 @@ class AdminViewItem1Screen extends StatelessWidget {
                     borderRadius: BorderRadius.circular(16.0),
                   ),
                   child: Text(
-                    item.status,
+                    status,
                     style: TextStyle(
                       color: statusColor,
                       fontWeight: FontWeight.w600,
@@ -1943,18 +2264,29 @@ class AdminViewItem1Screen extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              item.description,
+              isClaim
+                  ? 'Additional Notes: $description'
+                  : 'Description: $description',
               style: const TextStyle(fontSize: 16, color: Colors.black87),
             ),
             const Divider(height: 32),
             IntrinsicHeight(
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        buildDetailRow('Category', item.category),
-                        buildDetailRow('Location', item.location),
+                        if (isClaim)
+                          buildDetailRow('Claimed By', reporter)
+                        else
+                          buildDetailRow(
+                            'Reported By',
+                            reporter.split(' (ID:').first,
+                          ), // Cleaned for display
+                        buildDetailRow('User ID', reporterId),
+                        buildDetailRow(isClaim ? 'Claim Date' : 'Date', date),
                       ],
                     ),
                   ),
@@ -1965,24 +2297,29 @@ class AdminViewItem1Screen extends StatelessWidget {
                   ),
                   Expanded(
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        buildDetailRow('Date', item.date),
-                        buildDetailRow('Reported By', item.reportedBy),
+                        if (isClaim)
+                          buildDetailRow('Contact', contact)
+                        else
+                          buildDetailRow('Category', category),
+                        if (isClaim)
+                          buildDetailRow('Unique Features', uniqueFeatures)
+                        else
+                          buildDetailRow('Location', location),
                       ],
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 16),
-            buildDetailRow('Contact', item.contact),
             const SizedBox(height: 24),
             ElevatedButton.icon(
               onPressed: () {
                 _navigateToScreen(
                   context,
                   AdminShowReturnScreen(
-                    item: item,
+                    itemTitle: title,
                     onReturnConfirmed: () {
                       // TODO: Logic for returning item
                     },
@@ -2006,20 +2343,43 @@ class AdminViewItem1Screen extends StatelessWidget {
             const SizedBox(height: 12),
             ElevatedButton.icon(
               onPressed: () {
+                // Determine which delete action to pass
+                VoidCallback deleteAction;
+                if (itemToDelete != null && itemToDelete.status == 'Lost') {
+                  deleteAction = () => _AdminDashboardScreenState.of(
+                    context,
+                  )._deleteLostItem(itemToDelete);
+                } else if (itemToDelete != null &&
+                    itemToDelete.status == 'Found') {
+                  deleteAction = () => _AdminDashboardScreenState.of(
+                    context,
+                  )._deleteFoundItem(itemToDelete);
+                } else if (claimToDelete != null) {
+                  deleteAction = () => _AdminDashboardScreenState.of(
+                    context,
+                  )._deleteClaim(claimToDelete);
+                } else {
+                  deleteAction = () => debugPrint('Delete action not set.');
+                }
+
                 _navigateToScreen(
                   context,
                   AdminDeleteItemMaskScreen(
-                    item: item,
+                    itemTitle: title,
                     onDeleteConfirmed: () {
-                      // TODO: Logic for deleting item
+                      deleteAction();
+                      // FIX: Pop the detail screen after deletion is confirmed
+                      if (Navigator.of(context).canPop()) {
+                        Navigator.of(context).pop();
+                      }
                     },
                   ),
                 );
               },
               icon: const Icon(Icons.delete_outline, color: Colors.red),
-              label: const Text(
-                'Delete Report',
-                style: TextStyle(color: Colors.red, fontSize: 16),
+              label: Text(
+                isClaim ? 'Delete Claim' : 'Delete Item',
+                style: const TextStyle(color: Colors.red, fontSize: 16),
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red.shade50,
@@ -2039,12 +2399,12 @@ class AdminViewItem1Screen extends StatelessWidget {
 }
 
 class AdminShowReturnScreen extends StatelessWidget {
-  final Item item;
+  final String itemTitle;
   final VoidCallback onReturnConfirmed;
 
   const AdminShowReturnScreen({
     super.key,
-    required this.item,
+    required this.itemTitle,
     required this.onReturnConfirmed,
   });
 
@@ -2083,7 +2443,7 @@ class AdminShowReturnScreen extends StatelessWidget {
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 8.0),
                       child: Text(
-                        'Are you sure you want to mark "${item.title}" as returned? This indicates that the owner has successfully received their item.',
+                        'Are you sure you want to mark "$itemTitle" as returned? This indicates that the owner has successfully received their item.',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 16,
@@ -2096,16 +2456,11 @@ class AdminShowReturnScreen extends StatelessWidget {
                       width: double.infinity,
                       child: ElevatedButton(
                         onPressed: () {
-                          onReturnConfirmed();
+                          // NOTE: onDeleteConfirmed is called *before* the pop in the masks,
+                          // but here we call it after to ensure the dashboard state updates
+                          // (since it calls the state method).
                           Navigator.of(context).pop();
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                '${item.title} marked as Returned!',
-                              ),
-                              backgroundColor: Colors.green.shade600,
-                            ),
-                          );
+                          onReturnConfirmed(); // Calls _markClaimAsReturned which handles the state update/snack bar
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.green.shade600,
@@ -2154,12 +2509,12 @@ class AdminShowReturnScreen extends StatelessWidget {
 }
 
 class AdminDeleteItemMaskScreen extends StatelessWidget {
-  final Item item;
+  final String itemTitle;
   final VoidCallback onDeleteConfirmed;
 
   const AdminDeleteItemMaskScreen({
     super.key,
-    required this.item,
+    required this.itemTitle,
     required this.onDeleteConfirmed,
   });
 
@@ -2187,8 +2542,9 @@ class AdminDeleteItemMaskScreen extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
+                    // FIX: Standardized Title
                     const Text(
-                      'Delete Report',
+                      'Delete Entry',
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -2199,12 +2555,13 @@ class AdminDeleteItemMaskScreen extends StatelessWidget {
                     const SizedBox(height: 16),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                      // FIX: Standardized Message (from report delete)
                       child: Text(
-                        'Are you sure you want to delete "${item.title}"? This action cannot be undone. This should only be used for fake or already resolved reports.',
+                        'Are you sure you want to delete "$itemTitle"? This action cannot be undone. This should only be used for fake or already resolved entries.',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 16,
-                          color: Colors.blue.shade700,
+                          color: Colors.red.shade700,
                         ),
                       ),
                     ),
@@ -2213,14 +2570,11 @@ class AdminDeleteItemMaskScreen extends StatelessWidget {
                       width: double.infinity,
                       child: ElevatedButton(
                         onPressed: () {
+                          // Call the delete logic first (which updates the state/Supabase)
                           onDeleteConfirmed();
+                          // Then pop the mask screen
                           Navigator.of(context).pop();
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('${item.title} report deleted.'),
-                              backgroundColor: Colors.red.shade600,
-                            ),
-                          );
+                          // NOTE: The delete logic now handles the snackbar/popping of the detail screen.
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.red.shade600,
@@ -2268,16 +2622,164 @@ class AdminDeleteItemMaskScreen extends StatelessWidget {
   }
 }
 
+// NEW SCREEN: WARN USER MASK
+class AdminWarnUserMaskScreen extends StatelessWidget {
+  final Report report;
+  final VoidCallback onWarnConfirmed;
+
+  const AdminWarnUserMaskScreen({
+    super.key,
+    required this.report,
+    required this.onWarnConfirmed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: Stack(
+        children: [
+          GestureDetector(
+            onTap: () {
+              Navigator.of(context).pop();
+            },
+            child: Container(color: Colors.black54),
+          ),
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32.0),
+              child: Container(
+                padding: const EdgeInsets.all(24.0),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16.0),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    const Text(
+                      'Warn User for Misconduct',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    Text.rich(
+                      TextSpan(
+                        children: [
+                          const TextSpan(
+                            text: 'You are about to warn:\n',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.black54,
+                            ),
+                          ),
+                          TextSpan(
+                            text: '${report.reportedUser}\n',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.red.shade700,
+                            ),
+                          ),
+                          TextSpan(
+                            text: '(User ID: ${report.reportedUserId})',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Colors.black45,
+                            ),
+                          ),
+                        ],
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                      child: Text(
+                        'This action will send a warning notification to the user regarding the misconduct.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.orange.shade700,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          // Pop the mask screen only
+                          Navigator.of(context).pop();
+                          // Execute the warning logic (which includes the splash screen and resolution)
+                          onWarnConfirmed();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.orange.shade600,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: const Text(
+                          'Confirm & Warn User',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          side: const BorderSide(color: Colors.black26),
+                        ),
+                        child: const Text(
+                          'Cancel',
+                          style: TextStyle(color: Colors.black87, fontSize: 16),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class AdminViewReportDetail extends StatelessWidget {
   final Report report;
   final VoidCallback onDelete;
   final VoidCallback onResolve;
+  final VoidCallback onWarnUser;
+  final VoidCallback onContactUser;
+  final VoidCallback onBanUser;
 
   const AdminViewReportDetail({
     super.key,
     required this.report,
     required this.onDelete,
     required this.onResolve,
+    required this.onWarnUser,
+    required this.onContactUser,
+    required this.onBanUser,
   });
 
   Widget buildDetailRow(String label, String value, {Color? valueColor}) {
@@ -2446,6 +2948,10 @@ class AdminViewReportDetail extends StatelessWidget {
                     report.reportedUser,
                     valueColor: darkRed,
                   ),
+                  buildDetailRow(
+                    'User ID:',
+                    report.reportedUserId,
+                  ), // Added User ID
                   buildDetailRow('Reported By:', report.reportedBy),
                   buildDetailRow('Date:', report.date),
                   buildDetailRow('Item ID:', report.itemId),
@@ -2494,18 +3000,7 @@ class AdminViewReportDetail extends StatelessWidget {
                         icon: Icons.mail_outline,
                         label: 'Contact User',
                         color: brightBlue,
-                        onTap: () {
-                          // Navigates to splash screen, which calls onResolve after timer
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (context) => UserContactedSplash(
-                                report: report,
-                                onFinishNavigation:
-                                    onResolve, // This resolves the report and pops this screen
-                              ),
-                            ),
-                          );
-                        },
+                        onTap: onContactUser,
                       ),
                       const SizedBox(width: 12.0),
                       _buildReportActionButton(
@@ -2513,18 +3008,7 @@ class AdminViewReportDetail extends StatelessWidget {
                         icon: Icons.error_outline,
                         label: 'Warn User',
                         color: darkOrange,
-                        onTap: () {
-                          // Navigates to splash screen, which calls onResolve after timer
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (context) => UserWarnedSplash(
-                                report: report,
-                                onFinishNavigation:
-                                    onResolve, // This resolves the report and pops this screen
-                              ),
-                            ),
-                          );
-                        },
+                        onTap: onWarnUser,
                       ),
                     ],
                   ),
@@ -2535,20 +3019,34 @@ class AdminViewReportDetail extends StatelessWidget {
                     children: [
                       _buildReportActionButton(
                         context: context,
+                        icon: Icons.block,
+                        label: 'Ban User',
+                        color: darkRed,
+                        onTap: onBanUser,
+                      ),
+                      const SizedBox(width: 12.0),
+                      _buildReportActionButton(
+                        context: context,
                         icon: Icons.delete_outline,
                         label: 'Delete Report',
                         color: darkRed,
-                        onTap:
-                            onDelete, // This deletes the report and pops this screen
+                        onTap: onDelete,
+                        borderColor: darkRed.withOpacity(0.5),
+                        backgroundColor: Colors.red.shade50,
                       ),
-                      const SizedBox(width: 12.0),
+                    ],
+                  ),
+
+                  const SizedBox(height: 12.0),
+
+                  Row(
+                    children: [
                       _buildReportActionButton(
                         context: context,
                         icon: Icons.check_circle_outline,
                         label: 'Mark as Resolved',
                         color: darkGreen,
-                        onTap:
-                            onResolve, // This resolves the report and pops this screen
+                        onTap: onResolve,
                         borderColor: darkGreen,
                       ),
                     ],
@@ -2587,6 +3085,7 @@ class UserWarnedSplashScreenState extends State<UserWarnedSplash> {
     super.initState();
     Timer(const Duration(seconds: 3), () {
       if (mounted) {
+        // Only pop the splash screen, the calling screen remains on the stack
         Navigator.pop(context);
         widget.onFinishNavigation();
       }
@@ -2693,6 +3192,7 @@ class UserContactedSplashScreenState extends State<UserContactedSplash> {
     super.initState();
     Timer(const Duration(seconds: 3), () {
       if (mounted) {
+        // Only pop the splash screen, the calling screen remains on the stack
         Navigator.pop(context);
         widget.onFinishNavigation();
       }

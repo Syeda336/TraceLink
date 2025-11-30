@@ -62,6 +62,8 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
 
   // --- Dropdown State & Data ---
   String? _selectedCategory;
+  // NEW: State for Priority
+  String? _selectedPriority;
   final List<String> _categories = const [
     'Electronics',
     'Wallet/ID',
@@ -90,6 +92,20 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
     _descriptionController.dispose();
     _locationController.dispose();
     super.dispose();
+  }
+
+  // --- NEW: Helper to determine priority based on category ---
+  String _determinePriority(String category) {
+    switch (category) {
+      case 'Electronics':
+        return 'High';
+      case 'Wallet/ID':
+        return 'Medium';
+      case 'Keys':
+        return 'Low';
+      default:
+        return 'Low'; // Default for other categories
+    }
   }
 
   Future<void> _selectDate(BuildContext context, Color primaryColor) async {
@@ -146,7 +162,7 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
     }
   }
 
-  // --- Supabase Submission Logic (CORRECTED) ---
+  // --- Supabase Submission Logic (CORRECTED & MODIFIED) ---
   void _submitReport() async {
     if (!_formKey.currentState!.validate() || _selectedCategory == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -159,9 +175,16 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
       return;
     }
 
+    // 1. Determine Priority
+    final String determinedPriority = _determinePriority(_selectedCategory!);
+    setState(() {
+      _selectedPriority = determinedPriority;
+    });
+
     final String reporterName = userData?['fullName'] ?? 'Unknown Reporter';
     final String reporterEmail = userData?['email'] ?? 'unknown@example.com';
     final String reporterStudentId = userData?['studentId'] ?? 'N/A';
+    final String currentTimestamp = DateTime.now().toIso8601String();
 
     // Show a loading indicator before submission
     showDialog(
@@ -173,36 +196,57 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
     );
 
     try {
-      final postData = {
-        'Item Name': _itemNameController.text
-            .trim(), // Use snake_case for Supabase table columns if needed
+      // Data for 'Lost' Table
+      final lostPostData = {
+        // Renamed keys to snake_case for Supabase best practice
+        'Item Name': _itemNameController.text.trim(),
         'Category': _selectedCategory,
         'Color': _colorController.text.trim(),
         'Description': _descriptionController.text.trim(),
         'Location': _locationController.text.trim(),
-        'Date Lost': _selectedDate?.toIso8601String(), // Use snake_case
-        'Image': _uploadedImageUrl, // Use snake_case
-        'User Name': reporterName, // Use snake_case
+        'Date Lost': _selectedDate?.toIso8601String(),
+        'Image': _uploadedImageUrl, // Renamed key to snake_case
+        'User Name': reporterName, // Renamed key to snake_case
         'User Email': reporterEmail,
-        'User ID': reporterStudentId,
+        'User ID': reporterStudentId, // Renamed key to snake_case
+        'created_at':
+            currentTimestamp, // Will be overwritten by DB default if set
+      };
+
+      // Data for 'Alerts' Table (Based on the provided image schema and new requirement)
+      // Note: Supabase columns are typically snake_case, but the image shows PascalCase/Spaces.
+      // Assuming you use the exact names from the image for the Alerts table structure.
+      final alertsPostData = {
+        'Item Name': lostPostData['Item Name'],
+        'Description': lostPostData['Description'],
+        'Location': lostPostData['Location'],
+        'Image': lostPostData['Image'],
+        'Priority': _selectedPriority, // Set the determined priority
+        'created_at': currentTimestamp,
       };
 
       // 2. Insert data into the 'Lost' table.
-      // NOTE: Ensure your Supabase table columns match the keys in postData,
-      // e.g., 'item_name', 'image_url', etc. The original code used spaced keys like 'Item Name',
-      // which is non-standard and prone to error. I have switched to snake_case here.
-      final response = await supabase.from('Lost').insert(postData).select();
+      final lostResponse = await supabase
+          .from('Lost')
+          .insert(lostPostData)
+          .select();
+
+      // 3. Insert data into the 'Alerts' table. (NEW REQUIREMENT)
+      await supabase.from('Alerts').insert(alertsPostData);
 
       // Close loading dialog
       Navigator.of(context).pop();
 
-      print('Report submitted successfully. ID: ${response.first['id']}');
+      print(
+        'Lost Report submitted successfully. ID: ${lostResponse.first['id']}',
+      );
+      print('Alert generated successfully with Priority: $_selectedPriority');
 
-      // 3. Show success message
+      // 4. Show success message
       _showSubmissionMessage(isSuccess: true);
     } on PostgrestException catch (e) {
       // Close loading dialog
-      Navigator.of(context).pop();
+      if (mounted && Navigator.canPop(context)) Navigator.of(context).pop();
       print('Supabase Postgrest Error: ${e.message}');
       _showSubmissionMessage(
         isSuccess: false,
@@ -253,7 +297,7 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
           ),
           content: Text(
             isSuccess
-                ? 'Your lost item report has been submitted successfully.'
+                ? 'Your lost item report has been submitted successfully and an alert was created with priority: $_selectedPriority.'
                 : errorMessage ??
                       'An unexpected error occurred during submission.',
             style: TextStyle(color: contentColor),
@@ -687,6 +731,12 @@ class _ReportLostItemScreenState extends State<ReportLostItemScreen> {
       onChanged: (String? newValue) {
         setState(() {
           _selectedCategory = newValue;
+          // When category changes, immediately set the priority state
+          if (newValue != null) {
+            _selectedPriority = _determinePriority(newValue);
+          } else {
+            _selectedPriority = null;
+          }
         });
       },
       validator: (value) => value == null ? 'Please select a category.' : null,

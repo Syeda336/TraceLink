@@ -15,7 +15,6 @@ const Color primaryBlue = Color(0xFF42A5F5); // Bright Blue
 const Color darkBlue = Color(0xFF1977D2); // Dark Blue
 const Color lightBlueBackground = Color(0xFFE3F2FD); // Very Light Blue
 
-// 🎯 FIX 1: Complete the Item model with sensible defaults and methods
 class Item {
   // Column names from your Supabase table
   final String userInitials;

@@ -6,9 +6,8 @@ import '../supabase_lost_service.dart'; // 🌟 Import the new service
 import '../supabase_found_service.dart'; // 🌟 Import the new service
 
 import 'messages.dart';
-import 'claim_submit.dart';
+import 'claim_submit.dart'; // Make sure VerifyOwnershipScreen in this file accepts parameters
 
-// Define the new color palette (Base for Light Mode)
 const Color primaryBlue = Color(
   0xFF42A5F5,
 ); // Bright Blue (A light-medium blue)
@@ -311,6 +310,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                 isDarkMode,
                 backgroundColor,
                 primaryTextColor,
+                item, // 🎯 PASS THE ITEM OBJECT HERE
               ),
             ],
           ),
@@ -340,8 +340,8 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
               height: 300,
               fit: BoxFit.cover,
               errorBuilder: (context, error, stackTrace) => Container(
-                width: 60,
-                height: 60,
+                width: double.infinity,
+                height: 300,
                 color: isDarkMode
                     ? Colors.grey.shade700
                     : const Color.fromARGB(255, 206, 232, 247),
@@ -350,6 +350,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                   color: isDarkMode
                       ? Colors.grey.shade400
                       : const Color.fromARGB(255, 158, 158, 158),
+                  size: 60,
                 ),
               ),
             ),
@@ -492,12 +493,6 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
     Color cardOutlineColor,
     Item item, // 🎯 Use the Item object
   ) {
-    // ❌ OLD INCORRECT CODE:
-    // final String initials = Item.userName
-    //     .split(' ')
-    //     .map((e) => e.isNotEmpty ? e[0].toUpperCase() : '')
-    //     .join();
-
     // The initials are already correctly calculated and stored in item.userInitials
 
     // We will hardcode 'Student' for the status, as this data isn't provided
@@ -762,6 +757,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
     bool isDarkMode,
     Color backgroundColor,
     Color primaryTextColor,
+    Item item, // ✅ Added Item object here
   ) {
     return Positioned(
       bottom: 0,
@@ -827,10 +823,13 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
               Expanded(
                 child: ElevatedButton(
                   onPressed: () {
-                    // Navigate to claim verification screen
+                    // Navigate to claim verification screen, passing item name and image URL
                     Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (context) => VerifyOwnershipScreen(),
+                        builder: (context) => VerifyOwnershipScreen(
+                          itemName: item.itemName, // ✅ Pass Item Name
+                          imageUrl: item.imageUrl, // ✅ Pass Image URL
+                        ),
                       ),
                     );
                   },

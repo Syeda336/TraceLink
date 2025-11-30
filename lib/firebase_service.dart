@@ -26,6 +26,27 @@ class FirebaseService {
     return snapshot.docs.length;
   }
 
+  Future<List<Map<String, dynamic>>> getUsersList() async {
+    try {
+      // 1. Get the QuerySnapshot (the result set of the query)
+      final QuerySnapshot snapshot = await FirebaseFirestore.instance
+          .collection("users")
+          .get();
+
+      // 2. Map the list of DocumentSnapshots into a List of Map<String, dynamic>.
+      //    This converts each Firestore document into a standard Dart Map.
+      final List<Map<String, dynamic>> users = snapshot.docs
+          .map((doc) => doc.data() as Map<String, dynamic>)
+          .toList();
+
+      return users;
+    } catch (e) {
+      print("Error fetching user list: $e");
+      // Return an empty list or rethrow the error, depending on desired error handling
+      return [];
+    }
+  }
+
   static Future<void> initialize() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,

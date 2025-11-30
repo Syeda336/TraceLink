@@ -130,6 +130,7 @@ class _ReportFoundItemScreenState extends State<ReportFoundItemScreen> {
         'User Name': reporterName,
         'User Email': reporterEmail,
         'User ID': reporterStudentId,
+        'created_at': DateTime.now().toIso8601String(),
       };
 
       // 2. Insert data into the 'Found' table

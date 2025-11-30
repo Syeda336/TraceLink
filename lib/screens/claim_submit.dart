@@ -25,7 +25,15 @@ const Color _kDarkHighlightColor = Color(
 
 // 1. CONVERT TO STATEFUL WIDGET
 class VerifyOwnershipScreen extends StatefulWidget {
-  const VerifyOwnershipScreen({super.key});
+  // ********** MODIFICATION 1: ADD REQUIRED FIELDS **********
+  final String itemName;
+  final String imageUrl; // Assuming the image is passed as a URL/path
+
+  const VerifyOwnershipScreen({
+    super.key,
+    required this.itemName, // Item Name is now passed in
+    required this.imageUrl, // Image URL is now passed in
+  });
 
   @override
   State<VerifyOwnershipScreen> createState() => _VerifyOwnershipScreenState();
@@ -33,16 +41,23 @@ class VerifyOwnershipScreen extends StatefulWidget {
 
 class _VerifyOwnershipScreenState extends State<VerifyOwnershipScreen> {
   // Map for Firebase data: 'fullName', 'studentId', 'email' are expected keys
+  // Initialize userData as an empty Map to prevent potential map/null errors
   Map<String, dynamic>? userData;
   bool _isLoading = true; // Loading state
 
   // 2. TEXT EDITING CONTROLLERS FOR NEW FIELDS
-  final _itemNameController = TextEditingController();
-  final _uniqueFeatureController = TextEditingController();
+  final _uniqueColorController = TextEditingController(); // NEW
   final _contactController = TextEditingController();
   final _daysLostController = TextEditingController();
   final _additionalNotesController = TextEditingController();
   final _formKey = GlobalKey<FormState>(); // 3. GLOBAL KEY FOR FORM
+
+  // ********** NEW STATE VARIABLES FOR BOOLEAN/DROPDOWN INPUTS **********
+  String? _isBroken; // 'Yes', 'No', or null
+  String? _isBranded; // 'Yes', 'No', or null
+
+  final List<String> _yesNoOptions = ['Yes', 'No'];
+  // *******************************************************************
 
   @override
   void initState() {
@@ -53,31 +68,29 @@ class _VerifyOwnershipScreenState extends State<VerifyOwnershipScreen> {
   @override
   void dispose() {
     // Dispose of controllers when the widget is removed
-    _itemNameController.dispose();
-    _uniqueFeatureController.dispose();
+    _uniqueColorController.dispose();
     _contactController.dispose();
     _daysLostController.dispose();
     _additionalNotesController.dispose();
     super.dispose();
   }
 
-  // NOTE: didChangeDependencies logic is kept simple since data is loaded in initState
-  // and we generally don't expect the user to manually trigger a refresh here.
-
   Future<void> _loadUserData() async {
-    // Assuming FirebaseService.getUserData() fetches the required data (full name, student ID, email)
-    // NOTE: This service is not defined in the provided code, assuming it exists.
+    // QUICK FIX: Ensure _loadUserData handles potential null return safely
     try {
+      // Assuming FirebaseService.getUserData() fetches the required data (full name, student ID, email)
       Map<String, dynamic>? data = await FirebaseService.getUserData();
       if (mounted) {
         setState(() {
-          userData = data;
+          // If data is null, set userData to an empty map to prevent map errors
+          userData = data ?? {};
           _isLoading = false;
         });
       }
     } catch (e) {
       if (mounted) {
         setState(() {
+          userData = {}; // Ensure it's not null even on error
           _isLoading = false;
         });
         // Optionally show an error to the user
@@ -94,12 +107,17 @@ class _VerifyOwnershipScreenState extends State<VerifyOwnershipScreen> {
       return; // Stop if form is not valid
     }
 
+    // Explicit check for user data and required dropdowns
     if (userData == null ||
         userData!['studentId'] == null ||
-        userData!['fullName'] == null) {
+        userData!['fullName'] == null ||
+        _isBroken == null ||
+        _isBranded == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Error: User data not loaded. Cannot submit claim.'),
+          content: Text(
+            'Error: Please ensure user data is loaded and all unique feature questions are answered.',
+          ),
         ),
       );
       return;
@@ -113,16 +131,23 @@ class _VerifyOwnershipScreenState extends State<VerifyOwnershipScreen> {
       final String studentId = userData!['studentId'] as String;
       final String fullName = userData!['fullName'] as String;
 
+      // ********** MODIFICATION 2: CONCATENATE FEATURE FIELDS INTO ONE COLUMN **********
+      final String uniqueDescription =
+          'Color: ${_uniqueColorController.text.trim().isEmpty ? 'N/A' : _uniqueColorController.text.trim()}. '
+          'Broken: $_isBroken. '
+          'Branded: $_isBranded. ';
+
       await supabase.from('claimed_items').insert({
         'User ID': studentId,
         'User Name': fullName,
-        'Item Name': _itemNameController.text.trim(),
-        'Unique Features': _uniqueFeatureController.text.trim(),
+        'Item Name':
+            widget.itemName, // Use the item name from the widget property
+        'Image': widget.imageUrl, // Save the image URL
+        'Unique Features': uniqueDescription, // Combined Description column
         'Contact': _contactController.text.trim(),
-        'Days Lost': _daysLostController.text
-            .trim(), // Storing as text for simplicity
         'Additional Notes': _additionalNotesController.text.trim(),
       });
+      // ********************************************************************************
 
       // Navigate to the success screen after successful submission
       if (mounted) {
@@ -152,7 +177,7 @@ class _VerifyOwnershipScreenState extends State<VerifyOwnershipScreen> {
     }
   }
 
-  // Helper widget for the text fields (Updated to include controller and validator)
+  // Helper widget for the text fields
   Widget _buildTextField({
     required String labelText,
     required bool isDarkMode,
@@ -160,11 +185,11 @@ class _VerifyOwnershipScreenState extends State<VerifyOwnershipScreen> {
     String? Function(String?)? validator,
     int maxLines = 1,
     TextInputType keyboardType = TextInputType.text,
+    bool isOptional = false, // Added optional flag
   }) {
     // Colors dynamically set based on theme
     final Color focusColor = isDarkMode ? _kDarkHighlightColor : _kDarkBlueText;
     final Color fillColor = isDarkMode ? _kDarkCardColor : Colors.white;
-    // Using ! operator to assert non-null for Colors.grey shades
     final Color hintColor = isDarkMode ? Colors.grey[600]! : Colors.grey;
     final Color textColor = isDarkMode ? Colors.white : Colors.black87;
     final Color enabledBorderColor = isDarkMode
@@ -177,7 +202,15 @@ class _VerifyOwnershipScreenState extends State<VerifyOwnershipScreen> {
       maxLines: maxLines,
       keyboardType: keyboardType,
       style: TextStyle(color: textColor),
-      validator: validator,
+      validator: isOptional
+          ? null
+          : validator ??
+                (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'This field is required.';
+                  }
+                  return null;
+                },
       decoration: InputDecoration(
         hintText: labelText,
         hintStyle: TextStyle(color: hintColor),
@@ -214,6 +247,83 @@ class _VerifyOwnershipScreenState extends State<VerifyOwnershipScreen> {
           borderSide: BorderSide(color: errorColor, width: 2.0),
         ),
       ),
+    );
+  }
+
+  // NEW HELPER WIDGET FOR DROPDOWN
+  Widget _buildDropdownField({
+    required String labelText,
+    required bool isDarkMode,
+    required String? currentValue,
+    required ValueChanged<String?> onChanged,
+    required List<String> items,
+    required Color questionTitleColor,
+  }) {
+    final Color focusColor = isDarkMode ? _kDarkHighlightColor : _kDarkBlueText;
+    final Color fillColor = isDarkMode ? _kDarkCardColor : Colors.white;
+    final Color hintColor = isDarkMode ? Colors.grey[600]! : Colors.grey;
+    final Color textColor = isDarkMode ? Colors.white : Colors.black87;
+    final Color enabledBorderColor = isDarkMode
+        ? _kDarkPrimaryColor
+        : const Color(0xFFE0E0E0);
+    final Color errorColor = isDarkMode ? const Color(0xFFFFCCBC) : Colors.red;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          labelText,
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: questionTitleColor,
+          ),
+        ),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<String>(
+          value: currentValue,
+          decoration: InputDecoration(
+            hintText: 'Select an option',
+            hintStyle: TextStyle(color: hintColor),
+            fillColor: fillColor,
+            filled: true,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16.0,
+              vertical: 12.0,
+            ),
+            errorStyle: TextStyle(color: errorColor),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8.0),
+              borderSide: BorderSide.none,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8.0),
+              borderSide: BorderSide(color: enabledBorderColor),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8.0),
+              borderSide: BorderSide(color: focusColor, width: 2.0),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8.0),
+              borderSide: BorderSide(color: errorColor, width: 2.0),
+            ),
+          ),
+          dropdownColor: isDarkMode ? _kDarkCardColor : Colors.white,
+          style: TextStyle(color: textColor),
+          icon: Icon(Icons.arrow_drop_down, color: hintColor),
+          items: items.map<DropdownMenuItem<String>>((String value) {
+            return DropdownMenuItem<String>(value: value, child: Text(value));
+          }).toList(),
+          onChanged: onChanged,
+          validator: (value) {
+            if (value == null || value.isEmpty) {
+              return 'This selection is required.';
+            }
+            return null;
+          },
+        ),
+      ],
     );
   }
 
@@ -303,6 +413,7 @@ class _VerifyOwnershipScreenState extends State<VerifyOwnershipScreen> {
     final Color questionTitleColor = isDarkMode
         ? _kDarkHighlightColor
         : Colors.black87;
+    final Color itemHeaderTextColor = isDarkMode ? Colors.white : Colors.black;
 
     return Scaffold(
       backgroundColor: scaffoldBg,
@@ -317,7 +428,7 @@ class _VerifyOwnershipScreenState extends State<VerifyOwnershipScreen> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () {
-            // Navigate back to item_description.dart
+            // Navigate back
             Navigator.pop(context);
           },
         ),
@@ -349,7 +460,7 @@ class _VerifyOwnershipScreenState extends State<VerifyOwnershipScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: <Widget>[
-                    // Verification Required Card/Container
+                    // Verification Required Card/Container (UNCHANGED)
                     Container(
                       padding: const EdgeInsets.all(16.0),
                       decoration: BoxDecoration(
@@ -365,7 +476,6 @@ class _VerifyOwnershipScreenState extends State<VerifyOwnershipScreen> {
                             offset: const Offset(0, 2),
                           ),
                         ],
-                        // Outline for the card in light mode (Dark Blue Text color)
                         border: isDarkMode
                             ? null
                             : Border.all(
@@ -396,34 +506,20 @@ class _VerifyOwnershipScreenState extends State<VerifyOwnershipScreen> {
                     ),
                     const SizedBox(height: 20),
 
-                    // --- NEW FIELDS IMPLEMENTATION ---
-                    // 1. Item Name
+                    // --- NEW UNIQUE FEATURES SECTION ---
                     Text(
-                      'Item Name',
+                      'Unique Item Characteristics',
                       style: TextStyle(
-                        fontSize: 18,
+                        fontSize: 22,
                         fontWeight: FontWeight.bold,
-                        color: questionTitleColor,
+                        color: headingColor,
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    _buildTextField(
-                      labelText: 'e.g., Brown Leather Wallet',
-                      controller: _itemNameController,
-                      isDarkMode: isDarkMode,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter the item name.';
-                        }
-                        return null;
-                      },
-                    ),
+                    const SizedBox(height: 15),
 
-                    const SizedBox(height: 20),
-
-                    // 2. Describe any unique feature
+                    // 1. Unique Color
                     Text(
-                      'Describe any unique feature',
+                      '1. Unique Color',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -433,13 +529,12 @@ class _VerifyOwnershipScreenState extends State<VerifyOwnershipScreen> {
                     const SizedBox(height: 8),
                     _buildTextField(
                       labelText:
-                          'Describe unique features, marks, or contents...',
-                      controller: _uniqueFeatureController,
-                      maxLines: 4,
+                          'e.g., Sky blue, Faded Red, Black with white stripes',
+                      controller: _uniqueColorController,
                       isDarkMode: isDarkMode,
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return 'Please describe a unique feature to verify ownership.';
+                          return 'Please enter the item\'s unique color.';
                         }
                         return null;
                       },
@@ -447,7 +542,40 @@ class _VerifyOwnershipScreenState extends State<VerifyOwnershipScreen> {
 
                     const SizedBox(height: 20),
 
-                    // 3. Contact Information
+                    // 2. It was broken? (Dropdown)
+                    _buildDropdownField(
+                      labelText: '2. Was it visibly damaged or broken?',
+                      isDarkMode: isDarkMode,
+                      currentValue: _isBroken,
+                      onChanged: (newValue) {
+                        setState(() {
+                          _isBroken = newValue;
+                        });
+                      },
+                      items: _yesNoOptions,
+                      questionTitleColor: questionTitleColor,
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // 3. Is it branded? (Dropdown)
+                    _buildDropdownField(
+                      labelText: '3. Is the item branded (e.g., Nike, Apple)?',
+                      isDarkMode: isDarkMode,
+                      currentValue: _isBranded,
+                      onChanged: (newValue) {
+                        setState(() {
+                          _isBranded = newValue;
+                        });
+                      },
+                      items: _yesNoOptions,
+                      questionTitleColor: questionTitleColor,
+                    ),
+
+                    const SizedBox(height: 20),
+                    // --- END OF NEW UNIQUE FEATURES SECTION ---
+
+                    // 4. Contact Information
                     Text(
                       'Contact Information',
                       style: TextStyle(
@@ -471,35 +599,7 @@ class _VerifyOwnershipScreenState extends State<VerifyOwnershipScreen> {
 
                     const SizedBox(height: 20),
 
-                    // 4. For many days did lost it
-                    Text(
-                      'For how many days was it lost?',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: questionTitleColor,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    _buildTextField(
-                      labelText: 'Number of days (e.g., 2)',
-                      controller: _daysLostController,
-                      isDarkMode: isDarkMode,
-                      keyboardType: TextInputType.number,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please specify the number of days lost.';
-                        }
-                        if (int.tryParse(value) == null) {
-                          return 'Please enter a valid number.';
-                        }
-                        return null;
-                      },
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // 5. Additional Notes (Optional) Field
+                    // 6. Additional Notes (Optional) Field - Now only for truly additional notes
                     Text(
                       'Additional Notes (Optional)',
                       style: TextStyle(
@@ -514,6 +614,7 @@ class _VerifyOwnershipScreenState extends State<VerifyOwnershipScreen> {
                       controller: _additionalNotesController,
                       maxLines: 4,
                       isDarkMode: isDarkMode,
+                      isOptional: true, // Mark as optional
                     ),
 
                     const SizedBox(height: 40),

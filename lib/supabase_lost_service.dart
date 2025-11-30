@@ -31,5 +31,32 @@ class SupabaseLostService {
     final response = await supabase.from("Lost").select();
     return response.length;
   }
-}
 
+  // --- NEW FUNCTION TO DELETE DATA ---
+
+  ///
+  /// Assumes the primary key column in the 'Lost' table is named 'id'.
+  static Future<void> deleteLostItem(int reportId) async {
+    try {
+      // 1. Specify the table
+      await supabase
+          .from('Lost')
+          // 2. Specify the action (delete)
+          .delete()
+          // 3. Specify the filter (WHERE condition: delete where 'id' equals itemId)
+          .eq('id', reportId);
+
+      print('Successfully deleted lost item with ID: $reportId');
+    } on PostgrestException catch (e) {
+      // Handle Supabase/Postgres specific errors
+      print('Supabase Delete Error: ${e.message}');
+      rethrow; // Propagate the error
+    } catch (e) {
+      // Handle any other errors
+      print('An unexpected error occurred during deletion: $e');
+      rethrow;
+    }
+  }
+
+  // --- END OF NEW FUNCTION ---
+}
