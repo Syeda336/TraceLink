@@ -553,26 +553,13 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
     // IMPORTANT: Check if the context is still valid before showing dialog
     if (!mounted) return;
 
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Report'),
-        content: Text(
-          'Are you sure you want to delete the report for "${report.title}"?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.of(context).pop(); // Close the dialog
-              await _deleteReport(report, fromDetail: fromDetail);
-            },
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
-          ),
-        ],
+    _navigateToScreen(
+      context,
+      AdminDeleteItemMaskScreen(
+        itemTitle: report.title,
+        onDeleteConfirmed: () async {
+          await _deleteReport(report, fromDetail: fromDetail);
+        },
       ),
     );
   }
@@ -595,7 +582,7 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
       return;
     }
 
-    // 2. Remove from local state
+    // 2. Remove from local state and refresh
     final title = report.title;
     setState(() {
       _reports.removeWhere(
@@ -604,6 +591,8 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
             r.reportedUserId == report.reportedUserId,
       );
     });
+    // Refresh the whole list to ensure UI consistency
+    _fetchItems();
 
     // 3. Close the detail screen if this action was triggered from there
     if (fromDetail && Navigator.of(context).canPop()) {
@@ -636,7 +625,7 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
   void _resolveReport(Report report) {
     if (!mounted) return;
     // Find the index of the report to update
-    final index = _reports.indexOf(report);
+    final index = _reports.indexWhere((r) => r.uniqueId == report.uniqueId);
     if (index != -1) {
       final title = _reports[index].title;
       setState(() {
@@ -657,10 +646,10 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
     }
   }
 
-  // Method to mark a claim as returned (NEW: Mock implementation)
+  // Method to mark a claim as returned (FIXED: Calls fetchItems)
   void _markClaimAsReturned(Claim claim) {
     if (!mounted) return;
-    final index = _claims.indexOf(claim);
+    final index = _claims.indexWhere((c) => c.uniqueId == claim.uniqueId);
     if (index != -1) {
       final title = _claims[index].title;
       setState(() {
@@ -677,7 +666,7 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
     }
   }
 
-  // --- DELETE LOGIC: Lost Items ---
+  // --- DELETE LOGIC: Lost Items (FIXED: To use AdminDeleteItemMaskScreen and refresh) ---
   void _deleteLostItem(Item item) async {
     if (!mounted) return;
 
@@ -693,6 +682,8 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
     setState(() {
       _lostItems.removeWhere((i) => i.uniqueId == item.uniqueId);
     });
+    // Refresh the whole list
+    _fetchItems();
 
     // 3. Show success message
     ScaffoldMessenger.of(context).showSnackBar(
@@ -701,13 +692,9 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
         backgroundColor: Colors.red.shade600,
       ),
     );
-    // Pop the detail screen if it was open
-    if (Navigator.of(context).canPop()) {
-      Navigator.of(context).pop();
-    }
   }
 
-  // --- DELETE LOGIC: Found Items ---
+  // --- DELETE LOGIC: Found Items (FIXED: To use AdminDeleteItemMaskScreen and refresh) ---
   void _deleteFoundItem(Item item) async {
     if (!mounted) return;
 
@@ -723,6 +710,8 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
     setState(() {
       _foundItems.removeWhere((i) => i.uniqueId == item.uniqueId);
     });
+    // Refresh the whole list
+    _fetchItems();
 
     // 3. Show success message
     ScaffoldMessenger.of(context).showSnackBar(
@@ -731,13 +720,9 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
         backgroundColor: Colors.red.shade600,
       ),
     );
-    // Pop the detail screen if it was open
-    if (Navigator.of(context).canPop()) {
-      Navigator.of(context).pop();
-    }
   }
 
-  // --- DELETE LOGIC: Claims ---
+  // --- DELETE LOGIC: Claims (FIXED: To use AdminDeleteItemMaskScreen and refresh) ---
   void _deleteClaim(Claim claim) async {
     if (!mounted) return;
 
@@ -753,6 +738,8 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
     setState(() {
       _claims.removeWhere((c) => c.uniqueId == claim.uniqueId);
     });
+    // Refresh the whole list
+    _fetchItems();
 
     // 3. Show success message
     ScaffoldMessenger.of(context).showSnackBar(
@@ -761,10 +748,6 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
         backgroundColor: Colors.red.shade600,
       ),
     );
-    // Pop the detail screen if it was open
-    if (Navigator.of(context).canPop()) {
-      Navigator.of(context).pop();
-    }
   }
 
   @override
@@ -793,6 +776,7 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
           .map(
             (item) => _ItemCard(
               item: item,
+              // Use AdminDeleteItemMaskScreen for deletion
               onDelete: () => _navigateToScreen(
                 context,
                 AdminDeleteItemMaskScreen(
@@ -813,6 +797,7 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
           .map(
             (item) => _FoundItemCard(
               item: item,
+              // Use AdminDeleteItemMaskScreen for deletion
               onDelete: () => _navigateToScreen(
                 context,
                 AdminDeleteItemMaskScreen(
@@ -833,6 +818,7 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
         return _GeneralClaimCard(
           claim: claim,
           onMarkReturned: () => _markClaimAsReturned(claim),
+          // Use AdminDeleteItemMaskScreen for deletion
           onDelete: () => _navigateToScreen(
             context,
             AdminDeleteItemMaskScreen(
@@ -958,7 +944,10 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
     );
   }
 
-  static of(BuildContext context) {}
+  // FIX: Added static method for context access
+  static _AdminDashboardScreenState of(BuildContext context) {
+    return context.findAncestorStateOfType<_AdminDashboardScreenState>()!;
+  }
 }
 
 // NEW STUB SCREEN: USER BANNED (BRIGHT BLUE THEME WITH WHITE TEXT)
@@ -1631,7 +1620,7 @@ class _ClaimsHeader extends StatelessWidget {
 class _GeneralClaimCard extends StatelessWidget {
   final Claim claim;
   final VoidCallback onMarkReturned;
-  final VoidCallback onDelete; // Added for delete functionality
+  final VoidCallback onDelete;
 
   const _GeneralClaimCard({
     required this.claim,
@@ -1675,42 +1664,34 @@ class _GeneralClaimCard extends StatelessWidget {
     Navigator.of(context).push(MaterialPageRoute(builder: (context) => screen));
   }
 
-  Widget _buildActionButton(
-    BuildContext context, {
+  // Refactored: Removed 'Expanded' from here.
+  // The caller must wrap this in Expanded if it needs to fill space in a Row/Column.
+  Widget _buildActionButton({
+    required BuildContext context,
     required IconData icon,
     required String label,
     required VoidCallback onTap,
     Color? color,
   }) {
-    return Expanded(
-      child: TextButton.icon(
-        icon: Icon(
-          icon,
-          size: 18,
-          color: color ?? Theme.of(context).primaryColor,
-        ),
-        label: Text(
-          label,
-          style: TextStyle(color: color ?? Theme.of(context).primaryColor),
-        ),
-        onPressed: onTap,
-      ),
+    final Color primaryColor = color ?? Theme.of(context).primaryColor;
+
+    return TextButton.icon(
+      icon: Icon(icon, size: 18, color: primaryColor),
+      label: Text(label, style: TextStyle(color: primaryColor)),
+      onPressed: onTap,
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    // 1. Determine the URL to use.
-    String imageUrl = claim.imageUrl;
-    String title = claim.title;
+    // 1. Determine the URL to use. Use final for local variables.
+    final String imageUrl = claim.imageUrl;
 
-    // Check if the URL is valid/non-empty before attempting to load
+    // Validate URL using Uri.tryParse().isAbsolute for robustness
     const double imageSize = 70.0;
     final Color placeholderColor = Colors.grey.shade200;
 
-    final bool isUrlValid =
-        imageUrl.isNotEmpty &&
-        (Uri.tryParse(imageUrl)?.hasAbsolutePath ?? false);
+    final bool isUrlValid = Uri.tryParse(imageUrl)?.isAbsolute == true;
 
     return Card(
       elevation: 4,
@@ -1732,7 +1713,6 @@ class _GeneralClaimCard extends StatelessWidget {
                           width: imageSize,
                           height: imageSize,
                           fit: BoxFit.cover,
-                          // Provide a custom error builder if the network image fails to load
                           errorBuilder: (context, error, stackTrace) {
                             // --- Display error icon on failure ---
                             return Container(
@@ -1840,49 +1820,60 @@ class _GeneralClaimCard extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.start,
                   children: [
-                    _buildActionButton(
-                      context,
-                      icon: Icons.remove_red_eye_outlined,
-                      label: 'View Item',
-                      onTap: () {
-                        // Navigate to the new detail screen for claims
-                        _navigateToScreen(
-                          context,
-                          AdminViewItemDetailScreen(
-                            claim: claim,
-                            isClaim: true,
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(width: 8.0),
-                    if (claim.status == 'Pending' || claim.status == 'Verified')
-                      _buildActionButton(
-                        context,
-                        icon: Icons.check_circle_outline,
-                        label: 'Mark Returned',
+                    // Wrap with Expanded now that _buildActionButton is just a TextButton.icon
+                    Expanded(
+                      child: _buildActionButton(
+                        context: context,
+                        icon: Icons.remove_red_eye_outlined,
+                        label: 'View Item',
                         onTap: () {
-                          // Navigate to return screen with the item title
+                          // Navigate to the new detail screen for claims
                           _navigateToScreen(
                             context,
-                            AdminShowReturnScreen(
-                              itemTitle: claim.title,
-                              onReturnConfirmed: onMarkReturned,
+                            AdminViewItemDetailScreen(
+                              claim: claim,
+                              isClaim: true,
                             ),
                           );
                         },
                       ),
+                    ),
+                    const SizedBox(width: 8.0),
+                    if (claim.status == 'Pending' || claim.status == 'Verified')
+                      Expanded(
+                        child: _buildActionButton(
+                          context: context,
+                          icon: Icons.check_circle_outline,
+                          label: 'Mark Returned',
+                          onTap: () {
+                            // Navigate to return screen with the item title
+                            _navigateToScreen(
+                              context,
+                              AdminShowReturnScreen(
+                                itemTitle: claim.title,
+                                onReturnConfirmed: onMarkReturned,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
                   ],
                 ),
                 const SizedBox(height: 16.0),
-                // Only show delete button if claim hasn't been returned
+                // Fix: Wrap the Delete button in a Row to correctly contain the Expanded child
                 if (claim.status != 'Returned')
-                  _buildActionButton(
-                    context,
-                    icon: Icons.delete_outline,
-                    label: 'Delete Claim',
-                    color: Colors.red.shade700,
-                    onTap: onDelete, // Use the provided onDelete callback
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildActionButton(
+                          context: context,
+                          icon: Icons.delete_outline,
+                          label: 'Delete Claim',
+                          color: Colors.red.shade700,
+                          onTap: onDelete, // Use the provided onDelete callback
+                        ),
+                      ),
+                    ],
                   ),
               ],
             ),
@@ -2104,13 +2095,14 @@ class _ReportCard extends StatelessWidget {
                       icon: Icons.check_circle_outline,
                       label: 'Resolve',
                       color: Colors.green.shade700,
-                      onTap: () => {
+                      onTap: () {
                         // Directly resolve (mock)
                         // The detail screen handles popping if it was open
-                        if (report.status == 'Pending')
-                          (_AdminDashboardScreenState.of(
+                        if (report.status == 'Pending') {
+                          _AdminDashboardScreenState.of(
                             context,
-                          )._resolveReport(report)),
+                          )._resolveReport(report);
+                        }
                       },
                     ),
                   ],
@@ -2374,7 +2366,13 @@ class AdminViewItemDetailScreen extends StatelessWidget {
                   context,
                   AdminDeleteItemMaskScreen(
                     itemTitle: title,
-                    onDeleteConfirmed: deleteAction,
+                    onDeleteConfirmed: () {
+                      deleteAction();
+                      // FIX: Pop the detail screen after deletion is confirmed
+                      if (Navigator.of(context).canPop()) {
+                        Navigator.of(context).pop();
+                      }
+                    },
                   ),
                 );
               },
@@ -2544,8 +2542,9 @@ class AdminDeleteItemMaskScreen extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
+                    // FIX: Standardized Title
                     const Text(
-                      'Delete Item/Claim/Report',
+                      'Delete Entry',
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -2556,6 +2555,7 @@ class AdminDeleteItemMaskScreen extends StatelessWidget {
                     const SizedBox(height: 16),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                      // FIX: Standardized Message (from report delete)
                       child: Text(
                         'Are you sure you want to delete "$itemTitle"? This action cannot be undone. This should only be used for fake or already resolved entries.',
                         textAlign: TextAlign.center,
