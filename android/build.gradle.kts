@@ -9,6 +9,7 @@ buildscript {
         // Ensure this version matches your setup (7.4.2 or 8.x)
         classpath("com.android.tools.build:gradle:7.4.2")
         classpath("com.google.gms:google-services:4.3.15")
+
     }
 }
 
@@ -38,11 +39,13 @@ subprojects {
                     // Ensure Java 8 compatibility
                     sourceCompatibility = JavaVersion.VERSION_1_8
                     targetCompatibility = JavaVersion.VERSION_1_8
+
+                    isCoreLibraryDesugaringEnabled = true
                 }
             }
 
             // 2. Add the required Desugaring Dependency
-            project.dependencies.add("coreLibraryDesugaring", "com.android.tools:desugar_jdk_libs:2.0.4")
+            project.dependencies.add("coreLibraryDesugaring", "com.android.tools:desugar_jdk_libs:2.1.4")
         }
     }
 }
