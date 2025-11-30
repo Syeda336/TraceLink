@@ -1,21 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // For SystemChrome
-import 'package:provider/provider.dart'; // Required for ThemeProvider integration
-import 'package:url_launcher/url_launcher.dart'; // REQUIRED for canLaunchUrl and launchUrl
+import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
-import 'settings.dart'; // Import your settings.dart file
-import '../theme_provider.dart'; // Import the ThemeProvider
+//import 'settings.dart';
+import '../theme_provider.dart';
 
-// Define the new color palette based on your request
+// --- Color Palette ---
 const Color _kPrimaryBrightBlue = Colors.blue;
-const Color _kSecondaryBrightBlue = Color(
-  0xFF42A5F5,
-); // A lighter blue for the gradient end
-const Color _kDarkBlueText = Color(
-  0xFF0D47A1,
-); // Dark blue for contrast on light background
-const Color _kLightBackground = Colors.white;
-const Color _kOutlineColor = _kDarkBlueText;
+const Color _kSecondaryBrightBlue = Color(0xFF42A5F5);
+const Color _kDarkBlueText = Color(0xFF0D47A1);
 
 class HelpSupportScreen extends StatefulWidget {
   const HelpSupportScreen({super.key});
@@ -25,679 +19,668 @@ class HelpSupportScreen extends StatefulWidget {
 }
 
 class _HelpSupportScreenState extends State<HelpSupportScreen> {
-  // --- Utility Functions ---
+  // --- Data & Keys ---
+  final Map<String, GlobalKey> _itemKeys = {};
 
-  // Function to show and hide a temporary pop-up message
-  void _showStatusMessage(String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).hideCurrentSnackBar(); // Hide any previous snackbar
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        duration: const Duration(seconds: 2),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        backgroundColor: Colors.black87,
+  final List<Map<String, dynamic>> _allGuides = [
+    {
+      "title": "Getting Started",
+      "subtitle": "How to post items and search.",
+      "icon": Icons.rocket_launch_outlined,
+      "color": Colors.orange,
+      "content":
+          "To get started:\n\n1. Go to the home screen.\n2. Select whether you lost or found an item.\n3. Upload a photo or use AI image generator and add a description.\n4. Hit publish!"
+    },
+    {
+      "title": "Safety Guidelines",
+      "subtitle": "Meeting safely and verifying.",
+      "icon": Icons.security_outlined,
+      "color": Colors.green,
+      "content":
+          "Safety First:\n\n1. Always meet in public places.\n2. Bring a friend along if possible.\n3. Verify the item details before meeting.\n4. Do not share personal financial info."
+    },
+  ];
+
+  final List<Map<String, dynamic>> _allFAQs = [
+    {
+      "question": "How do I report a lost item?",
+      "answer":
+          "Tap the Report Lost button  on the home screen.Upload a photo and fill in the details."
+    },
+    {
+      "question": "Is my personal info visible?",
+      "answer":
+          "Other users can only see your Student ID by default. You have the option to make your phone number or email visible in your profile settings, but this is completely optional."
+    },
+    {
+      "question": "How do I claim a found item?",
+      "answer":
+          "Tap on the item and select 'Claim Item'. You may need to answer a security question."
+    },
+    {
+      "question": "What if I forgot my current password?",
+      "answer":
+          "If you've forgotten your password, you can easily reset it using the Forgot Password feature on the login screen.\nJust tap on it, enter the email address associated with your account, and we will send you a secure link to create a new password.\nSimply follow the instructions in that email to regain access to your account."
+    },
+  ];
+
+  final TextEditingController _searchController = TextEditingController();
+
+  // --- Support Form Controllers ---
+  String? _selectedIssue;
+  final TextEditingController _messageController = TextEditingController();
+  final List<String> _issueTypes = [
+    'Account Issue',
+    'Bug Report',
+    'Feature Request',
+    'Safety Concern',
+    'Other'
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    for (var guide in _allGuides) {
+      _itemKeys[guide['title']] = GlobalKey();
+    }
+    for (var faq in _allFAQs) {
+      _itemKeys[faq['question']] = GlobalKey();
+    }
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _messageController.dispose();
+    super.dispose();
+  }
+
+  // --- Scroll Logic ---
+  void _scrollToMatch(String query) {
+    if (query.isEmpty) return;
+
+    final lowerQuery = query.toLowerCase();
+    BuildContext? targetContext;
+
+    for (var guide in _allGuides) {
+      if (guide['title'].toLowerCase().contains(lowerQuery)) {
+        targetContext = _itemKeys[guide['title']]?.currentContext;
+        break;
+      }
+    }
+
+    if (targetContext == null) {
+      for (var faq in _allFAQs) {
+        if (faq['question'].toLowerCase().contains(lowerQuery)) {
+          targetContext = _itemKeys[faq['question']]?.currentContext;
+          break;
+        }
+      }
+    }
+
+    if (targetContext != null) {
+      Scrollable.ensureVisible(
+        targetContext,
+        duration: const Duration(milliseconds: 600),
+        curve: Curves.easeInOutCubic,
+        alignment: 0.2,
+      );
+    }
+  }
+
+  // --- Action: Open Support Form ---
+  void _openSupportForm(bool isDarkMode) {
+    _selectedIssue = null;
+    _messageController.clear();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: isDarkMode ? Colors.grey[900] : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+                left: 20,
+                right: 20,
+                top: 20,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[400],
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    "Contact Support",
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: isDarkMode ? Colors.white : _kDarkBlueText,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    "Select a topic so we can help you faster.",
+                    style: TextStyle(
+                      color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  
+                  DropdownButtonFormField<String>(
+                    value: _selectedIssue,
+                    dropdownColor: isDarkMode ? Colors.grey[800] : Colors.white,
+                    decoration: InputDecoration(
+                      labelText: "What can we help with?",
+                      labelStyle: TextStyle(
+                          color: isDarkMode ? Colors.grey[400] : Colors.grey[600]),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                            color: isDarkMode ? Colors.grey[700]! : Colors.grey[300]!),
+                      ),
+                    ),
+                    style: TextStyle(
+                        color: isDarkMode ? Colors.white : Colors.black),
+                    items: _issueTypes.map((String type) {
+                      return DropdownMenuItem<String>(
+                        value: type,
+                        child: Text(type),
+                      );
+                    }).toList(),
+                    onChanged: (String? newValue) {
+                      setModalState(() {
+                        _selectedIssue = newValue;
+                      });
+                    },
+                  ),
+                  
+                  const SizedBox(height: 15),
+
+                  TextField(
+                    controller: _messageController,
+                    maxLines: 4,
+                    style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
+                    decoration: InputDecoration(
+                      labelText: "Describe your issue...",
+                      labelStyle: TextStyle(
+                          color: isDarkMode ? Colors.grey[400] : Colors.grey[600]),
+                      alignLabelWithHint: true,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                            color: isDarkMode ? Colors.grey[700]! : Colors.grey[300]!),
+                      ),
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 25),
+
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        if (_selectedIssue == null) {
+                          _showStatusMessage("Please select a topic.");
+                          return;
+                        }
+                        _launchEmailWithDetails();
+                        Navigator.pop(context);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _kPrimaryBrightBlue,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text("Draft Email", style: TextStyle(fontSize: 16)),
+                    ),
+                  ),
+                  const SizedBox(height: 30),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
-  // Function to launch email client
-  Future<void> _launchEmail(String email) async {
+  // --- UPDATED EMAIL LAUNCHER ---
+  Future<void> _launchEmailWithDetails() async {
+    
+    const String destinationEmail = 'atracelink@gmail.com'; 
+    
+    final String subject = 'Support Request: $_selectedIssue';
+    final String body = 'Issue Type: $_selectedIssue\n\nDescription:\n${_messageController.text}';
+
     final Uri emailLaunchUri = Uri(
       scheme: 'mailto',
-      path: email,
-      queryParameters: {'subject': 'Support Request'},
+      path: destinationEmail,
+      queryParameters: {
+        'subject': subject,
+        'body': body,
+      },
     );
-    if (await canLaunchUrl(emailLaunchUri)) {
-      await launchUrl(emailLaunchUri);
-      _showStatusMessage('Opening email client...');
-    } else {
-      _showStatusMessage('Could not open email client.');
-    }
-  }
 
-  // Function to launch phone dialer
-  Future<void> _launchPhone(String phoneNumber) async {
-    final Uri phoneLaunchUri = Uri(scheme: 'tel', path: phoneNumber);
-    if (await canLaunchUrl(phoneLaunchUri)) {
-      await launchUrl(phoneLaunchUri);
-      _showStatusMessage('Opening phone dialer...');
-    } else {
-      _showStatusMessage('Could not open phone dialer.');
-    }
-  }
-
-  // Placeholder for "Live Chat" action
-  void _startLiveChat() {
-    _showStatusMessage('Starting live chat...');
-    // In a real app, you would navigate to a chat screen or open a webview.
-  }
-
-  // Placeholder for "View FAQs" action
-  void _viewFAQs() {
-    _showStatusMessage('Navigating to FAQs...');
-    // In a real app, you would navigate to an FAQ screen or open a webview.
-  }
-
-  // Placeholder for "User Guide" action
-  void _viewUserGuide() {
-    _showStatusMessage('Opening user guide...');
-    // Navigate to a user guide screen or open a PDF/webpage.
-  }
-
-  // Placeholder for "Video Tutorials" action
-  void _viewVideoTutorials() {
-    _showStatusMessage('Opening video tutorials...');
-    // Navigate to a video list screen or YouTube channel.
-  }
-
-  // Placeholder for "Documentation" action
-  void _viewDocumentation() {
-    _showStatusMessage('Opening technical documentation...');
-    // Navigate to a documentation screen or open a webpage.
-  }
-
-  // Placeholder for "Share Feedback" action
-  void _shareFeedback() {
-    _showStatusMessage('Opening feedback form...');
-    // Navigate to a feedback form or compose an email.
-  }
-
-  // --- Helper Widgets ---
-
-  // Builds a full section card with a title and list of children
-  Widget _buildSectionCard({
-    required String title,
-    required IconData icon,
-    required Color iconColor,
-    required List<Widget> children,
-    Color? cardColor,
-    Color? titleColor,
-    bool isGradient = false, // For common questions card
-  }) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 20),
-      elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15.0)),
-      color: isGradient ? Colors.transparent : (cardColor ?? _kLightBackground),
-      child: Container(
-        decoration: isGradient
-            ? BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [
-                    _kPrimaryBrightBlue,
-                    _kSecondaryBrightBlue,
-                  ], // Your gradient colors
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(15.0),
-              )
-            : null,
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: iconColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(icon, color: iconColor),
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: titleColor ?? _kDarkBlueText,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 15),
-            ...children,
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Builds a contact support tile (Email/Phone)
-  Widget _buildContactTile({
-    required IconData icon,
-    required Color iconColor,
-    required String title,
-    required String value,
-    required String info,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8.0),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: iconColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(10),
+    try {
+      if (await canLaunchUrl(emailLaunchUri)) {
+        await launchUrl(emailLaunchUri);
+      } else {
+        // Fallback for Emulator or if no email app is installed
+        if (mounted) {
+           showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              backgroundColor: Theme.of(context).brightness == Brightness.dark 
+                  ? Colors.grey[900] 
+                  : Colors.white,
+              title: Text(
+                "Contact Support",
+                style: TextStyle(
+                  color: Theme.of(context).brightness == Brightness.dark 
+                      ? Colors.white 
+                      : Colors.black
+                )
               ),
-              child: Icon(icon, color: iconColor),
-            ),
-            const SizedBox(width: 15),
-            Expanded(
-              child: Column(
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      color: _kDarkBlueText,
+                    "We couldn't open your email app automatically. Please email us at: atracelink@gmail.com",
+                    style: TextStyle(
+                      color: Theme.of(context).brightness == Brightness.dark 
+                          ? Colors.grey[300] 
+                          : Colors.grey[800]
                     ),
                   ),
-                  Text(value, style: TextStyle(color: Colors.grey[800])),
+                  const SizedBox(height: 10),
+                  SelectableText(
+                    destinationEmail,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold, 
+                      fontSize: 16,
+                      color: _kPrimaryBrightBlue
+                    ),
+                  ),
+                  const SizedBox(height: 20),
                   Text(
-                    info,
-                    style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                    "Topic: $_selectedIssue",
+                     style: TextStyle(
+                      color: Theme.of(context).brightness == Brightness.dark 
+                          ? Colors.grey[400] 
+                          : Colors.grey[700]
+                    ),
                   ),
                 ],
               ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("OK"),
+                )
+              ],
             ),
-            Icon(Icons.open_in_new, color: Colors.grey[400], size: 20),
-          ],
-        ),
-      ),
-    );
+          );
+        }
+      }
+    } catch (e) {
+      _showStatusMessage("Error launching email.");
+    }
   }
 
-  // Builds a general resource tile
-  Widget _buildResourceTile({
-    required IconData icon,
-    required Color iconColor,
-    required String title,
-    required String subtitle,
-    required VoidCallback onTap,
-  }) {
-    return ListTile(
-      leading: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: iconColor.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Icon(icon, color: iconColor),
+  void _showGuideContent(
+      BuildContext context, String title, String content, bool isDarkMode) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: isDarkMode ? Colors.grey[900] : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      title: Text(
-        title,
-        style: const TextStyle(
-          fontWeight: FontWeight.w600,
-          color: _kDarkBlueText,
-        ),
-      ),
-      subtitle: Text(subtitle, style: TextStyle(color: Colors.grey[700])),
-      trailing: const Icon(
-        Icons.arrow_forward_ios,
-        size: 16,
-        color: Colors.grey,
-      ),
-      onTap: onTap,
-    );
-  }
-
-  // Builds a Common Question expansion panel
-  Widget _buildCommonQuestion({
-    required String question,
-    required String answer,
-    required Color textColor,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Container(
-        padding: const EdgeInsets.all(15.0),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.2), // Lighter color within gradient
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              question,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-                color: textColor,
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(25),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 20),
+                  decoration: BoxDecoration(
+                      color: Colors.grey[400],
+                      borderRadius: BorderRadius.circular(10)),
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              answer,
-              style: TextStyle(fontSize: 14, color: textColor.withOpacity(0.8)),
-            ),
-          ],
+              Text(title,
+                  style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: isDarkMode ? Colors.white : _kDarkBlueText)),
+              const SizedBox(height: 15),
+              Text(content,
+                  style: TextStyle(
+                      fontSize: 16,
+                      height: 1.5,
+                      color: isDarkMode ? Colors.grey[300] : Colors.grey[800])),
+              const SizedBox(height: 30),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: _kPrimaryBrightBlue,
+                      foregroundColor: Colors.white),
+                  child: const Text("Close"),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showStatusMessage(String message) {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Widget _buildSearchBar(bool isDarkMode) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 25.0),
+      decoration: BoxDecoration(
+        color: isDarkMode ? Colors.grey[800] : Colors.white,
+        borderRadius: BorderRadius.circular(15.0),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: TextField(
+        controller: _searchController,
+        onChanged: (value) => _scrollToMatch(value),
+        style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
+        decoration: InputDecoration(
+          hintText: "Find in page (e.g. 'Safety')...",
+          hintStyle: TextStyle(
+            color: isDarkMode ? Colors.grey[400] : Colors.grey[500],
+          ),
+          prefixIcon: Icon(
+            Icons.search,
+            color: isDarkMode ? Colors.grey[400] : Colors.grey[500],
+          ),
+          suffixIcon: IconButton(
+            icon: Icon(Icons.clear,
+                color: isDarkMode ? Colors.grey[400] : Colors.grey[500]),
+            onPressed: () {
+              _searchController.clear();
+              FocusScope.of(context).unfocus();
+            },
+          ),
+          border: InputBorder.none,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
         ),
       ),
     );
   }
-
-  // --- Main Build Method ---
 
   @override
   Widget build(BuildContext context) {
-    // Access the theme provider to potentially adjust styles based on dark/light mode
     final themeProvider = Provider.of<ThemeProvider>(context);
     final bool isDarkMode = themeProvider.isDarkMode;
-
-    // Adjust the light background color based on the current mode
-    final Color scaffoldBgColor = isDarkMode
-        ? Colors.grey[900]!
-        : Colors.grey[50]!;
-    final Color cardBgColor = isDarkMode
-        ? Colors.grey[800]!
-        : _kLightBackground;
-    final Color accentBgColor = isDarkMode
-        ? Colors.blueGrey[900]!
-        : const Color(0xFFF0F5FF);
-    final Color darkTextColor = isDarkMode ? Colors.white70 : _kDarkBlueText;
-    final Color subtleTextColor = isDarkMode
-        ? Colors.grey[400]!
-        : Colors.grey[700]!;
-
-    // Set status bar color for consistent look with your design
-    SystemChrome.setSystemUIOverlayStyle(
-      const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness
-            .light, // Icons should be light on a dark/gradient status bar
-      ),
-    );
+    final Color scaffoldBgColor =
+        isDarkMode ? Colors.grey[900]! : const Color(0xFFF8F9FD);
 
     return Scaffold(
-      backgroundColor: scaffoldBgColor, // Consistent light background
+      backgroundColor: scaffoldBgColor,
       body: CustomScrollView(
         slivers: [
-          // Gradient Header Bar
           SliverAppBar(
-            expandedHeight: 140.0,
+            expandedHeight: 160.0,
             pinned: true,
             leading: IconButton(
               icon: const Icon(Icons.arrow_back, color: Colors.white),
-              onPressed: () {
-                // Navigate back to SettingsPage
-                // Note: The original used pushReplacement, maintaining that logic.
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(
-                    builder: (context) => const SettingsScreen(),
-                  ),
-                );
-              },
+              // --- CHANGED HERE: Replaced pushReplacement with pop ---
+              onPressed: () => Navigator.of(context).pop(),
             ),
             flexibleSpace: FlexibleSpaceBar(
               background: Container(
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [
-                      _kPrimaryBrightBlue,
-                      _kSecondaryBrightBlue,
-                    ], // New bright blue gradient
+                    colors: [_kPrimaryBrightBlue, _kSecondaryBrightBlue],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
                 ),
-              ),
-              titlePadding: const EdgeInsets.only(left: 16.0, bottom: 16.0),
-              centerTitle: false,
-              title: Column(
-                mainAxisAlignment: MainAxisAlignment.end,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  Text(
-                    'Help & Support',
-                    style: TextStyle(
-                      fontSize: 18.0,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white, // White text on blue gradient
-                    ),
+                child: const Padding(
+                  padding: EdgeInsets.only(left: 20, bottom: 30, right: 20),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Help Center',
+                        style: TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white),
+                      ),
+                      SizedBox(height: 5),
+                      Text(
+                        "How can we help you today?",
+                        style: TextStyle(fontSize: 16, color: Colors.white70),
+                      ),
+                    ],
                   ),
-                  Text(
-                    "We're here to help you!",
-                    style: TextStyle(fontSize: 12.0, color: Colors.white70),
-                  ),
-                ],
+                ),
               ),
             ),
           ),
 
-          // Main Scrollable Content
           SliverPadding(
             padding: const EdgeInsets.all(20.0),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
-                // --- Quick Help Section ---
-                _buildSectionCard(
-                  title: 'Quick Help',
-                  icon: Icons.help_outline,
-                  iconColor: _kPrimaryBrightBlue, // Bright blue icon
-                  cardColor: cardBgColor,
-                  titleColor: darkTextColor,
-                  children: [
-                    Text(
-                      'Need immediate assistance? Check out our quick help resources below.',
-                      style: TextStyle(color: subtleTextColor, fontSize: 14),
-                    ),
-                    const SizedBox(height: 15),
+                _buildSearchBar(isDarkMode),
 
-                    // **FIXED: Replaced faulty ElevatedButton.icon with GestureDetector + Container for gradient**
-                    GestureDetector(
-                      onTap: _viewFAQs,
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 15),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [
-                              _kPrimaryBrightBlue,
-                              _kSecondaryBrightBlue,
-                            ], // Bright blue gradient
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(15.0),
-                          boxShadow: [
-                            BoxShadow(
-                              color: _kPrimaryBrightBlue.withOpacity(0.3),
-                              blurRadius: 10,
-                              offset: const Offset(0, 5),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: const [
-                            Icon(
-                              Icons.description_outlined,
-                              color: Colors.white,
-                            ),
-                            SizedBox(width: 10),
-                            Text(
-                              'View FAQs',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color:
-                                    Colors.white, // White text on blue gradient
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 15.0),
+                  child: Text(
+                    "User Guide",
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: isDarkMode ? Colors.white : _kDarkBlueText,
                     ),
-                  ],
-                ),
-
-                // --- Contact Us Section ---
-                _buildSectionCard(
-                  title: 'Contact Us',
-                  icon: Icons.chat_bubble_outline,
-                  iconColor: _kSecondaryBrightBlue, // Blue icon
-                  cardColor: cardBgColor,
-                  titleColor: darkTextColor,
-                  children: [
-                    // Live Chat
-                    ListTile(
-                      leading: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: _kSecondaryBrightBlue.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Icon(
-                          Icons.chat_outlined,
-                          color: _kSecondaryBrightBlue,
-                        ),
-                      ),
-                      title: const Text(
-                        'Live Chat',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: _kDarkBlueText,
-                        ),
-                      ),
-                      subtitle: Row(
-                        children: [
-                          Text(
-                            'Chat with our support team',
-                            style: TextStyle(color: subtleTextColor),
-                          ),
-                          const SizedBox(width: 8),
-                          const Chip(
-                            label: Text(
-                              'Online now',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                              ),
-                            ),
-                            backgroundColor: Colors.green,
-                            materialTapTargetSize:
-                                MaterialTapTargetSize.shrinkWrap,
-                            visualDensity: VisualDensity.compact,
-                            padding: EdgeInsets.zero,
-                          ),
-                        ],
-                      ),
-                      trailing: Icon(
-                        Icons.open_in_new,
-                        color: Colors.grey[400],
-                        size: 20,
-                      ),
-                      onTap: _startLiveChat,
-                    ),
-                    Divider(
-                      height: 1,
-                      indent: 20,
-                      endIndent: 20,
-                      color: Colors.grey[300],
-                    ),
-                    // Email Support
-                    _buildContactTile(
-                      icon: Icons.email_outlined,
-                      iconColor: _kPrimaryBrightBlue, // Blue icon
-                      title: 'Email Support',
-                      value: 'support@lostandfound.edu',
-                      info: 'Response within 24 hours',
-                      onTap: () => _launchEmail('support@lostandfound.edu'),
-                    ),
-                    Divider(
-                      height: 1,
-                      indent: 20,
-                      endIndent: 20,
-                      color: Colors.grey[300],
-                    ),
-                    // Phone Support
-                    _buildContactTile(
-                      icon: Icons.phone_outlined,
-                      iconColor: Colors.green, // Green icon
-                      title: 'Phone Support',
-                      value: '+1 (555) 123-4567',
-                      info: 'Mon-Fri, 9AM-5PM EST',
-                      onTap: () => _launchPhone('+15551234567'),
-                    ),
-                  ],
-                ),
-
-                // --- Help Resources Section ---
-                _buildSectionCard(
-                  title: 'Help Resources',
-                  icon: Icons.menu_book_outlined,
-                  iconColor:
-                      Colors.orange, // Use a contrasting color (e.g., Orange)
-                  cardColor:
-                      cardBgColor, // Use regular card background for consistency
-                  titleColor: darkTextColor,
-                  children: [
-                    // User Guide
-                    _buildResourceTile(
-                      icon: Icons.bookmark_outline,
-                      iconColor: _kPrimaryBrightBlue,
-                      title: 'User Guide',
-                      subtitle: 'Complete guide to using the app',
-                      onTap: _viewUserGuide,
-                    ),
-                    Divider(
-                      height: 1,
-                      indent: 20,
-                      endIndent: 20,
-                      color: Colors.grey[300],
-                    ),
-                    // Video Tutorials
-                    _buildResourceTile(
-                      icon: Icons.play_circle_outline,
-                      iconColor: _kSecondaryBrightBlue, // Blue icon
-                      title: 'Video Tutorials',
-                      subtitle: 'Step-by-step video guides',
-                      onTap: _viewVideoTutorials,
-                    ),
-                    Divider(
-                      height: 1,
-                      indent: 20,
-                      endIndent: 20,
-                      color: Colors.grey[300],
-                    ),
-                    // Documentation
-                    _buildResourceTile(
-                      icon: Icons.assignment_outlined,
-                      iconColor: Colors
-                          .pinkAccent, // Use a contrasting color (e.g., Pink)
-                      title: 'Documentation',
-                      subtitle: 'Technical documentation',
-                      onTap: _viewDocumentation,
-                    ),
-                  ],
-                ),
-
-                // --- Common Questions Section ---
-                _buildSectionCard(
-                  title: 'Common Questions',
-                  icon: Icons.question_mark_outlined,
-                  iconColor: Colors.white,
-                  titleColor: Colors.white,
-                  isGradient: true, // Use gradient background for this card
-                  children: [
-                    _buildCommonQuestion(
-                      question: 'How do I report a lost item?',
-                      answer:
-                          "Tap the '+' button on the home screen and select 'Report Lost Item'.",
-                      textColor: Colors.white,
-                    ),
-                    _buildCommonQuestion(
-                      question: 'How do I claim an item?',
-                      answer:
-                          "Find the item in the list, tap 'Claim Item', and provide verification details.",
-                      textColor: Colors.white,
-                    ),
-                    _buildCommonQuestion(
-                      question: 'How do I contact the finder?',
-                      answer:
-                          "Use the 'Message' button on the item details screen to start a conversation.",
-                      textColor: Colors.white,
-                    ),
-                  ],
-                ),
-
-                // --- Send Feedback Section ---
-                _buildSectionCard(
-                  title: 'Send Feedback',
-                  icon: Icons.feedback_outlined,
-                  iconColor: Colors.amber, // Amber icon
-                  cardColor: cardBgColor,
-                  titleColor: darkTextColor,
-                  children: [
-                    Text(
-                      'Help us improve! Share your thoughts and suggestions.',
-                      style: TextStyle(color: subtleTextColor, fontSize: 14),
-                    ),
-                    const SizedBox(height: 15),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: _shareFeedback,
-                        icon: const Icon(
-                          Icons.chat_bubble_outline,
-                          color: _kDarkBlueText, // Dark blue icon
-                        ),
-                        label: const Text(
-                          'Share Feedback',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: _kDarkBlueText,
-                          ), // Dark blue text
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 15),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(15.0),
-                          ),
-                          side: const BorderSide(
-                            color: _kOutlineColor,
-                          ), // Dark blue outline
-                          backgroundColor:
-                              Colors.transparent, // Transparent background
-                          foregroundColor: _kDarkBlueText,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-
-                // --- Version Info Section ---
-                Card(
-                  elevation: 0,
-                  margin: const EdgeInsets.only(top: 10),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15.0),
                   ),
-                  color: accentBgColor,
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      children: [
-                        Text(
-                          'Lost & Found App',
+                ),
+
+                ..._allGuides.map((guide) => Container(
+                      key: _itemKeys[guide['title']],
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: isDarkMode ? Colors.grey[800] : Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                            color: isDarkMode
+                                ? Colors.grey[700]!
+                                : Colors.grey[200]!),
+                      ),
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
+                        leading: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: guide['color'].withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(guide['icon'], color: guide['color']),
+                        ),
+                        title: Text(
+                          guide['title'],
                           style: TextStyle(
-                            fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: darkTextColor,
+                            color: isDarkMode ? Colors.white : _kDarkBlueText,
                           ),
                         ),
-                        const SizedBox(height: 5),
-                        Text(
-                          'Version 1.0.0',
-                          style: TextStyle(color: subtleTextColor),
-                        ),
-                        const SizedBox(height: 5),
-                        Text(
-                          '© 2025 University. All rights reserved.',
+                        subtitle: Text(
+                          guide['subtitle'],
                           style: TextStyle(
-                            color: subtleTextColor,
-                            fontSize: 12,
+                            color: isDarkMode
+                                ? Colors.grey[400]
+                                : Colors.grey[600],
+                            fontSize: 13,
                           ),
                         ),
-                      ],
+                        trailing: Icon(Icons.arrow_forward_ios,
+                            size: 14, color: Colors.grey[400]),
+                        onTap: () => _showGuideContent(
+                          context,
+                          guide['title'],
+                          guide['content'],
+                          isDarkMode,
+                        ),
+                      ),
+                    )),
+
+                const SizedBox(height: 30),
+
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 15.0),
+                  child: Text(
+                    "Frequently Asked Questions",
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: isDarkMode ? Colors.white : _kDarkBlueText,
                     ),
                   ),
                 ),
-                const SizedBox(height: 30), // Extra space at the bottom
+
+                ..._allFAQs.map((faq) => Container(
+                      key: _itemKeys[faq['question']],
+                      margin: const EdgeInsets.only(bottom: 10),
+                      decoration: BoxDecoration(
+                        color: isDarkMode ? Colors.grey[800] : Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                            color: isDarkMode
+                                ? Colors.grey[700]!
+                                : Colors.grey[200]!),
+                      ),
+                      child: Theme(
+                        data: Theme.of(context)
+                            .copyWith(dividerColor: Colors.transparent),
+                        child: ExpansionTile(
+                          title: Text(
+                            faq['question'],
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 15,
+                              color:
+                                  isDarkMode ? Colors.white : Colors.grey[800],
+                            ),
+                          ),
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                              child: Text(
+                                faq['answer'],
+                                style: TextStyle(
+                                  height: 1.5,
+                                  color: isDarkMode
+                                      ? Colors.grey[300]
+                                      : Colors.grey[600],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )),
+
+                const SizedBox(height: 30),
+
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [_kPrimaryBrightBlue, _kSecondaryBrightBlue],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Column(
+                    children: [
+                      const Icon(Icons.support_agent,
+                          color: Colors.white, size: 40),
+                      const SizedBox(height: 15),
+                      const Text(
+                        "Still need help?",
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        "Send us an email and we'll get back to you.",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            color: Colors.white.withOpacity(0.9), fontSize: 14),
+                      ),
+                      const SizedBox(height: 20),
+                      ElevatedButton.icon(
+                        onPressed: () => _openSupportForm(isDarkMode),
+                        icon: const Icon(Icons.email_outlined),
+                        label: const Text("Contact Support"),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: _kPrimaryBrightBlue,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 25, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 40),
               ]),
             ),
           ),

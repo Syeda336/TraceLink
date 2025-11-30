@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../firebase_service.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
+import '../notifications_service.dart';
 
 // --- Define the Color Palette ---
 const Color primaryBlue = Color(0xFF42A5F5); // Bright Blue (Header, My Bubble)
@@ -172,7 +173,7 @@ class _ChatScreenState extends State<ChatScreen> {
     final messageText = _messageController.text.trim();
 
     if (widget.receiverId != null) {
-      // Send message via Firebase
+      // 1. Send message via Firebase (Existing Logic)
       bool success = await FirebaseService.sendMessage(
         receiverId: widget.receiverId!,
         message: messageText,
@@ -184,6 +185,31 @@ class _ChatScreenState extends State<ChatScreen> {
         _messageController.clear();
         _lastWords = ''; // Clear speech buffer
         _scrollToBottom();
+
+        // 2. TRIGGER NOTIFICATION (NEW CODE)
+        try {
+          final currentUser = FirebaseAuth.instance.currentUser;
+          if (currentUser != null) {
+            // Construct chatRoomId exactly like the chat service does (sorted IDs)
+            List<String> ids = [currentUser.uid, widget.receiverId!];
+            ids.sort(); 
+            String chatRoomId = ids.join("_");
+
+            // Use the email username if display name is empty
+            String senderName = currentUser.displayName ?? currentUser.email!.split('@')[0];
+
+            await NotificationsService.sendMessageNotification(
+              targetUserId: widget.receiverId!, // Send to the other person
+              senderId: currentUser.uid,        // Your ID (so they know who sent it)
+              senderName: senderName,           // Your Name
+              messagePreview: messageText,      // The message text
+              chatRoomId: chatRoomId,           // The specific chat room
+            );
+          }
+        } catch (e) {
+          print('Error sending notification: $e');
+        }
+
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Failed to send message")),

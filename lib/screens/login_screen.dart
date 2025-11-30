@@ -22,6 +22,10 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
+  // --- CHANGED: ADDED THIS VARIABLE ONLY ---
+  static const String adminEmail = "atracelink@gmail.com"; 
+  // ---------------------------------------
+
   // State for password visibility
   bool _isPasswordObscured = true;
 
@@ -91,6 +95,20 @@ class _LoginScreenState extends State<LoginScreen> {
         Navigator.of(context).pop();
 
         if (user != null) {
+          // --- CHANGED: Added Admin Block Check ---
+          if (user.email == adminEmail) {
+             await FirebaseService.signOut();
+             ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Admins must use the "Login as Admin" button below.'),
+                backgroundColor: Color.fromARGB(255, 232, 91, 16), 
+                duration: Duration(seconds: 4),
+              ),
+            );
+            return; 
+          }
+          // ----------------------------------------
+
           // Success - navigate to HomeScreen
           Navigator.pushReplacement(
             context,
@@ -120,26 +138,55 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  void _handleAdminLogin() {
+  void _handleAdminLogin() async {
     // 1. Validate the form first
     if (_formKey.currentState!.validate()) {
-      // Form is valid, check for admin credentials
-      final email = _emailController.text;
+      // Show loading 
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) => const Center(child: CircularProgressIndicator()),
+      );
+
+      final email = _emailController.text.trim();
       final password = _passwordController.text;
 
-      // Dummy Admin Check:
-      if (email == 'admin@uni.edu' && password == 'admin#1') {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const AdminWelcome()),
-        );
-      } else {
-        // Show error for unauthorized access
+      try {
+        // --- CHANGED: Use Firebase Logic instead of Hardcoded Check ---
+        User? user = await FirebaseService.signIn(email: email, password: password);
+        
+        Navigator.of(context).pop(); // Hide loading
+
+        if (user != null) {
+          if (user.email == adminEmail) {
+            // Success
+             Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const AdminWelcome()),
+            );
+          } else {
+             // Not admin
+             await FirebaseService.signOut(); 
+             ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Access Denied: You are not an administrator.'),
+                backgroundColor: Colors.redAccent,
+              ),
+            );
+          }
+        } else {
+           ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Admin Login failed. Check credentials.'),
+              backgroundColor: Colors.redAccent,
+            ),
+          );
+        }
+        // -------------------------------------------------------------
+      } catch (e) {
+        Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Admin credentials required for this login route.'),
-            backgroundColor: Colors.redAccent,
-          ),
+          SnackBar(content: Text('Error: $e')),
         );
       }
     }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../theme_provider.dart'; // Import the ThemeProvider
+import '../theme_provider.dart';
+import 'package:tracelink/firebase_service.dart';
 
 import 'logout.dart';
 import 'change_password.dart';
@@ -8,10 +9,9 @@ import 'privacy_security.dart';
 import 'help_support.dart';
 import 'terms_privacy.dart';
 
-// --- Theme Color Definitions (used for Light Mode) ---
-// Note: In a full app, these would be defined in theme_provider.dart
-const brightBlueAccent = Color(0xFF1976D2); // Colors.blue.shade700
-const darkBlueTextColor = Color(0xFF0D47A1); // Colors.blue.shade900
+// --- Theme Color Definitions ---
+const brightBlueAccent = Color(0xFF1976D2);
+const darkBlueTextColor = Color(0xFF0D47A1);
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -22,8 +22,78 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _pushNotifications = true;
-  bool _emailNotifications = true;
+  // Removed _emailNotifications
   bool _emergencyAlerts = false;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    final settings = await FirebaseService.getNotificationSettings();
+    if (settings != null && mounted) {
+      setState(() {
+        _pushNotifications = settings['pushEnabled'] ?? true;
+        // Removed emailEnabled check
+        _emergencyAlerts = settings['emergencyEnabled'] ?? false;
+        _isLoading = false;
+      });
+    } else {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _updateSettings() async {
+    if (_isLoading) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+    
+    try {
+      await FirebaseService.updateNotificationPreferences(
+        pushEnabled: _pushNotifications,
+        // Removed emailEnabled argument
+        emergencyEnabled: _emergencyAlerts,
+      );
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(' Notification settings updated successfully'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          )
+        );
+      }
+      
+      print(' Settings updated successfully');
+      
+    } catch (e) {
+      print(' Error updating settings: $e');
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update settings. Please try again.'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 3),
+          )
+        );
+        
+        await _loadSettings();
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   void _navigateTo(BuildContext context, Widget screen) {
     Navigator.of(context).push(MaterialPageRoute(builder: (context) => screen));
@@ -31,7 +101,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   // --- Widget Builders ---
 
-  // Refactored to dynamically determine text color
   Widget _buildSectionHeader(
     BuildContext context,
     String title,
@@ -54,7 +123,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  // Refactored to dynamically determine card background and border
   Widget _buildCard({
     required List<Widget> children,
     required bool isDarkMode,
@@ -68,10 +136,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: Card(
         elevation: 0,
-        color: cardColor, // Dynamic Card Background
+        color: cardColor,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(15),
-          side: BorderSide(color: borderColor, width: 1.5), // Dynamic Outline
+          side: BorderSide(color: borderColor, width: 1.5),
         ),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -81,7 +149,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  // Refactored to dynamically determine text colors
   Widget _buildNavigationTile({
     required IconData icon,
     required Color iconColor,
@@ -90,7 +157,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required VoidCallback onTap,
     required bool isDarkMode,
   }) {
-    // Dynamic text color based on mode.
     final Color primaryTextColor = isDarkMode
         ? Colors.white
         : darkBlueTextColor;
@@ -102,7 +168,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       leading: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          // Use iconColor (brightBlueAccent or LightBlue equivalent)
           color: iconColor.withOpacity(0.1),
           borderRadius: BorderRadius.circular(10),
         ),
@@ -122,7 +187,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  // Refactored to dynamically determine text colors and use theme accent for switch
   Widget _buildSwitchTile({
     required IconData icon,
     required Color iconColor,
@@ -132,7 +196,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required ValueChanged<bool> onChanged,
     required bool isDarkMode,
   }) {
-    // Dynamic text color based on mode.
     final Color primaryTextColor = isDarkMode
         ? Colors.white
         : darkBlueTextColor;
@@ -141,7 +204,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
     final Color activeSwitchColor = isDarkMode
         ? Colors.lightBlue.shade300
-        : brightBlueAccent; // Dynamic Active Color
+        : brightBlueAccent;
 
     return SwitchListTile(
       value: value,
@@ -171,14 +234,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  // --- Main Build Method ---
-
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final isDarkMode = themeProvider.isDarkMode;
 
-    // Use dynamic colors for UI elements
     final Color accentColor = isDarkMode
         ? Colors.lightBlue.shade300
         : brightBlueAccent;
@@ -195,7 +255,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       backgroundColor: backgroundCanvasColor,
       body: CustomScrollView(
         slivers: <Widget>[
-          // Custom AppBar with dynamic colors
           SliverAppBar(
             backgroundColor: appBarAndCardColor,
             elevation: 0,
@@ -273,30 +332,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       setState(() {
                         _pushNotifications = value;
                       });
+                      _updateSettings();
                     },
                     isDarkMode: isDarkMode,
                   ),
-                  Divider(
-                    height: 0,
-                    indent: 20,
-                    endIndent: 20,
-                    color: isDarkMode
-                        ? Colors.grey.shade700
-                        : Colors.grey.shade300,
-                  ),
-                  _buildSwitchTile(
-                    icon: Icons.email_outlined,
-                    iconColor: accentColor,
-                    title: 'Email Notifications',
-                    subtitle: 'Receive email updates',
-                    value: _emailNotifications,
-                    onChanged: (value) {
-                      setState(() {
-                        _emailNotifications = value;
-                      });
-                    },
-                    isDarkMode: isDarkMode,
-                  ),
+                  // Removed Email Notifications Switch and its Divider
                   Divider(
                     height: 0,
                     indent: 20,
@@ -307,7 +347,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   _buildSwitchTile(
                     icon: Icons.notifications_active_outlined,
-                    iconColor: accentColor,
+                    iconColor: Colors.redAccent,
                     title: 'Emergency Alerts',
                     subtitle: 'High priority notifications',
                     value: _emergencyAlerts,
@@ -315,6 +355,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       setState(() {
                         _emergencyAlerts = value;
                       });
+                      _updateSettings();
                     },
                     isDarkMode: isDarkMode,
                   ),
@@ -395,12 +436,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     style: TextStyle(color: Colors.red, fontSize: 18),
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                        appBarAndCardColor, // Dynamic button background
+                    backgroundColor: appBarAndCardColor,
                     minimumSize: const Size(double.infinity, 50),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(15),
-                      // Use Dynamic accent color for the border
                       side: BorderSide(color: accentColor, width: 1.5),
                     ),
                     elevation: 0,
