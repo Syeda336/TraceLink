@@ -16,8 +16,17 @@ const Color primaryBlue = Color(0xFF42A5F5); // Bright Blue
 const Color darkBlue = Color(0xFF1977D2); // Dark Blue
 const Color lightBlueBackground = Color(0xFFE3F2FD); // Very Light Blue
 
+//***************UPDATED CONSTRUCTOR* */
 class ReportFoundItemScreen extends StatefulWidget {
-  const ReportFoundItemScreen({super.key});
+  // Added optional parameters to accept data from Alerts
+  final Map<String, dynamic>? preFilledData;
+  final int? alertId;
+
+  const ReportFoundItemScreen({
+    super.key,
+    this.preFilledData,
+    this.alertId,
+  });
 
   @override
   State<ReportFoundItemScreen> createState() => _ReportFoundItemScreenState();
@@ -32,6 +41,28 @@ class _ReportFoundItemScreenState extends State<ReportFoundItemScreen> {
   void initState() {
     super.initState();
     _loadUserData(); // Load real data when screen starts
+    _checkForPreFilledData(); // Checks if data was passed from Alerts screen
+  }
+
+//****NEWWW****** */
+  // logic to populate fields if data exists
+  void _checkForPreFilledData() {
+    if (widget.preFilledData != null) {
+      final data = widget.preFilledData!;
+      setState(() {
+        _itemNameController.text = data['Item Name'] ?? '';
+        _descriptionController.text = data['Description'] ?? '';
+        _locationController.text = data['Location'] ?? '';
+        
+        // Match category if possible, else default to 'Electronics' or null
+        String? cat = data['Category'];
+        if (cat != null && _categories.contains(cat)) {
+          _selectedCategory = cat;
+        } else {
+          _selectedCategory = 'Electronics'; 
+        }
+      });
+    }
   }
 
   // This will refresh the data when you come back to the profile page
@@ -139,6 +170,14 @@ class _ReportFoundItemScreenState extends State<ReportFoundItemScreen> {
           .from('Found')
           .insert(postData)
           .select(); // Request the inserted record back
+
+          // --- ADD THIS NEW BLOCK --- 
+      // If we have an alertId (meaning we came from Emergency Alerts), delete that alert now.
+      if (widget.alertId != null) {
+        await supabase.from('Alerts').delete().eq('id', widget.alertId!);
+        print('Original Alert ID ${widget.alertId} deleted.');
+      }
+      // --------------------------
 
       print('Report submitted successfully. ID: ${response.first['id']}');
 
@@ -414,7 +453,7 @@ class _ReportFoundItemScreenState extends State<ReportFoundItemScreen> {
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: DropdownButtonFormField<String>(
-                          value: _selectedCategory,
+                          initialValue: _selectedCategory,
                           decoration: const InputDecoration(
                             border: InputBorder.none,
                             contentPadding: EdgeInsets.zero,
@@ -517,8 +556,9 @@ class _ReportFoundItemScreenState extends State<ReportFoundItemScreen> {
                                     fit: BoxFit.cover,
                                     loadingBuilder:
                                         (context, child, loadingProgress) {
-                                          if (loadingProgress == null)
+                                          if (loadingProgress == null) {
                                             return child;
+                                          }
                                           return Center(
                                             child: CircularProgressIndicator(
                                               color: primaryBlue,

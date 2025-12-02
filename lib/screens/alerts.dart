@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
+import 'package:shared_preferences/shared_preferences.dart'; // <--- IMPORT ADDED
+import 'report_found.dart';
 import '../theme_provider.dart';
 import '../supabase_alerts_service.dart';
 
@@ -36,57 +37,69 @@ class EmergencyAlerts extends StatefulWidget {
 class _EmergencyAlertsState extends State<EmergencyAlerts> {
   // 1. Use a Future to hold the fetched data
   late Future<List<Map<String, dynamic>>> _alertsFuture;
+  
+  // --- ADD THIS VARIABLE ---
+  List<String> _seenAlertIds = [];
 
   @override
   void initState() {
     super.initState();
+    _loadSeenAlerts(); // --- ADD THIS CALL ---
     // 2. Initialize the Future to fetch data
     _alertsFuture = SupabaseAlertService.fetchAlerts();
   }
 
-  // 3. Function to re-fetch data (for pull-to-refresh or after an action)
+  // 3. Load seen IDs from SharedPreferences
+  Future<void> _loadSeenAlerts() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _seenAlertIds = prefs.getStringList('seen_alerts') ?? [];
+    });
+  }
+
+  // 4. Function to re-fetch data (Removed duplicate function)
   Future<void> _refreshAlerts() async {
     setState(() {
       _alertsFuture = SupabaseAlertService.fetchAlerts();
     });
   }
 
-  // Functionality for "Mark as Seen"
-  void _markAsSeen(Map<String, dynamic> alert, int index) {
-    // NOTE: In a real app, you would call SupabaseAlertService.deleteAlert(alert['id'])
-    // and then refresh the list.
-    _refreshAlerts().then((_) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '${alert['Item Name']} marked as seen (refreshing list).',
-          ),
-        ),
-      );
-    });
-  }
+  // 5. Mark as Seen Logic: Save ID locally and update UI
+  Future<void> _markAsSeen(int alertId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final idString = alertId.toString();
 
-  // Functionality for "Report Sighting"
-  void _reportSighting(String itemName) {
-    final brightBlue = Theme.of(context).primaryColor;
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Report Sighting'),
-          content: Text(
-            'Thank you for reporting a sighting of the "$itemName". We will notify the owner.',
-          ),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text('OK', style: TextStyle(color: brightBlue)),
-            ),
-          ],
+    if (!_seenAlertIds.contains(idString)) {
+      setState(() {
+        _seenAlertIds.add(idString);
+      });
+      await prefs.setStringList('seen_alerts', _seenAlertIds);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Alert marked as seen.')),
         );
-      },
-    );
+      }
+    }
+  }
+  
+  // Functionality for "Report Sighting"
+  void _reportSighting(Map<String, dynamic> alertData) {
+    // Extract the ID
+    final alertId = alertData['id'] as int?;
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ReportFoundItemScreen(
+          preFilledData: alertData, // Pass the alert details
+          alertId: alertId,         // Pass the ID so it can be deleted later
+        ),
+      ),
+    ).then((_) {
+      // Refresh the list when coming back
+      _refreshAlerts();
+    });
   }
 
   @override
@@ -203,20 +216,22 @@ class _EmergencyAlertsState extends State<EmergencyAlerts> {
                 delegate: SliverChildBuilderDelegate((context, index) {
                   final alert = alerts[index];
 
-                  // 5. Mapping Supabase columns to widget properties (UPDATED for Image URL)
+                  // 5. Mapping Supabase columns to widget properties
                   final itemName = alert['Item Name'] as String? ?? 'N/A';
                   final description =
                       alert['Description'] as String? ?? 'No description';
                   final location =
                       alert['Location'] as String? ?? 'Unknown Location';
                   final priority = alert['Priority'] as String? ?? 'Standard';
-                  final imageUrl =
-                      alert['Image'] as String?; // <--- FETCH IMAGE URL
+                  final imageUrl = alert['Image'] as String?;
 
-                  // Use created_at timestamp to calculate time ago (simplified)
                   final timeAgo =
                       'Found: ${alert['created_at'].toString().split('T')[0]}';
                   final isHighPriority = priority.toLowerCase() == 'high';
+                  
+                  // --- CHECK IF SEEN ---
+                  final int alertId = alert['id'];
+                  final bool isSeen = _seenAlertIds.contains(alertId.toString());
 
                   return Padding(
                     padding: const EdgeInsets.only(top: 16.0),
@@ -226,9 +241,10 @@ class _EmergencyAlertsState extends State<EmergencyAlerts> {
                       location: location,
                       timeAgo: timeAgo,
                       isHighPriority: isHighPriority,
-                      imageUrl: imageUrl, // <--- PASS IMAGE URL
-                      onMarkAsSeen: () => _markAsSeen(alert, index),
-                      onReportSighting: () => _reportSighting(itemName),
+                      imageUrl: imageUrl, 
+                      isSeen: isSeen, // --- PASS SEEN STATUS ---
+                      onMarkAsSeen: () => _markAsSeen(alertId), 
+                      onReportSighting: () => _reportSighting(alert),
                       cardColor: cardColor,
                     ),
                   );
@@ -256,6 +272,7 @@ class _AlertItemCard extends StatelessWidget {
   final VoidCallback onMarkAsSeen;
   final VoidCallback onReportSighting;
   final Color cardColor;
+  final bool isSeen; // --- ADD THIS FIELD ---
 
   const _AlertItemCard({
     required this.itemName,
@@ -266,8 +283,8 @@ class _AlertItemCard extends StatelessWidget {
     required this.onMarkAsSeen,
     required this.onReportSighting,
     required this.cardColor,
+    this.isSeen = false, // --- ADD THIS TO CONSTRUCTOR ---
     this.imageUrl,
-    super.key,
   });
 
   @override
@@ -282,207 +299,193 @@ class _AlertItemCard extends StatelessWidget {
         : Colors.orange; // Orange for regular Priority
 
     final IconData fallbackIcon = _getIconForAlert(itemName);
+    
+    // --- DETERMINE COLORS ---
+    final Color effectiveCardColor = isSeen 
+        ? (isDarkMode ? Colors.grey[800]! : Colors.grey[300]!) 
+        : cardColor;
+    final double contentOpacity = isSeen ? 0.6 : 1.0;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      child: Card(
-        elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        child: Container(
-          decoration: BoxDecoration(
-            color: cardColor, // Use the passed-in theme-aware card color
-            borderRadius: BorderRadius.circular(15),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.grey.withOpacity(
-                  isDarkMode ? 0.1 : 0.2, // Less shadow in dark mode
+      child: Opacity(
+        opacity: contentOpacity,
+        child: Card(
+          elevation: isSeen ? 0 : 0, // Remove shadow if seen
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          // FIXED: Nested Container correctly inside Card
+          child: Container(
+            decoration: BoxDecoration(
+              color: effectiveCardColor, 
+              borderRadius: BorderRadius.circular(15),
+              boxShadow: isSeen ? [] : [ // Remove shadow if seen
+                BoxShadow(
+                  color: Colors.grey.withOpacity(isDarkMode ? 0.1 : 0.2),
+                  spreadRadius: 2,
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
                 ),
-                spreadRadius: 2,
-                blurRadius: 8,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Item Image/Placeholder (LOGIC FOR IMAGE.NETWORK AND FALLBACK)
-                    Container(
-                      width: 100,
-                      height: 100,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(10),
-                        color: Theme.of(
-                          context,
-                        ).scaffoldBackgroundColor, // Background for placeholder is theme's scaffold bg
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
-                        child: imageUrl != null && imageUrl!.isNotEmpty
-                            ? Image.network(
-                                // Use Image.network for actual image
-                                imageUrl!,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) =>
-                                    PlaceholderImage(
-                                      // Fallback if network image fails
-                                      color: darkBlueText,
-                                      backgroundColor: Theme.of(
-                                        context,
-                                      ).scaffoldBackgroundColor,
-                                      icon: Icons.broken_image,
-                                    ),
-                                loadingBuilder:
-                                    (context, child, loadingProgress) {
-                                      if (loadingProgress == null) return child;
-                                      return Center(
-                                        child: CircularProgressIndicator(
-                                          value:
-                                              loadingProgress
-                                                      .expectedTotalBytes !=
-                                                  null
-                                              ? loadingProgress
-                                                        .cumulativeBytesLoaded /
-                                                    loadingProgress
-                                                        .expectedTotalBytes!
-                                              : null,
-                                          color: brightBlue,
-                                        ),
-                                      );
-                                    },
-                              )
-                            : PlaceholderImage(
-                                // Fallback to icon if no URL
-                                color: darkBlueText,
-                                backgroundColor: Theme.of(
-                                  context,
-                                ).scaffoldBackgroundColor,
-                                icon: fallbackIcon,
-                              ),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Priority Tag
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: priorityColor,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(
-                                  Icons.info_outline,
-                                  color: Colors.white,
-                                  size: 14,
+              ],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Item Image/Placeholder
+                      Container(
+                        width: 100,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(10),
+                          color: Theme.of(context).scaffoldBackgroundColor,
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: imageUrl != null && imageUrl!.isNotEmpty
+                              ? Image.network(
+                                  imageUrl!,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) =>
+                                      PlaceholderImage(
+                                        color: darkBlueText,
+                                        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+                                        icon: Icons.broken_image,
+                                      ),
+                                )
+                              : PlaceholderImage(
+                                  color: darkBlueText,
+                                  backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+                                  icon: fallbackIcon,
                                 ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  priorityText,
-                                  style: const TextStyle(
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Priority Tag
+                            if (!isSeen) // Optionally hide priority if seen
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: priorityColor,
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.info_outline,
                                     color: Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
+                                    size: 14,
                                   ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    priorityText,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            // Item Name
+                            Text(
+                              itemName,
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                                color: darkBlueText,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            // Description
+                            Text(
+                              description,
+                              style: TextStyle(
+                                color: isDarkMode
+                                    ? Colors.grey[400]
+                                    : Colors.grey[600],
+                                fontSize: 14,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 8),
+                            // Location and Time
+                            _InfoRow(icon: Icons.location_on, text: location),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                _InfoRow(
+                                  icon: Icons.watch_later_outlined,
+                                  text: timeAgo,
                                 ),
                               ],
                             ),
-                          ),
-                          const SizedBox(height: 8),
-                          // Item Name
-                          Text(
-                            itemName,
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
-                              color: darkBlueText,
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  // Action Buttons
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          // FIXED: Button Logic
+                          onPressed: isSeen ? null : onMarkAsSeen,
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            side: BorderSide(
+                              color: isSeen ? Colors.transparent : darkBlueText, 
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
                             ),
                           ),
-                          const SizedBox(height: 4),
-                          // Description
-                          Text(
-                            description,
+                          child: Text(
+                            isSeen ? 'Seen' : 'Mark as Seen',
                             style: TextStyle(
-                              color: isDarkMode
-                                  ? Colors.grey[400]
-                                  : Colors.grey[600],
-                              fontSize: 14,
+                              color: isSeen ? Colors.grey : darkBlueText, 
+                              fontSize: 16
                             ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(height: 8),
-                          // Location and Time/Views Row
-                          _InfoRow(icon: Icons.location_on, text: location),
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              _InfoRow(
-                                icon: Icons.watch_later_outlined,
-                                text: timeAgo,
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                // Action Buttons
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: onMarkAsSeen,
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          side: BorderSide(
-                            color: darkBlueText, // Dark blue/white outline
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        child: Text(
-                          'Mark as Seen',
-                          style: TextStyle(color: darkBlueText, fontSize: 16),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: onReportSighting,
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          backgroundColor: brightBlue, // Bright blue fill
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: onReportSighting,
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            backgroundColor: brightBlue, 
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            elevation: 0,
                           ),
-                          elevation: 0,
-                        ),
-                        child: const Text(
-                          'Report Sighting',
-                          style: TextStyle(color: Colors.white, fontSize: 16),
+                          child: const Text(
+                            'Report Sighting',
+                            style: TextStyle(color: Colors.white, fontSize: 16),
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ],
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -500,7 +503,7 @@ class _InfoRow extends StatelessWidget {
   final IconData icon;
   final String text;
 
-  const _InfoRow({required this.icon, required this.text, super.key});
+  const _InfoRow({required this.icon, required this.text});
 
   @override
   Widget build(BuildContext context) {
