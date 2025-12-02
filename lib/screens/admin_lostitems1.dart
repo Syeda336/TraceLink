@@ -849,7 +849,7 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
                 // Pass a flag to indicate the detail screen needs to be popped on delete/resolve
                 onDelete: () =>
                     _showDeleteConfirmation(report, fromDetail: true),
-                onResolve: () => _resolveReport(report),
+                //onResolve: () => _resolveReport(report),
                 onWarnUser: () => _warnUser(report),
                 onContactUser: () => _contactUser(report),
                 onBanUser: () => _banUser(report),
@@ -2767,7 +2767,7 @@ class AdminWarnUserMaskScreen extends StatelessWidget {
 class AdminViewReportDetail extends StatelessWidget {
   final Report report;
   final VoidCallback onDelete;
-  final VoidCallback onResolve;
+  //final VoidCallback onResolve;
   final VoidCallback onWarnUser;
   final VoidCallback onContactUser;
   final VoidCallback onBanUser;
@@ -2776,7 +2776,7 @@ class AdminViewReportDetail extends StatelessWidget {
     super.key,
     required this.report,
     required this.onDelete,
-    required this.onResolve,
+    //required this.onResolve,
     required this.onWarnUser,
     required this.onContactUser,
     required this.onBanUser,
@@ -3037,21 +3037,7 @@ class AdminViewReportDetail extends StatelessWidget {
                     ],
                   ),
 
-                  const SizedBox(height: 12.0),
-
-                  Row(
-                    children: [
-                      _buildReportActionButton(
-                        context: context,
-                        icon: Icons.check_circle_outline,
-                        label: 'Mark as Resolved',
-                        color: darkGreen,
-                        onTap: onResolve,
-                        borderColor: darkGreen,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 40),
+                  
                 ],
               ),
             ),
