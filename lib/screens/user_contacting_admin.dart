@@ -1,61 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart'; // Import url_launcher
-import 'warning_admin.dart'; 
+import 'warning_admin.dart'; // Target screen to open after action
 
-class ContactAdminDialog extends StatefulWidget {
+class ContactAdminDialog extends StatelessWidget {
   const ContactAdminDialog({super.key});
-
-  @override
-  State<ContactAdminDialog> createState() => _ContactAdminDialogState();
-}
-
-class _ContactAdminDialogState extends State<ContactAdminDialog> {
-  // Controller to capture the text entered by the user
-  final TextEditingController _messageController = TextEditingController();
-
-  // --- CONFIGURATION ---
-  
-  final String _adminEmail = 'atracelink@gmail.com'; 
-
-  @override
-  void dispose() {
-    _messageController.dispose();
-    super.dispose();
-  }
-
-  // Function to launch the email client
-  Future<void> _sendEmailToAdmin() async {
-    final String subject = Uri.encodeComponent('Inquiry: Admin Warning (Set of Keys)');
-    final String body = Uri.encodeComponent(_messageController.text);
-    
-    // Create the mailto link
-    final Uri emailLaunchUri = Uri.parse(
-      'mailto:$_adminEmail?subject=$subject&body=$body',
-    );
-
-    // Launch the email app
-    try {
-      if (await canLaunchUrl(emailLaunchUri)) {
-        await launchUrl(emailLaunchUri);
-        
-        // After launching email, close dialog and navigate
-        if (mounted) {
-          _handleAction(context); 
-        }
-      } else {
-        // Handle error: Could not launch email app
-        debugPrint("Could not launch email client");
-        // Optional: Show a snackbar telling the user no email app was found
-      }
-    } catch (e) {
-      debugPrint(e.toString());
-    }
-  }
 
   // Function to close the dialog and navigate to the warning_admin.dart screen
   void _handleAction(BuildContext context) {
-    Navigator.pop(context); // Close dialog
+    // 1. Close the current dialog
+    Navigator.pop(context);
 
+    // 2. Navigate to the WarningAdminScreen (using pushReplacement to clear the stack if needed)
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (context) => const WarningScreen()),
@@ -91,7 +45,7 @@ class _ContactAdminDialogState extends State<ContactAdminDialog> {
                   ],
                 ),
                 GestureDetector(
-                  onTap: () => _handleAction(context), 
+                  onTap: () => _handleAction(context), // Close action
                   child: const Icon(Icons.close, color: Colors.grey),
                 ),
               ],
@@ -108,7 +62,7 @@ class _ContactAdminDialogState extends State<ContactAdminDialog> {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
               decoration: BoxDecoration(
-                color: const Color(0xFFF3E5F5), 
+                color: const Color(0xFFF3E5F5), // Light purple background
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Text(
@@ -116,7 +70,7 @@ class _ContactAdminDialogState extends State<ContactAdminDialog> {
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF9C27B0), 
+                  color: Color(0xFF9C27B0), // Purple color
                 ),
               ),
             ),
@@ -130,16 +84,15 @@ class _ContactAdminDialogState extends State<ContactAdminDialog> {
                 borderRadius: BorderRadius.circular(15),
                 border: Border.all(color: Colors.grey.shade300),
               ),
-              child: TextField(
-                controller: _messageController, // Connected controller
+              child: const TextField(
                 maxLines: 4,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   hintText:
                       'Type your message here... Explain your situation or ask any questions.',
                   border: InputBorder.none,
                   contentPadding: EdgeInsets.zero,
                 ),
-                style: const TextStyle(fontSize: 15),
+                style: TextStyle(fontSize: 15),
               ),
             ),
             const SizedBox(height: 25),
@@ -153,7 +106,7 @@ class _ContactAdminDialogState extends State<ContactAdminDialog> {
                   width: 120,
                   height: 45,
                   child: OutlinedButton.icon(
-                    onPressed: () => _handleAction(context), 
+                    onPressed: () => _handleAction(context), // Close action
                     icon: const Icon(
                       Icons.close,
                       size: 20,
@@ -183,14 +136,14 @@ class _ContactAdminDialogState extends State<ContactAdminDialog> {
                       colors: [
                         Color(0xFF2196F3),
                         Color(0xFF4CAF50),
-                      ], 
+                      ], // Blue to Green gradient for Send
                       begin: Alignment.centerLeft,
                       end: Alignment.centerRight,
                     ),
                   ),
                   child: ElevatedButton.icon(
-                    // UPDATED: Calls _sendEmailToAdmin instead of just closing
-                    onPressed: () => _sendEmailToAdmin(), 
+                    onPressed: () =>
+                        _handleAction(context), // Send/Close action
                     icon: const Icon(Icons.send, size: 20, color: Colors.white),
                     label: const Text(
                       'Send',
@@ -198,7 +151,7 @@ class _ContactAdminDialogState extends State<ContactAdminDialog> {
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor:
-                          Colors.transparent, 
+                          Colors.transparent, // Important for gradient
                       shadowColor: Colors.transparent,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(15),
