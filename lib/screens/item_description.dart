@@ -18,6 +18,7 @@ const Color lightBlueBackground = Color(
 
 class Item {
   // Column names from your Supabase table
+  final String id;
   final String itemName; // Matches 'Item Name'
   final String category;
   final String color;
@@ -32,6 +33,7 @@ class Item {
   final String userId; // 🌟 NEW: To store the 'User ID' (Student ID)
 
   Item({
+    required this.id,
     required this.itemName,
     required this.category,
     required this.color,
@@ -62,6 +64,7 @@ class Item {
     final dateKey = data['status'] == 'Lost' ? 'Date Lost' : 'Date Found';
 
     return Item(
+      id: data['id'],
       itemName: data['Item Name'] as String? ?? 'N/A',
       category: data['Category'] as String? ?? 'N/A',
       color: data['Color'] as String? ?? 'N/A',
@@ -84,8 +87,8 @@ class Item {
 
 // --- Main Item Detail Screen (Converted to StatefulWidget) ---
 class ItemDetailScreen extends StatefulWidget {
-  final String itemName;
-  const ItemDetailScreen({super.key, required this.itemName});
+  final String id;
+  const ItemDetailScreen({super.key, required this.id});
 
   @override
   State<ItemDetailScreen> createState() => _ItemDetailScreenState();
@@ -183,8 +186,8 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
 
       // 4. Find the item that matches the name passed to the screen
       final Item? selectedItem = items.firstWhere(
-        (item) => item.itemName == widget.itemName,
-        orElse: () => throw Exception('Item not found: ${widget.itemName}'),
+        (item) => item.itemName == widget.id,
+        orElse: () => throw Exception('Item not found: ${widget.id}'),
       );
 
       setState(() {
