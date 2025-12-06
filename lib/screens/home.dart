@@ -27,6 +27,7 @@ final supabase = Supabase.instance.client;
 // 1. ITEM MODEL (UNCHANGED, but crucial for data consistency)
 // =========================================================
 class Item {
+  final String id;
   final String itemName;
   final String category;
   final String color;
@@ -37,6 +38,7 @@ class Item {
   final String status; // 'Lost' or 'Found'
 
   Item({
+    required this.id,
     required this.itemName,
     required this.category,
     required this.color,
@@ -49,6 +51,7 @@ class Item {
 
   factory Item.fromSupabase(Map<String, dynamic> data) {
     return Item(
+      id: data['id'],
       // Ensure column names exactly match your Supabase table columns
       itemName: data['Item Name'] as String? ?? 'N/A',
       category: data['Category'] as String? ?? 'N/A',
@@ -407,10 +410,7 @@ class _HomeScreenState extends State<HomeScreen> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       elevation: 2,
       child: InkWell(
-        onTap: () => _navigateToScreen(
-          context,
-          ItemDetailScreen(itemName: item.itemName),
-        ),
+        onTap: () => _navigateToScreen(context, ItemDetailScreen(id: item.id)),
         borderRadius: BorderRadius.circular(15),
         child: Padding(
           padding: const EdgeInsets.all(12.0),

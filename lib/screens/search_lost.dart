@@ -229,6 +229,7 @@ class _LostFoundToggle extends StatelessWidget {
 
 // Defines the structure for each item, matching Supabase columns.
 class Item {
+  final String id;
   // Column names from your Supabase table
   final String itemName; // Matches 'Item Name'
   final String category;
@@ -241,6 +242,7 @@ class Item {
   final String status;
 
   Item({
+    required this.id,
     required this.itemName,
     required this.category,
     required this.color,
@@ -257,6 +259,7 @@ class Item {
     final dateKey = data['status'] == 'Lost' ? 'Date Lost' : 'Date Found';
 
     return Item(
+      id: data['id'],
       itemName: data['Item Name'] as String? ?? 'N/A',
       category: data['Category'] as String? ?? 'N/A',
       color: data['Color'] as String? ?? 'N/A',
@@ -376,6 +379,7 @@ class _ItemListWidgetState extends State<ItemListWidget> {
             final item = items[index];
             return ItemCard(
               // 🎯 FIX: Use the Item object's properties directly
+              id: item.id,
               name: item.itemName,
               location: item.location,
               // Format the date to a simple string for the card
@@ -397,6 +401,7 @@ class _ItemListWidgetState extends State<ItemListWidget> {
 // --- Item Card Widget (Remains the same) ---
 
 class ItemCard extends StatelessWidget {
+  final String id;
   final String name;
   final String location;
   final String date;
@@ -405,6 +410,7 @@ class ItemCard extends StatelessWidget {
   final String imagePath;
 
   const ItemCard({
+    required this.id,
     required this.name,
     required this.location,
     required this.date,
@@ -419,7 +425,7 @@ class ItemCard extends StatelessWidget {
     Navigator.of(context).push(
       MaterialPageRoute(
         // Navigate to the ItemDescriptionScreen, passing the item's name
-        builder: (context) => ItemDetailScreen(itemName: name),
+        builder: (context) => ItemDetailScreen(id: id),
       ),
     );
   }
