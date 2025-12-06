@@ -58,5 +58,12 @@ class SupabaseLostService {
     }
   }
 
+  static Future<void> updateComments({
+    required int itemId,
+    required List<Map<String, dynamic>> comments,
+  }) async {
+    await supabase.from('Lost').update({'Comments': comments}).eq('id', itemId);
+  }
+
   // --- END OF NEW FUNCTION ---
 }

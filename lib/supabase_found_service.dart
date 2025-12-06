@@ -1,5 +1,6 @@
 // 📁 lib/supabase_service.dart
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 // Global accessor for Supabase Client (assuming it's initialized in main)
@@ -32,6 +33,15 @@ class SupabaseFoundService {
     return response.length;
   }
 
+  Future<int> getUserFoundCount(String studentId) async {
+    final querySnapshot = await FirebaseFirestore.instance
+        .collection("Found")
+        .where("studentId", isEqualTo: studentId)
+        .get();
+
+    return querySnapshot.docs.length;
+  }
+
   // --- NEW FUNCTION TO DELETE DATA ---
 
   /// 🗑️ Deletes a specific row from the 'Found' table by its ID.
@@ -56,6 +66,16 @@ class SupabaseFoundService {
       print('An unexpected error occurred during deletion: $e');
       rethrow;
     }
+  }
+
+  static Future<void> updateComments({
+    required int itemId,
+    required List<Map<String, dynamic>> comments,
+  }) async {
+    await supabase
+        .from('Found')
+        .update({'Comments': comments})
+        .eq('id', itemId);
   }
 
   // --- END OF NEW FUNCTION ---

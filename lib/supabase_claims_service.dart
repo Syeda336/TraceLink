@@ -1,4 +1,5 @@
 // 📁 lib/supabase_service.dart
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 // Global accessor for Supabase Client (assuming it's initialized in main)
@@ -29,6 +30,15 @@ class SupabaseClaimService {
   Future<int> getClaimedCount() async {
     final response = await supabase.from("claimed_items").select();
     return response.length;
+  }
+
+  Future<int> getUserClaimCount(String studentId) async {
+    final querySnapshot = await FirebaseFirestore.instance
+        .collection("claimed_items")
+        .where("studentId", isEqualTo: studentId)
+        .get();
+
+    return querySnapshot.docs.length;
   }
 
   ///

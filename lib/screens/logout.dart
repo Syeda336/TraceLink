@@ -59,11 +59,6 @@ class LogoutConfirmationScreen extends StatelessWidget {
                 // --- Gradient Header Section ---
                 _buildGradientHeader(context, isDarkMode, themeProvider),
 
-                const SizedBox(height: 24),
-
-                // --- Your Impact Card ---
-                _buildImpactCard(context, primaryColor, isDarkMode),
-
                 const SizedBox(height: 16),
 
                 // --- Warning Card ---
@@ -191,66 +186,6 @@ class LogoutConfirmationScreen extends StatelessWidget {
             style: TextStyle(color: Colors.white70, fontSize: 16),
           ),
         ],
-      ),
-    );
-  }
-
-  // FIXED: Added BuildContext context as the first argument
-  Widget _buildImpactCard(
-    BuildContext context,
-    Color primaryColor,
-    bool isDarkMode,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      child: Card(
-        elevation: 0,
-        // CORRECTED LINE: Using the passed 'context' argument
-        color: isDarkMode
-            ? Theme.of(context).colorScheme.surface
-            : Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(15),
-          side: BorderSide(
-            color: primaryColor, // Dynamic Primary Color Outline
-            width: 1.5,
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: primaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(
-                  Icons.star,
-                  color: primaryColor, // Dynamic Primary Color Icon
-                  size: 30,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Your Impact',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                        color: primaryColor, // Dynamic Primary Color Text
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

@@ -485,9 +485,7 @@ class _FeedPostCard extends StatelessWidget {
     // Pass the actual item name
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => ItemDetailScreen(id: item.id as String),
-      ),
+      MaterialPageRoute(builder: (context) => ItemDetailScreen(id: item.id)),
     );
   }
 

@@ -7,6 +7,7 @@ import '../supabase_found_service.dart'; // 🌟 Import the new service
 // --- 1. DATA MODEL (UPDATED FOR SUPABASE) ---
 // Defines the structure for each item, matching Supabase columns.
 class Item {
+  final int id;
   // Column names from your Supabase table
   final String itemName; // Matches 'Item Name'
   final String category;
@@ -20,6 +21,7 @@ class Item {
   final String status;
 
   Item({
+    required this.id,
     required this.itemName,
     required this.category,
     required this.color,
@@ -35,6 +37,7 @@ class Item {
   // The 'status' is now expected to be INJECTED into the data map
   factory Item.fromSupabase(Map<String, dynamic> data) {
     return Item(
+      id: data['id'],
       itemName: data['Item Name'] as String? ?? 'N/A',
       category: data['Category'] as String? ?? 'N/A',
       color: data['Color'] as String? ?? 'N/A',
@@ -442,6 +445,7 @@ class _SearchScreenState extends State<SearchScreen> {
               itemBuilder: (context, index) {
                 final item = _filteredItems[index];
                 return _ItemCard(
+                  id: item.id,
                   status: item.status, // 🎯 FIX 5: Use the actual status
                   itemName: item.itemName, // 🌟 Use itemName
                   location: item.location,
@@ -607,6 +611,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
 // --- Item Card Widget (Remains the same, but receives network image) ---
 class _ItemCard extends StatelessWidget {
+  final int id;
   final String status;
   final String itemName;
   final String location;
@@ -618,6 +623,7 @@ class _ItemCard extends StatelessWidget {
   final Color darkTextColor;
 
   const _ItemCard({
+    required this.id,
     required this.status,
     required this.itemName,
     required this.location,

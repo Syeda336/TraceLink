@@ -27,7 +27,7 @@ final supabase = Supabase.instance.client;
 // 1. ITEM MODEL (UNCHANGED, but crucial for data consistency)
 // =========================================================
 class Item {
-  final String id;
+  final int id;
   final String itemName;
   final String category;
   final String color;
@@ -653,7 +653,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  '3 Emergency Alerts',
+                                  'Emergency Alerts',
                                   style: TextStyle(
                                     color: whiteTextColor,
                                     fontSize: 18,

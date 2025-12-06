@@ -5,7 +5,7 @@ import '../theme_provider.dart';
 import '../supabase_lost_service.dart'; // 🌟 Import the new service
 import '../supabase_found_service.dart'; // 🌟 Import the new service
 
-import 'messages.dart';
+import 'chat.dart';
 import 'claim_submit.dart'; // Make sure VerifyOwnershipScreen in this file accepts parameters
 
 const Color primaryBlue = Color(
@@ -18,7 +18,7 @@ const Color lightBlueBackground = Color(
 
 class Item {
   // Column names from your Supabase table
-  final String id;
+  final int id;
   final String itemName; // Matches 'Item Name'
   final String category;
   final String color;
@@ -87,7 +87,7 @@ class Item {
 
 // --- Main Item Detail Screen (Converted to StatefulWidget) ---
 class ItemDetailScreen extends StatefulWidget {
-  final String id;
+  final int id;
   const ItemDetailScreen({super.key, required this.id});
 
   @override
@@ -186,7 +186,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
 
       // 4. Find the item that matches the name passed to the screen
       final Item? selectedItem = items.firstWhere(
-        (item) => item.itemName == widget.id,
+        (item) => item.id == widget.id,
         orElse: () => throw Exception('Item not found: ${widget.id}'),
       );
 
@@ -785,10 +785,19 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
               Expanded(
                 child: ElevatedButton(
                   onPressed: () {
-                    // Navigate to chat screen
+                    // Navigate to chat screen, passing the reporter's details
+                    // The ChatScreen will use these details to establish a chat
+                    // with the item's reporter.
                     Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (context) => MessagesListScreen(),
+                        builder: (context) => ChatScreen(
+                          chatPartnerName: item.userName, // **Reporter's Name**
+                          chatPartnerInitials:
+                              item.userInitials, // **Reporter's Initials**
+                          avatarColor: Colors.blueAccent,
+                          receiverId: item
+                              .userId, // Keep existing parameter (or pass a color)
+                        ),
                       ),
                     );
                   },
@@ -862,3 +871,34 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
     );
   }
 }
+
+// --- Assuming chat.dart looks something like this (Updated) ---
+// You will need to create/update your ChatScreen to accept the new parameter.
+/*
+class ChatScreen extends StatelessWidget {
+  final String chatPartnerName;
+  final String chatPartnerInitials;
+  final String? chatPartnerId; // <-- NEW: Use this to pass the Reporter's ID
+  final Color? avatarColor;
+
+  const ChatScreen({
+    super.key,
+    required this.chatPartnerName,
+    required this.chatPartnerInitials,
+    this.chatPartnerId, // <-- New Parameter
+    this.avatarColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // ... Chat screen UI implementation
+    // Use chatPartnerName and chatPartnerId to set up the chat logic (e.g., fetch messages)
+    return Scaffold(
+      appBar: AppBar(title: Text('Chat with $chatPartnerName')),
+      body: Center(
+        child: Text('Chat with User ID: ${chatPartnerId ?? 'N/A'}'),
+      ),
+    );
+  }
+}
+*/

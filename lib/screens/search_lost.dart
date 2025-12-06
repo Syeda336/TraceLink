@@ -229,7 +229,7 @@ class _LostFoundToggle extends StatelessWidget {
 
 // Defines the structure for each item, matching Supabase columns.
 class Item {
-  final String id;
+  final int id;
   // Column names from your Supabase table
   final String itemName; // Matches 'Item Name'
   final String category;
@@ -401,7 +401,7 @@ class _ItemListWidgetState extends State<ItemListWidget> {
 // --- Item Card Widget (Remains the same) ---
 
 class ItemCard extends StatelessWidget {
-  final String id;
+  final int id;
   final String name;
   final String location;
   final String date;

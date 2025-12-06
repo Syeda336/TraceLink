@@ -9,8 +9,12 @@ import '../notifications_service.dart';
 
 // --- Define the Color Palette ---
 const Color primaryBlue = Color(0xFF42A5F5); // Bright Blue (Header, My Bubble)
-const Color darkBlue = Color(0xFF1977D2); // Dark Blue (Body text, partner bubble text)
-const Color lightBlueBackground = Color(0xFFE3F2FD); // Very Light Blue (Background)
+const Color darkBlue = Color(
+  0xFF1977D2,
+); // Dark Blue (Body text, partner bubble text)
+const Color lightBlueBackground = Color(
+  0xFFE3F2FD,
+); // Very Light Blue (Background)
 const Color myBubbleColor = primaryBlue;
 const Color partnerBubbleColor = lightBlueBackground;
 
@@ -34,7 +38,7 @@ class ChatScreen extends StatefulWidget {
     required this.chatPartnerInitials,
     this.isOnline = false,
     required this.avatarColor,
-    this.receiverId,
+    required this.receiverId,
   });
 
   @override
@@ -44,7 +48,7 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  
+
   // Speech to text variables
   final stt.SpeechToText _speech = stt.SpeechToText();
   bool _isListening = false;
@@ -91,11 +95,11 @@ class _ChatScreenState extends State<ChatScreen> {
     }
 
     _lastWords = '';
-    
+
     setState(() {
       _isListening = true;
     });
-    
+
     _speech.listen(
       onResult: (result) {
         setState(() {
@@ -111,7 +115,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _stopListening() {
     if (!_speechInitialized) return;
-    
+
     _speech.stop();
     setState(() {
       _isListening = false;
@@ -192,34 +196,34 @@ class _ChatScreenState extends State<ChatScreen> {
           if (currentUser != null) {
             // Construct chatRoomId exactly like the chat service does (sorted IDs)
             List<String> ids = [currentUser.uid, widget.receiverId!];
-            ids.sort(); 
+            ids.sort();
             String chatRoomId = ids.join("_");
 
             // Use the email username if display name is empty
-            String senderName = currentUser.displayName ?? currentUser.email!.split('@')[0];
+            String senderName =
+                currentUser.displayName ?? currentUser.email!.split('@')[0];
 
             await NotificationsService.sendMessageNotification(
               targetUserId: widget.receiverId!, // Send to the other person
-              senderId: currentUser.uid,        // Your ID (so they know who sent it)
-              senderName: senderName,           // Your Name
-              messagePreview: messageText,      // The message text
-              chatRoomId: chatRoomId,           // The specific chat room
+              senderId: currentUser.uid, // Your ID (so they know who sent it)
+              senderName: senderName, // Your Name
+              messagePreview: messageText, // The message text
+              chatRoomId: chatRoomId, // The specific chat room
             );
           }
         } catch (e) {
           print('Error sending notification: $e');
         }
-
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Failed to send message")),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("Failed to send message")));
       }
     } else {
-        // If no receiver ID is present (e.g. error state)
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Error: No user selected to chat with.")),
-        );
+      // If no receiver ID is present (e.g. error state)
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Error: No user selected to chat with.")),
+      );
     }
   }
 
@@ -358,7 +362,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     },
                   ),
           ),
-          
+
           // Speech recognition overlay
           if (_isListening)
             Container(
@@ -366,11 +370,7 @@ class _ChatScreenState extends State<ChatScreen> {
               color: isDarkMode ? darkSurfaceColor : Colors.white,
               child: Column(
                 children: [
-                  const Icon(
-                    Icons.mic,
-                    color: Colors.red,
-                    size: 30,
-                  ),
+                  const Icon(Icons.mic, color: Colors.red, size: 30),
                   const SizedBox(height: 8),
                   Text(
                     'Listening...',
@@ -384,14 +384,16 @@ class _ChatScreenState extends State<ChatScreen> {
                     _lastWords.isEmpty ? 'Speak now' : _lastWords,
                     style: TextStyle(
                       color: isDarkMode ? darkHintColor : Colors.grey,
-                      fontStyle: _lastWords.isEmpty ? FontStyle.italic : FontStyle.normal,
+                      fontStyle: _lastWords.isEmpty
+                          ? FontStyle.italic
+                          : FontStyle.normal,
                     ),
                     textAlign: TextAlign.center,
                   ),
                 ],
               ),
             ),
-            
+
           // Message Input Area
           SizedBox(
             height: 100,
@@ -444,9 +446,11 @@ class _ChatScreenState extends State<ChatScreen> {
                             suffixIcon: IconButton(
                               icon: Icon(
                                 _isListening ? Icons.mic_off : Icons.mic,
-                                color: _isListening 
-                                    ? Colors.red 
-                                    : (isDarkMode ? darkPrimaryColor : darkBlue),
+                                color: _isListening
+                                    ? Colors.red
+                                    : (isDarkMode
+                                          ? darkPrimaryColor
+                                          : darkBlue),
                               ),
                               onPressed: _toggleListening,
                             ),

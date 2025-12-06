@@ -48,7 +48,7 @@ class _MessagesListScreenState extends State<MessagesListScreen> {
     });
 
     final results = await FirebaseService.searchUsers(value.trim());
-    
+
     // Remove the current user from results (can't chat with yourself)
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
     if (currentUserId != null) {
@@ -72,22 +72,22 @@ class _MessagesListScreenState extends State<MessagesListScreen> {
   }
 
   void _openChat(Map<String, dynamic> userData) {
-     Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => ChatScreen(
-            chatPartnerName: userData['fullName'] ?? 'Unknown',
-            chatPartnerInitials: _getInitials(userData['fullName'] ?? 'U'),
-            isOnline: false, 
-            avatarColor: Colors.blueAccent,
-            receiverId: userData['uid'], // Pass the UID to start chat
-          ),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ChatScreen(
+          chatPartnerName: userData['fullName'] ?? 'Unknown',
+          chatPartnerInitials: _getInitials(userData['fullName'] ?? 'U'),
+          isOnline: false,
+          avatarColor: Colors.blueAccent,
+          receiverId: userData['uid'],
         ),
-      );
-      _searchController.clear();
-      setState(() {
-        _isSearching = false;
-      });
+      ),
+    );
+    _searchController.clear();
+    setState(() {
+      _isSearching = false;
+    });
   }
 
   @override
@@ -143,15 +143,15 @@ class _MessagesListScreenState extends State<MessagesListScreen> {
                   hintText: 'Search by Name...',
                   hintStyle: TextStyle(color: darkHintColor),
                   prefixIcon: Icon(Icons.search, color: searchIconColor),
-                  suffixIcon: _isSearching 
-                    ? IconButton(
-                        icon: Icon(Icons.close, color: searchIconColor),
-                        onPressed: () {
-                           _searchController.clear();
-                           _onSearchChanged('');
-                        },
-                      )
-                    : null,
+                  suffixIcon: _isSearching
+                      ? IconButton(
+                          icon: Icon(Icons.close, color: searchIconColor),
+                          onPressed: () {
+                            _searchController.clear();
+                            _onSearchChanged('');
+                          },
+                        )
+                      : null,
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(vertical: 12),
                 ),
@@ -162,7 +162,9 @@ class _MessagesListScreenState extends State<MessagesListScreen> {
 
           // --- Body Content (Switches between Search Results and Chat List) ---
           Expanded(
-            child: _isSearching ? _buildSearchResults(isDarkMode) : _buildConversationsList(isDarkMode),
+            child: _isSearching
+                ? _buildSearchResults(isDarkMode)
+                : _buildConversationsList(isDarkMode),
           ),
         ],
       ),
@@ -173,7 +175,10 @@ class _MessagesListScreenState extends State<MessagesListScreen> {
   Widget _buildSearchResults(bool isDarkMode) {
     if (_searchResults.isEmpty) {
       return Center(
-        child: Text("No users found", style: TextStyle(color: isDarkMode ? Colors.white : Colors.black)),
+        child: Text(
+          "No users found",
+          style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
+        ),
       );
     }
 
@@ -191,10 +196,18 @@ class _MessagesListScreenState extends State<MessagesListScreen> {
             backgroundColor: isDarkMode ? darkPrimaryColor : primaryBlue,
             child: Text(initials, style: const TextStyle(color: Colors.white)),
           ),
-          title: Text(name, style: TextStyle(color: isDarkMode ? Colors.white : Colors.black, fontWeight: FontWeight.bold)),
+          title: Text(
+            name,
+            style: TextStyle(
+              color: isDarkMode ? Colors.white : Colors.black,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           subtitle: Text(
             "$department • $studentId", // Display extra info to distinguish users
-            style: TextStyle(color: isDarkMode ? darkHintColor : Colors.grey[600]),
+            style: TextStyle(
+              color: isDarkMode ? darkHintColor : Colors.grey[600],
+            ),
           ),
           onTap: () => _openChat(user),
         );
@@ -204,10 +217,10 @@ class _MessagesListScreenState extends State<MessagesListScreen> {
 
   // Widget to display existing conversations (Same as previous code)
   Widget _buildConversationsList(bool isDarkMode) {
-     final inputTextColor = isDarkMode ? darkTextColor : darkBlue;
-     final hintColor = isDarkMode ? darkHintColor : Colors.grey;
+    final inputTextColor = isDarkMode ? darkTextColor : darkBlue;
+    final hintColor = isDarkMode ? darkHintColor : Colors.grey;
 
-     return StreamBuilder<QuerySnapshot>(
+    return StreamBuilder<QuerySnapshot>(
       stream: FirebaseService.getConversations(),
       //********Testinggg*********** */
       builder: (context, snapshot) {
@@ -217,16 +230,16 @@ class _MessagesListScreenState extends State<MessagesListScreen> {
           return Center(
             child: Padding(
               padding: const EdgeInsets.all(20.0),
-              child: SelectableText( // Use SelectableText so you can copy the link
-                "Error: ${snapshot.error}", 
+              child: SelectableText(
+                // Use SelectableText so you can copy the link
+                "Error: ${snapshot.error}",
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.red),
               ),
             ),
           );
         }
-          
-        
+
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
@@ -263,8 +276,9 @@ class _MessagesListScreenState extends State<MessagesListScreen> {
 
             // Determine the "Other" user
             final Map<String, dynamic> names = data['participantNames'] ?? {};
-            final Map<String, dynamic> initials = data['participantInitials'] ?? {};
-            
+            final Map<String, dynamic> initials =
+                data['participantInitials'] ?? {};
+
             String otherUserId = '';
             String otherUserName = 'Unknown';
             String otherUserInitials = 'U';
@@ -287,7 +301,7 @@ class _MessagesListScreenState extends State<MessagesListScreen> {
               final dt = ts.toDate();
               final now = DateTime.now();
               final diff = now.difference(dt);
-              
+
               if (diff.inDays > 0) {
                 timeAgo = '${diff.inDays}d ago';
               } else if (diff.inHours > 0) {
@@ -309,7 +323,7 @@ class _MessagesListScreenState extends State<MessagesListScreen> {
                   isOnline: false,
                   receiverId: otherUserId,
                 );
-              }
+              },
             );
           },
         );
@@ -347,7 +361,9 @@ class _ConversationListItem extends StatelessWidget {
     final initialsColor = isDarkMode ? darkPrimaryColor : darkBlue;
     final userNameColor = isDarkMode ? darkTextColor : darkBlue;
     final messageColor = isDarkMode ? darkHintColor : darkBlue.withOpacity(0.7);
-    final timeColor = isDarkMode ? darkHintColor.withOpacity(0.6) : darkBlue.withOpacity(0.6);
+    final timeColor = isDarkMode
+        ? darkHintColor.withOpacity(0.6)
+        : darkBlue.withOpacity(0.6);
     final unreadColor = isDarkMode ? darkPrimaryColor : primaryBlue;
 
     return InkWell(
