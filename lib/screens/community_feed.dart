@@ -1,21 +1,60 @@
 // community_feed.dart
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:provider/provider.dart'; // Import provider to access the theme
-import '../theme_provider.dart'; // Import your dynamic theme provider
-import '../supabase_lost_service.dart'; // 🌟 Import the new service
-import '../supabase_found_service.dart'; // 🌟 Import the new service
+import 'package:provider/provider.dart';
+import 'dart:convert'; // Import for json decoding/encoding
+
+import '../theme_provider.dart';
+import '../supabase_lost_service.dart';
+import '../supabase_found_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 // Assuming these files exist in your project structure
 import 'bottom_navigation.dart';
 import 'item_description.dart';
+
+import 'package:tracelink/firebase_service.dart';
+
+// Ensure Supabase is initialized in main.dart
+final supabase = Supabase.instance.client;
 
 // --- Define the NEW Color Palette ---
 const Color primaryBlue = Color(0xFF42A5F5); // Bright Blue
 const Color darkBlue = Color(0xFF1977D2); // Dark Blue
 const Color lightBlueBackground = Color(0xFFE3F2FD); // Very Light Blue
 
+// --- Helper for Supabase Comments Structure ---
+// Represents a single comment for easy JSON/Map handling
+class SupabaseComment {
+  final String commenterName;
+  final String text;
+  final DateTime timestamp;
+
+  SupabaseComment({
+    required this.commenterName,
+    required this.text,
+    required this.timestamp,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'commenter_name': commenterName,
+    'text': text,
+    'timestamp': timestamp.toIso8601String(),
+  };
+
+  factory SupabaseComment.fromJson(Map<String, dynamic> json) =>
+      SupabaseComment(
+        commenterName: json['commenter_name'] as String? ?? 'Unknown User',
+        text: json['text'] as String? ?? '',
+        timestamp:
+            DateTime.tryParse(json['timestamp'] as String? ?? '') ??
+            DateTime.now(),
+      );
+}
+
 class Item {
+  // 🌟 NEW: Unique identifier for the Supabase row
+  final int id;
   // Column names from your Supabase table
   final String userInitials;
   final String userName; // 🌟 Maps to 'Reporter Name'
@@ -33,17 +72,19 @@ class Item {
 
   // Variables for local state management (likes/comments)
   int likes;
-  int comments;
+  // 🎯 CHANGE: Comments are now fetched as a list of SupabaseComment objects
+  List<SupabaseComment> commentsList;
   bool isLiked;
 
   // Added a placeholder for verification
   final bool isVerified;
 
   Item({
+    required this.id, // Added
     required this.userInitials,
     required this.userName,
-    required this.userEmail, // Added
-    required this.userId, // Added
+    required this.userEmail,
+    required this.userId,
     required this.itemName,
     required this.category,
     required this.color,
@@ -52,10 +93,10 @@ class Item {
     required this.dateLost,
     required this.imageUrl,
     required this.status,
-    this.likes = 0, // sensible default
-    this.comments = 0, // sensible default
-    this.isLiked = false, // sensible default
-    this.isVerified = true, // sensible default
+    this.likes = 0,
+    required this.commentsList, // Changed to List<SupabaseComment>
+    this.isLiked = false,
+    this.isVerified = true,
   });
 
   // 🌟 Factory constructor to create an Item from a Supabase row (Map)
@@ -71,7 +112,28 @@ class Item {
         .join('');
     // -------------------------------------------------------------
 
+    // Safely parse the 'Comments' JSON array column
+    final rawComments = data['Comments'] as List<dynamic>?;
+    final List<SupabaseComment> parsedComments = (rawComments ?? [])
+        .map((commentMap) {
+          if (commentMap is String) {
+            // Handle case where comments might be stored as a list of JSON strings
+            try {
+              return SupabaseComment.fromJson(jsonDecode(commentMap));
+            } catch (_) {
+              return null;
+            }
+          }
+          if (commentMap is Map<String, dynamic>) {
+            return SupabaseComment.fromJson(commentMap);
+          }
+          return null;
+        })
+        .whereType<SupabaseComment>()
+        .toList();
+
     return Item(
+      id: data['id'] as int, // 🌟 IMPORTANT: Extract the Supabase Row ID
       userInitials: initials.isEmpty ? 'CU' : initials, // Use initials
       userName: fetchedUserName, // Use Reporter Name
       userEmail: fetchedUserEmail, // Use Reporter Email
@@ -90,7 +152,7 @@ class Item {
       status: data['status'] as String? ?? 'Unknown',
       // Simulating likes/comments (In a real app, these would be fetched from separate tables)
       likes: (data['likes'] as int?) ?? 0,
-      comments: (data['comments'] as int?) ?? 0,
+      commentsList: parsedComments, // Use parsed list
       isLiked: (data['isLiked'] as bool?) ?? false,
       isVerified:
           fetchedUserId !=
@@ -105,7 +167,7 @@ class Item {
   }
 }
 
-// 1. CommunityFeed StatefulWidget (No changes needed in State methods except fetching logic is confirmed)
+// 1. CommunityFeed StatefulWidget
 class CommunityFeed extends StatefulWidget {
   const CommunityFeed({super.key});
 
@@ -114,21 +176,39 @@ class CommunityFeed extends StatefulWidget {
 }
 
 class _CommunityFeedState extends State<CommunityFeed> {
-  // 🎯 FIX 3: Use the correct list name and Item model
-  bool _isLoading = true;
-  bool _hasError = false;
-  List<Item> _masterItems = []; // Correct list for fetched items
-
-  // 🎯 FIX 4: Use a Map<String, List<String>> to store comments,
-  // mapping an item's unique ID/index to its comments. Using index for simplicity.
-  late Map<int, List<String>> _commentData;
+  Map<String, dynamic>? userData;
+  bool isLoading = true; // Loading state
 
   @override
   void initState() {
     super.initState();
-    _commentData = {};
-    _fetchItemsFromSupabase(); // 🌟 Start data fetching
+    _loadUserData(); // Load real data when screen starts
+    _fetchItemsFromSupabase();
   }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (userData == null && !isLoading) {
+      _loadUserData();
+    }
+  }
+
+  Future<void> _loadUserData() async {
+    // Assuming FirebaseService.getUserData() fetches the required data (full name, student ID, email)
+    Map<String, dynamic>? data = await FirebaseService.getUserData();
+    setState(() {
+      userData = data;
+      isLoading = false;
+    });
+  }
+
+  bool _isLoading = true;
+  bool _hasError = false;
+  List<Item> _masterItems = []; // Correct list for fetched items
+
+  // 🎯 REMOVED: Local comment data map is no longer needed, comments are in Item model
+  // late Map<int, List<String>> _commentData;
 
   // Helper to simulate time ago logic
   String _timeAgo(DateTime date) {
@@ -144,7 +224,7 @@ class _CommunityFeedState extends State<CommunityFeed> {
     }
   }
 
-  // 🌟 NEW: Fetch data from Supabase (Provided in the prompt, kept for completeness)
+  // 🌟 Fetch data from Supabase
   Future<void> _fetchItemsFromSupabase() async {
     setState(() {
       _isLoading = true;
@@ -179,7 +259,7 @@ class _CommunityFeedState extends State<CommunityFeed> {
           .map((row) => Item.fromSupabase(row))
           .toList();
 
-      // 🎯 FIX 5: Sort the items by dateLost (most recent first)
+      // Sort the items by dateLost (most recent first)
       items.sort((a, b) => b.dateLost.compareTo(a.dateLost));
 
       setState(() {
@@ -195,7 +275,7 @@ class _CommunityFeedState extends State<CommunityFeed> {
     }
   }
 
-  // 🎯 FIX 6: Update feature handlers to use the correct list and Item model
+  // 🎯 FIX: Update feature handlers to use the correct list and Item model
   void _toggleLike(int index) {
     setState(() {
       final post = _masterItems[index];
@@ -208,14 +288,13 @@ class _CommunityFeedState extends State<CommunityFeed> {
     });
   }
 
-  // 🎯 FIX 7: Update share logic to use Item properties
   void _sharePost(Item post) {
     final String shareText =
         '${post.status} Item: ${post.itemName} - Found/Lost at/Near: ${post.location}. Contact ${post.userName} on our app.';
     Share.share(shareText, subject: '${post.status} Item in Community Feed');
   }
 
-  // 🎯 FIX 8: Update comment sheet to use Item properties
+  // 🎯 FIX: Update comment sheet to use Item properties and fetched comments
   void _showCommentSheet(int index) {
     showModalBottomSheet(
       context: context,
@@ -225,43 +304,76 @@ class _CommunityFeedState extends State<CommunityFeed> {
         return _CommentSheetContent(
           // Pass the Item object
           postData: _masterItems[index],
-          currentComments: _commentData[index] ?? [],
-          onCommentSubmitted: (comment) {
-            _addCommentToPost(index, comment);
+          // Pass the list of SupabaseComment objects
+          currentComments: _masterItems[index].commentsList,
+          // Pass the comment submission handler
+          onCommentSubmitted: (commentText) {
+            _addCommentToPost(index, commentText);
           },
         );
       },
     );
   }
 
-  void _addCommentToPost(int index, String comment) {
+  // 🌟 NEW: Logic to add and save a comment to Supabase
+  void _addCommentToPost(int index, String commentText) async {
+    final Item item = _masterItems[index];
+
+    // 1. Create the new comment object
+    final String commenterName =
+        userData?['fullName'] ?? 'Guest User'; // 🌟 Use Firebase User Name
+
+    // 1. Create the new comment object
+    final newComment = SupabaseComment(
+      commenterName: commenterName,
+      text: commentText,
+      timestamp: DateTime.now(),
+    );
+
+    // 2. Add the new comment locally
     setState(() {
-      _masterItems[index].comments++;
-      _commentData.update(
-        index,
-        (comments) => [...comments, comment],
-        ifAbsent: () => [comment],
-      );
+      item.commentsList.add(newComment);
+      item.commentsList.sort((a, b) => a.timestamp.compareTo(b.timestamp));
     });
 
-    _saveCommentToFile(postId: index.toString(), commentText: comment);
+    try {
+      // 3. Prepare the updated comments list for Supabase (JSON array of objects)
+      final List<Map<String, dynamic>> updatedCommentsJson = item.commentsList
+          .map((comment) => comment.toJson())
+          .toList();
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('✅ Comment submitted! (Saved locally/simulated)'),
-        duration: Duration(seconds: 1),
-      ),
-    );
-  }
+      // 4. Save the updated comments array to Supabase
+      if (item.status == 'Lost') {
+        await SupabaseLostService.updateComments(
+          itemId: item.id,
+          comments: updatedCommentsJson,
+        );
+      } else if (item.status == 'Found') {
+        await SupabaseFoundService.updateComments(
+          itemId: item.id,
+          comments: updatedCommentsJson,
+        );
+      }
 
-  void _saveCommentToFile({
-    required String postId,
-    required String commentText,
-  }) {
-    print('--- Database Write Simulation ---');
-    print('Saving to comments.json: Post ID $postId, Comment: "$commentText"');
-    print('New Comments for Post $postId: ${_commentData[int.parse(postId)]}');
-    print('---------------------------------');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✅ Comment submitted and saved to database!'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      print('Failed to save comment to Supabase: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('❌ Failed to save comment! Please try again.'),
+          duration: Duration(seconds: 3),
+        ),
+      );
+      // Revert local changes on failure
+      setState(() {
+        item.commentsList.remove(newComment);
+      });
+    }
   }
 
   @override
@@ -301,7 +413,6 @@ class _CommunityFeedState extends State<CommunityFeed> {
         ),
       ),
 
-      // 🎯 FIX 9: Use _masterItems instead of the non-existent _feedPosts
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _hasError
@@ -329,7 +440,7 @@ class _CommunityFeedState extends State<CommunityFeed> {
 
                       return Column(
                         children: [
-                          // 🎯 FIX 10: Use _FeedPostCard with the correct Item model
+                          // Use _FeedPostCard with the correct Item model
                           _FeedPostCard(
                             item: post,
                             timeAgo: _timeAgo(post.dateLost),
@@ -355,7 +466,6 @@ class _CommunityFeedState extends State<CommunityFeed> {
 }
 
 // --- Enhanced Feed Post Card Widget (Theme Adapted) ---
-// 🎯 FIX 11: Update _FeedPostCard to use the Item model
 class _FeedPostCard extends StatelessWidget {
   final Item item; // Use Item model
   final String timeAgo;
@@ -370,13 +480,6 @@ class _FeedPostCard extends StatelessWidget {
     required this.onCommentTapped,
     required this.onShareTapped,
   });
-
-  // Helper to extract the item name for description screen/details
-  String _itemNameFromPostText(String text) {
-    final regex = RegExp(r'\*\*(.*?)\*\*');
-    final match = regex.firstMatch(text);
-    return match?.group(1)?.trim() ?? 'Item';
-  }
 
   void _openItemDescription(BuildContext context) {
     // Pass the actual item name
@@ -518,7 +621,7 @@ class _FeedPostCard extends StatelessWidget {
               child: ClipRRect(
                 child: _getItemImage(
                   context,
-                ), // 🎯 FIX 12: Use Image network or placeholder
+                ), // Use Image network or placeholder
               ),
             ),
           ),
@@ -604,7 +707,8 @@ class _FeedPostCard extends StatelessWidget {
                           Icon(Icons.chat_bubble_outline, color: bodyTextColor),
                           const SizedBox(width: 4),
                           Text(
-                            '${item.comments}', // Use item comments
+                            // 🎯 FIX: Use the actual comment count
+                            '${item.commentsList.length}',
                             style: TextStyle(
                               fontSize: 16,
                               color: bodyTextColor,
@@ -634,10 +738,10 @@ class _FeedPostCard extends StatelessWidget {
 }
 
 // --- Widget for Comment Modal Content (Theme Adapted) ---
-// 🎯 FIX 13: Update _CommentSheetContent to use Item model
 class _CommentSheetContent extends StatelessWidget {
   final Item postData; // Use Item model
-  final List<String> currentComments;
+  // 🎯 CHANGE: Expecting List<SupabaseComment>
+  final List<SupabaseComment> currentComments;
   final Function(String) onCommentSubmitted;
 
   const _CommentSheetContent({
@@ -645,6 +749,22 @@ class _CommentSheetContent extends StatelessWidget {
     required this.currentComments,
     required this.onCommentSubmitted,
   });
+
+  // Helper to simulate time ago logic for comments
+  String _timeAgoComment(DateTime date) {
+    final difference = DateTime.now().difference(date);
+    if (difference.inDays > 7) {
+      return '${(difference.inDays / 7).floor()} weeks ago';
+    } else if (difference.inDays > 0) {
+      return '${difference.inDays} days ago';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours} hours ago';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes} mins ago';
+    } else {
+      return 'Just now';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -690,58 +810,88 @@ class _CommentSheetContent extends StatelessWidget {
 
           // Comment List (Scrollable)
           Expanded(
-            child: ListView.builder(
-              itemCount: currentComments.length,
-              itemBuilder: (context, index) {
-                final String commentText = currentComments[index];
-                final String userName = index.isEven
-                    ? 'Guest User'
-                    : 'Community Member';
+            child: currentComments.isEmpty
+                ? Center(
+                    child: Text(
+                      'Be the first to comment!',
+                      style: TextStyle(color: textColor.withOpacity(0.6)),
+                    ),
+                  )
+                : ListView.builder(
+                    itemCount: currentComments.length,
+                    itemBuilder: (context, index) {
+                      // 🎯 FIX: Use SupabaseComment model
+                      final SupabaseComment comment = currentComments[index];
+                      final String userName = comment.commenterName;
+                      final String initials = userName.isNotEmpty
+                          ? userName
+                                .split(' ')
+                                .map((e) => e.isNotEmpty ? e[0] : '')
+                                .join('')
+                          : 'U';
 
-                return Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      CircleAvatar(
-                        radius: 18,
-                        backgroundColor: theme.primaryColor.withOpacity(0.5),
-                        child: Text(
-                          userName[0],
-                          style: TextStyle(
-                            color: theme.colorScheme.onPrimary,
-                            fontSize: 14,
-                          ),
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
                         ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
+                        child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              userName,
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: textColor,
-                                fontSize: 13,
+                            CircleAvatar(
+                              radius: 18,
+                              backgroundColor: theme.primaryColor.withOpacity(
+                                0.5,
+                              ),
+                              child: Text(
+                                initials,
+                                style: TextStyle(
+                                  color: theme.colorScheme.onPrimary,
+                                  fontSize: 14,
+                                ),
                               ),
                             ),
-                            Text(
-                              commentText,
-                              style: TextStyle(fontSize: 14, color: textColor),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        userName,
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: textColor,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                      Text(
+                                        _timeAgoComment(comment.timestamp),
+                                        style: TextStyle(
+                                          color: textColor.withOpacity(0.6),
+                                          fontSize: 10,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  Text(
+                                    comment.text,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: textColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ],
                         ),
-                      ),
-                    ],
+                      );
+                    },
                   ),
-                );
-              },
-            ),
           ),
 
           // Comment Input Field (Bottom)
@@ -752,8 +902,7 @@ class _CommentSheetContent extends StatelessWidget {
             child: _CommentInputBar(
               onCommentSubmitted: (comment) {
                 onCommentSubmitted(comment);
-                // Important: Close the bottom sheet after submitting the comment.
-                // Navigator.pop(context);
+                // We keep the sheet open after submitting for a better flow
               },
             ),
           ),
