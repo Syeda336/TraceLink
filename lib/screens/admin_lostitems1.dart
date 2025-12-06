@@ -1971,7 +1971,7 @@ class _ReportCard extends StatelessWidget {
               TextSpan(
                 children: [
                   const TextSpan(
-                    text: 'Reported User: ',
+                    text: 'Complaint User: ',
                     style: TextStyle(
                       color: Colors.red,
                       fontWeight: FontWeight.w600,

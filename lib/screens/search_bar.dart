@@ -709,6 +709,14 @@ class _ItemCard extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     Text(
+                      'ID: ${id}', // Display the Item ID
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: darkTextColor,
+                      ),
+                    ),
+                    Text(
                       itemName,
                       style: TextStyle(
                         fontWeight: FontWeight.bold,

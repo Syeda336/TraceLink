@@ -477,6 +477,7 @@ class ItemCard extends StatelessWidget {
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+
                   children: [
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -509,6 +510,14 @@ class ItemCard extends StatelessWidget {
                         ),
                       ],
                     ),
+                    Text(
+                      'ID: $id', // Display the Item ID
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
                     const SizedBox(height: 4),
                     Text(
                       location,

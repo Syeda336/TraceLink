@@ -377,7 +377,7 @@ class _ReportProblemScreenState extends State<ReportProblem> {
 
                               // Username or ID Field
                               Text(
-                                'Reported User (Username or ID)',
+                                'Complaint User ID',
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   color: darkText, // Dynamic text color
@@ -395,7 +395,7 @@ class _ReportProblemScreenState extends State<ReportProblem> {
 
                               // Item Name or ID Field
                               Text(
-                                'Related Item (Name or ID)',
+                                'Related Item ID',
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   color: darkText, // Dynamic text color

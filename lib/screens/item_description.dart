@@ -417,6 +417,14 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
+                  'ID: ${item.id}', // Display the Item ID
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: primaryBlue,
+                  ),
+                ),
+                Text(
                   item.itemName, // 🎯 Display Item Name
                   style: const TextStyle(
                     fontSize: 22,

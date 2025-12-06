@@ -118,7 +118,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // 🌟 CORRECTED: Fetch data, combine, sort, and update state
-  // 🌟 CORRECTED: Fetch data, combine, sort, and update state
   Future<void> _fetchItemsFromSupabase() async {
     setState(() {
       _isLoading = true;
@@ -184,10 +183,6 @@ class _HomeScreenState extends State<HomeScreen> {
     Navigator.push(context, MaterialPageRoute(builder: (context) => screen));
   }
 
-  // NOTE: Bottom Navigation State and Logic (selectedIndex, _navItemColors,
-  // _onItemTapped, _getIconColor) were removed as they are no longer needed
-  // without the BottomNavigationBar.
-
   // 1. Builds the main gradient header area
   Widget _buildHeader(BuildContext context, bool isDarkMode) {
     // Dynamic Gradient Colors
@@ -239,7 +234,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
 
               // --- Notifications Button with Dynamic Red Dot ---
-              // --- START OF REPLACEMENT ---
               StreamBuilder<int>(
                 stream: NotificationsService.getUnreadCountStream(),
                 builder: (context, snapshot) {
@@ -290,7 +284,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
-          // --- END OF REPLACEMENT ---
           const SizedBox(height: 5),
           const Text(
             "Let's find what you're looking for",
@@ -379,7 +372,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // 3. Builds the Recent Post item card
-  // 3. Builds the Recent Post item card
   Widget _buildRecentPostCard({
     required BuildContext context,
     required bool isDarkMode,
@@ -417,6 +409,46 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // --- START MODIFICATION: Item ID Column ---
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'ID: ${item.id}', // Display the Item ID
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: primaryTextColor.withOpacity(0.8),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  // Status Tag (Moved here for the vertical stack)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: finalStatusColor.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: Text(
+                      item.status, // Use fetched status ('Lost' or 'Found')
+                      style: TextStyle(
+                        color: finalStatusColor,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 10, // Smaller font for the tag
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              // --- END MODIFICATION ---
+              const SizedBox(
+                width: 15,
+              ), // Separator between ID/Status and Image
+              // --- Image ---
               ClipRRect(
                 borderRadius: BorderRadius.circular(10),
                 child: Image.network(
@@ -443,6 +475,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               const SizedBox(width: 15),
+
+              // --- Item Details (Name, Location, Time) ---
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -465,25 +499,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       style: TextStyle(color: timeTextColor),
                     ),
                   ],
-                ),
-              ),
-              // Status Tag
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: finalStatusColor.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                child: Text(
-                  item.status, // Use fetched status ('Lost' or 'Found')
-                  style: TextStyle(
-                    color: finalStatusColor,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                  ),
                 ),
               ),
             ],
@@ -566,23 +581,23 @@ class _HomeScreenState extends State<HomeScreen> {
 
     // 2. Report Lost: Orange Solid Color (Dynamic based on theme for contrast)
     final Color reportLostColor = isDarkMode
-        ? const Color.fromARGB(255, 64, 173, 236) // Darker orange for dark mode
+        ? const Color.fromARGB(255, 64, 173, 236) // Darker blue for dark mode
         : const Color.fromARGB(
             255,
             132,
             199,
             238,
-          ); // Bright orange for light mode
+          ); // Bright blue for light mode
 
     // 3. Report Found: Green Solid Color (Dynamic based on theme for contrast)
     final Color reportFoundColor = isDarkMode
-        ? const Color.fromARGB(255, 64, 173, 236) // Darker green for dark mode
+        ? const Color.fromARGB(255, 64, 173, 236) // Darker blue for dark mode
         : const Color.fromARGB(
             255,
             132,
             199,
             238,
-          ); // Bright green for light mode
+          ); // Bright blue for light mode
 
     // 4. Report Problem: Grey Gradient
     final Color reportProblemColor1 = isDarkMode
@@ -596,10 +611,6 @@ class _HomeScreenState extends State<HomeScreen> {
               .shade900 // Deep grey/blue for dark mode
         : Colors.grey.shade700; // Dark grey for light mode
     // **MODIFIED COLORS END HERE**
-
-    // Fixed colors for status tags (can remain the original lost/found colors)
-    const Color lostStatusColor = Color(0xFF2980b9);
-    const Color foundStatusColor = Color(0xFF2ecc71);
 
     return Scaffold(
       // Use the theme's background color
@@ -673,7 +684,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
 
-                  // --- Report Lost / Report Found Row (Orange/Green Solid, White Text) ---
+                  // --- Report Lost / Report Found Row (Blue Solid, White Text) ---
                   Row(
                     children: [
                       _buildActionCard(
@@ -682,7 +693,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         iconColor: whiteTextColor,
                         title: 'Report Lost',
                         subtitle: 'Lost something?',
-                        backgroundColor: reportLostColor, // **ORANGE**
+                        backgroundColor: reportLostColor, // **BLUE**
                         destination: const ReportLostItemScreen(),
                       ),
                       const SizedBox(width: 15),
@@ -692,7 +703,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         iconColor: whiteTextColor,
                         title: 'Report Found',
                         subtitle: 'Found something?',
-                        backgroundColor: reportFoundColor, // **GREEN**
+                        backgroundColor: reportFoundColor, // **BLUE**
                         destination: const ReportFoundItemScreen(),
                       ),
                     ],
@@ -782,8 +793,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-
-      // 3. The Bottom Navigation Bar has been removed from this file.
     );
   }
 }

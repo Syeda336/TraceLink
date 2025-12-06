@@ -4,10 +4,11 @@ import '../supabase_lost_service.dart';
 import '../supabase_found_service.dart';
 
 // ------------------------------------
-// Item Class (No changes needed, but included for completeness)
+// Item Class (Modified to ensure ID is always a String)
 // ------------------------------------
 
 class Item {
+  final String id;
   // Column names from your Supabase table
   final String itemName; // Matches 'Item Name'
   final String category;
@@ -23,6 +24,7 @@ class Item {
   final String userId; // 🌟 NEW: To store the 'User ID' (Student ID)
 
   Item({
+    required this.id,
     required this.itemName,
     required this.category,
     required this.color,
@@ -52,7 +54,11 @@ class Item {
     // Determine the correct date key to use based on status
     final dateKey = data['status'] == 'Lost' ? 'Date Lost' : 'Date Found';
 
+    // 🎯 FIX: Explicitly convert the Supabase 'id' (which is likely int/numeric) to a String
+    final idString = data['id']?.toString() ?? 'unknown_id';
+
     return Item(
+      id: idString, // Store as String
       itemName: data['Item Name'] as String? ?? 'N/A',
       category: data['Category'] as String? ?? 'N/A',
       color: data['Color'] as String? ?? 'N/A',
@@ -74,64 +80,56 @@ class Item {
 }
 
 // ------------------------------------
-// ItemDetailScreen (Converted to StatefulWidget)
+// ItemDetailScreen
 // ------------------------------------
 
 class ItemDetailScreen extends StatefulWidget {
-  // 🎯 FIX 2: Added the itemName to the final fields
-  final String itemName;
+  // id is passed as a String (itemId from the warning screen)
+  final String id;
 
-  const ItemDetailScreen({super.key, required this.itemName});
+  const ItemDetailScreen({super.key, required this.id});
 
   @override
   State<ItemDetailScreen> createState() => _ItemDetailScreenState();
 }
 
 class _ItemDetailScreenState extends State<ItemDetailScreen> {
-  // 🎯 FIX 1: State variables are now inside the State class
   Item? _selectedItem;
   bool _isLoading = true;
   bool _hasError = false;
 
-  // 🎯 FIX 1: The initState method is now correctly placed
   @override
   void initState() {
     super.initState();
-    // 🌟 Start data fetching when the widget initializes
     _fetchItemsFromSupabase();
   }
 
-  // Function to navigate back to the warning screen using a replacement route
   void _closeAndNavigateBack(BuildContext context) {
-    // Use pushReplacement to replace the current screen in the stack.
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (context) => const WarningScreen()),
     );
   }
 
-  // Helper to format the date
   String _formatDate(DateTime date) {
     return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
   }
 
-  // 🌟 NEW/FIXED: Fetch data from Supabase and find the target item
+  // 🌟 MODIFIED: The Item.fromSupabase factory handles the int-to-String conversion now.
   Future<void> _fetchItemsFromSupabase() async {
-    // 🎯 FIX 1: setState is correctly called here
     setState(() {
       _isLoading = true;
       _hasError = false;
     });
 
     try {
-      // 1. Fetch data from both tables concurrently
       final lostItemsFuture = SupabaseLostService.fetchLostItems();
       final foundItemsFuture = SupabaseFoundService.fetchFoundItems();
 
       final List<Map<String, dynamic>> lostData = await lostItemsFuture;
       final List<Map<String, dynamic>> foundData = await foundItemsFuture;
 
-      // 🎯 Inject the status into the data maps
+      // Inject the status and prepare for Item creation
       final List<Map<String, dynamic>> lostItemsWithStatus = lostData.map((
         row,
       ) {
@@ -150,25 +148,24 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
         };
       }).toList();
 
-      // 2. Combine the lost and found data into one list
+      // Combine the lost and found data into one list
       final List<Map<String, dynamic>> combinedData = [
         ...lostItemsWithStatus,
         ...foundItemsWithStatus,
       ];
 
-      // 3. Convert the combined raw Supabase data into a List of Item objects
+      // Convert the combined raw Supabase data into a List of Item objects
+      // The Item.fromSupabase factory now ensures item.id is a String.
       final List<Item> items = combinedData
           .map((row) => Item.fromSupabase(row))
           .toList();
 
-      // 4. Find the item that matches the name passed to the screen
+      // Find the item by comparing the String ID passed via widget.id
       final Item? selectedItem = items.firstWhere(
-        // 🎯 FIX: Access the passed itemName via widget.itemName
-        (item) => item.itemName == widget.itemName,
-        orElse: () => throw Exception('Item not found: ${widget.itemName}'),
+        (item) => item.id == widget.id, // String comparison is now correct
+        orElse: () => throw Exception('Item not found: ${widget.id}'),
       );
 
-      // 🎯 FIX 1: setState is correctly called here to update the UI
       setState(() {
         _selectedItem = selectedItem;
         _isLoading = false;
@@ -185,7 +182,6 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Use the selected item for display logic
     final item = _selectedItem;
 
     return Scaffold(
@@ -258,7 +254,6 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                 style: TextStyle(fontSize: 16),
               ),
             )
-          // Display the item details once loaded
           : SingleChildScrollView(
               padding: const EdgeInsets.all(20.0),
               child: Column(

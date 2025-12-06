@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
-// Ensure 'supabase_reports_problems.dart' contains the SupabaseReportService
-import 'package:tracelink/supabase_reports_problems.dart';
-
-// Placeholder screen imports - ensure these files exist
-import 'notifications.dart'; // Assume this contains NotificationsScreen
-import 'user_contacting_admin.dart'; // Assume this contains ContactAdminDialog
+import '../supabase_reports_problems.dart';
 import 'warning_item.dart';
+import 'notifications.dart';
+import 'user_contacting_admin.dart';
 
-// --- Data Model (Report) ---
+// ---------------------------------------------
+// --- DATA MODEL (Report) ---
+// ---------------------------------------------
 class Report {
   final String title;
-  final String itemId;
+  final String itemId; // The ID/Name of the reported item (String)
 
   const Report({required this.title, required this.itemId});
 
@@ -18,17 +17,19 @@ class Report {
   factory Report.fromSupabase(Map<String, dynamic> data) {
     return Report(
       title: data['Title'] ?? 'No Title',
-      itemId: data['Item Name'] ?? 'N/A',
+      // Assuming 'Item Name' holds the item identifier string
+      itemId: data['Item Name'],
     );
   }
 
-  // Utility method to create a copy with a new status (kept for completeness)
   Report copyWith({String? status}) {
     return Report(title: title, itemId: itemId);
   }
 }
 
-// --- StatefulWidget for state management and async data fetching ---
+// ---------------------------------------------
+// --- WARNING SCREEN IMPLEMENTATION ---
+// ---------------------------------------------
 class WarningScreen extends StatefulWidget {
   const WarningScreen({super.key});
 
@@ -37,7 +38,6 @@ class WarningScreen extends StatefulWidget {
 }
 
 class _WarningScreenState extends State<WarningScreen> {
-  // State variables moved to the State class
   List<Report> _reports = [];
   bool _isLoading = true;
   bool _hasError = false;
@@ -45,22 +45,19 @@ class _WarningScreenState extends State<WarningScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchItems(); // Call the fetch method on initialization
+    _fetchItems();
   }
 
-  // Method to fetch data from Supabase (UPDATED to include Claims and Reports)
+  // Method to fetch data from Supabase
   Future<void> _fetchItems() async {
-    // Check if the State object is currently in the tree
     if (!mounted) return;
 
-    // Set loading state (assuming initial state is already set)
     setState(() {
       _isLoading = true;
       _hasError = false;
     });
 
     try {
-      // 4. Fetch Reports (NEW)
       final reportsData = await SupabaseReportService.fetchReports();
       final fetchedReports = reportsData
           .map((data) => Report.fromSupabase(data))
@@ -68,7 +65,7 @@ class _WarningScreenState extends State<WarningScreen> {
 
       if (mounted) {
         setState(() {
-          _reports = fetchedReports; // Update state
+          _reports = fetchedReports;
           _isLoading = false;
         });
       }
@@ -78,13 +75,11 @@ class _WarningScreenState extends State<WarningScreen> {
           _isLoading = false;
           _hasError = true;
         });
-        // Access context safely after checking `mounted`
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Failed to load data. Check console.')),
         );
       }
-      // In a real app, you'd log this error
-      debugPrint('Error fetching items/claims/reports from Supabase: $e');
+      debugPrint('Error fetching reports from Supabase: $e');
     }
   }
 
@@ -95,121 +90,21 @@ class _WarningScreenState extends State<WarningScreen> {
 
   // Function to navigate back or replace the current screen
   void _goBack(BuildContext context) {
-    // Use pushReplacement to replace the current screen in the navigation stack
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (context) => const NotificationsScreen()),
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    // Get screen size for responsive design
-    final double screenWidth = MediaQuery.of(context).size.width;
-
-    // Optional: Show loading/error state
-    Widget content;
-    if (_isLoading) {
-      content = const Center(child: CircularProgressIndicator());
-    } else if (_hasError) {
-      content = Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text('Error loading warnings.'),
-            ElevatedButton(
-              onPressed: _fetchItems,
-              child: const Text('Try Again'),
-            ),
-          ],
-        ),
-      );
-    } else if (_reports.isEmpty) {
-      content = const Center(child: Text('No active warnings from the admin.'));
-    } else {
-      // Main screen content (list of reports could be displayed here,
-      // but the current UI is static, focusing on a single warning)
-      // I'll wrap the existing UI to include the dynamic data fetch result check.
-      content = _buildWarningContent(screenWidth);
-    }
-
-    return Scaffold(
-      // The back button gesture detector is a good place to handle navigation
-      body: SingleChildScrollView(
-        child: Column(
-          children: <Widget>[
-            // --- Top Header Section ---
-            Container(
-              padding: const EdgeInsets.only(
-                top: 50,
-                bottom: 20,
-                left: 15,
-                right: 15,
-              ),
-              width: double.infinity,
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFFFF5252), Color(0xFFFF8A80)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
-              child: SafeArea(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    GestureDetector(
-                      onTap: () =>
-                          _goBack(context), // Back button to notifications.dart
-                      child: const Row(
-                        children: [
-                          Icon(Icons.arrow_back, color: Colors.white),
-                          SizedBox(width: 8),
-                          Icon(
-                            Icons.warning_amber_rounded,
-                            color: Colors.white,
-                          ),
-                          SizedBox(width: 4),
-                          Text(
-                            'Warning Notice',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    const Text(
-                      'Important message from admin',
-                      style: TextStyle(color: Colors.white70, fontSize: 16),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // Display the main content (loading/error or the warning UI)
-            _isLoading || _hasError
-                ? Padding(padding: const EdgeInsets.all(20.0), child: content)
-                : _buildWarningContent(screenWidth),
-          ],
-        ),
-      ),
-    );
-  }
-
   // Extracted main content into a separate method for clarity
   Widget _buildWarningContent(double screenWidth) {
-    // For this static screen, we'll assume the first report is the one being displayed
-    // In a real app, you might pass the Report object to this screen.
-    final displayedReportTitle = _reports.isNotEmpty
-        ? _reports.first.title
-        : 'Set of Keys';
+    // 💡 FIX: Safely check for empty list before accessing the first element
+    if (_reports.isEmpty) {
+      return const Center(child: Text('No reports to display.'));
+    }
 
-    final displayedItemId = _reports.isNotEmpty ? _reports.first.itemId : 'N/A';
+    // Display the details of the first report found
+    final Report report = _reports.first;
 
     return Padding(
       padding: const EdgeInsets.all(20.0),
@@ -284,7 +179,7 @@ class _WarningScreenState extends State<WarningScreen> {
                             text: 'Admin has issued a warning regarding ',
                           ),
                           TextSpan(
-                            text: displayedReportTitle,
+                            text: report.title,
                             style: const TextStyle(
                               color: Color(0xFFFF5252),
                               fontWeight: FontWeight.bold,
@@ -331,8 +226,9 @@ class _WarningScreenState extends State<WarningScreen> {
               child: InkWell(
                 onTap: () => _navigateTo(
                   context,
-                  ItemDetailScreen(itemName: displayedItemId),
-                ), // To item_detail.dart
+                  // 💡 FIX: Pass the item's unique identifier (String itemId)
+                  ItemDetailScreen(id: report.itemId),
+                ),
                 borderRadius: BorderRadius.circular(30),
                 child: const Center(
                   child: Row(
@@ -361,10 +257,7 @@ class _WarningScreenState extends State<WarningScreen> {
             width: screenWidth * 0.9,
             height: 60,
             child: ElevatedButton(
-              onPressed: () => _navigateTo(
-                context,
-                const ContactAdminDialog(),
-              ), // To contact_admin.dart
+              onPressed: () => _navigateTo(context, const ContactAdminDialog()),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF2196F3),
                 shape: RoundedRectangleBorder(
@@ -394,7 +287,7 @@ class _WarningScreenState extends State<WarningScreen> {
             width: screenWidth * 0.9,
             height: 60,
             child: ElevatedButton(
-              onPressed: () => _goBack(context), // Back to notifications.dart
+              onPressed: () => _goBack(context),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white,
                 elevation: 2,
@@ -431,6 +324,100 @@ class _WarningScreenState extends State<WarningScreen> {
           ),
           const SizedBox(height: 30),
         ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final double screenWidth = MediaQuery.of(context).size.width;
+
+    Widget content;
+    if (_isLoading) {
+      content = const Center(child: CircularProgressIndicator());
+    } else if (_hasError) {
+      content = Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text('Error loading warnings.'),
+            ElevatedButton(
+              onPressed: _fetchItems,
+              child: const Text('Try Again'),
+            ),
+          ],
+        ),
+      );
+    } else if (_reports.isEmpty) {
+      content = const Center(child: Text('No active warnings from the admin.'));
+    } else {
+      content = _buildWarningContent(screenWidth);
+    }
+
+    return Scaffold(
+      body: SingleChildScrollView(
+        child: Column(
+          children: <Widget>[
+            // --- Top Header Section ---
+            Container(
+              padding: const EdgeInsets.only(
+                top: 50,
+                bottom: 20,
+                left: 15,
+                right: 15,
+              ),
+              width: double.infinity,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFFFF5252), Color(0xFFFF8A80)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+              child: SafeArea(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    GestureDetector(
+                      onTap: () => _goBack(context),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.arrow_back, color: Colors.white),
+                          SizedBox(width: 8),
+                          Icon(
+                            Icons.warning_amber_rounded,
+                            color: Colors.white,
+                          ),
+                          SizedBox(width: 4),
+                          Text(
+                            'Warning Notice',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    const Text(
+                      'Important message from admin',
+                      style: TextStyle(color: Colors.white70, fontSize: 16),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Display the main content (loading/error or the warning UI)
+            // Use Padding only if content is not the main warning UI
+            // to center loading/error/empty messages.
+            _isLoading || _hasError || _reports.isEmpty
+                ? Padding(padding: const EdgeInsets.all(20.0), child: content)
+                : content,
+          ],
+        ),
       ),
     );
   }

@@ -499,7 +499,8 @@ class AdminWelcomeState extends State<AdminWelcome> {
         final user = _usersList[index];
 
         final String email = user['email'] ?? 'No Email';
-        final String name = user['displayName'] ?? 'User ID: ${user['uid']}';
+        final String name =
+            user['displayName'] ?? 'User ID: ${user['studentId']}';
         final bool isAdmin = user['isAdmin'] ?? false;
 
         return Card(

@@ -139,7 +139,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             borderRadius: BorderRadius.circular(10),
             boxShadow: [
               BoxShadow(
-                color: isDarkMode ? Colors.transparent : Colors.black.withOpacity(0.1),
+                color: isDarkMode
+                    ? Colors.transparent
+                    : Colors.black.withOpacity(0.1),
                 blurRadius: 5,
                 offset: const Offset(0, 3),
               ),
@@ -147,7 +149,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           ),
           child: Icon(
             Icons.arrow_back_ios_new,
-            color: isDarkMode ? const Color(0xFF007AFF) : const Color(0xFF007AFF),
+            color: isDarkMode
+                ? const Color(0xFF007AFF)
+                : const Color(0xFF007AFF),
             size: 20,
           ),
         ),
@@ -166,19 +170,25 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         StreamBuilder<QuerySnapshot>(
           stream: NotificationsService.getNotificationsStream(),
           builder: (context, snapshot) {
-            final hasUnread = snapshot.hasData && 
-                snapshot.data!.docs.any((doc) => 
-                  (doc.data() as Map<String, dynamic>)['isRead'] == false);
-            
+            final hasUnread =
+                snapshot.hasData &&
+                snapshot.data!.docs.any(
+                  (doc) =>
+                      (doc.data() as Map<String, dynamic>)['isRead'] == false,
+                );
+
             if (!hasUnread) {
               return const SizedBox();
             }
-            
+
             return TextButton(
               onPressed: _markAllAsRead,
               child: const Text(
                 'Mark all read',
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             );
           },
@@ -197,7 +207,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.error_outline, size: 64, color: Colors.grey.shade400),
+                Icon(
+                  Icons.error_outline,
+                  size: 64,
+                  color: Colors.grey.shade400,
+                ),
                 const SizedBox(height: 16),
                 Text(
                   'Error loading notifications',
@@ -215,9 +229,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         }
 
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: CircularProgressIndicator(),
-          );
+          return const Center(child: CircularProgressIndicator());
         }
 
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
@@ -268,10 +280,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   ) {
     final Color cardColor = Theme.of(context).cardColor;
     final Color titleColor = isDarkMode ? Colors.white : Colors.black87;
-    final Color messageColor = isDarkMode ? Colors.grey.shade400 : Colors.grey.shade700;
-    final Color timeColor = isDarkMode ? Colors.grey.shade600 : Colors.grey.shade500;
-    final Color borderColor = isDarkMode 
-        ? const Color(0xFF007AFF).withOpacity(0.5) 
+    final Color messageColor = isDarkMode
+        ? Colors.grey.shade400
+        : Colors.grey.shade700;
+    final Color timeColor = isDarkMode
+        ? Colors.grey.shade600
+        : Colors.grey.shade500;
+    final Color borderColor = isDarkMode
+        ? const Color(0xFF007AFF).withOpacity(0.5)
         : const Color(0xFF007AFF);
 
     return Dismissible(
@@ -306,7 +322,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             border: Border.all(color: borderColor, width: 1.0),
             boxShadow: [
               BoxShadow(
-                color: isDarkMode ? Colors.transparent : Colors.grey.withOpacity(0.1),
+                color: isDarkMode
+                    ? Colors.transparent
+                    : Colors.grey.withOpacity(0.1),
                 blurRadius: 5,
                 offset: const Offset(0, 3),
               ),
@@ -381,27 +399,27 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       case 'warning':
         Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (context) => const WarningScreen(),
-          ),
+          MaterialPageRoute(builder: (context) => const WarningScreen()),
         );
         break;
-      
+
       case 'message':
-        final senderName = item.data['senderName'] ?? 'User';
-        
-        final senderId = item.data['senderId'];     // Get the sender ID
+        final senderName = item.data['senderName'] ?? 'Admin';
+
+        final senderId = item.data['senderId']; // Get the sender ID
 
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => ChatScreen(
               chatPartnerName: senderName,
-              chatPartnerInitials: senderName.isNotEmpty ? senderName.substring(0, 1) : 'U',
-              isOnline: true, 
+              chatPartnerInitials: senderName.isNotEmpty
+                  ? senderName.substring(0, 1)
+                  : 'A',
+              isOnline: true,
               avatarColor: const Color(0xFF007AFF),
               receiverId: senderId,
-              // IMPORTANT: You likely need to add these parameters to your ChatScreen 
+              // IMPORTANT: You likely need to add these parameters to your ChatScreen
               // constructor in chat.dart to load the correct conversation:
               // chatRoomId: chatRoomId,
               // chatPartnerId: senderId,
@@ -409,14 +427,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           ),
         );
         break;
-      
+
       case 'emergency':
         Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => const EmergencyAlerts()),
         );
         break;
-      
+
       case 'item_update':
       case 'claim':
         Navigator.push(
@@ -424,7 +442,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           MaterialPageRoute(builder: (context) => const CommunityFeed()),
         );
         break;
-      
+
       default:
         // Show notification details in a dialog for unknown types
         showDialog(
