@@ -48,6 +48,8 @@ class Item {
     final reporterId = data['User ID'] ?? 'N/A';
     final reportedBy = '$reporterName (ID: $reporterId)';
 
+    final dateKey = data['status'] == 'Lost' ? 'Date Lost' : 'Date Found';
+
     return Item(
       title: data['Item Name'] ?? 'No Title',
       description: data['Description'] ?? 'No description provided.',
@@ -55,7 +57,7 @@ class Item {
       imageUrl: data['Image'] ?? '',
       status: data['status'] as String? ?? 'Unknown',
       category: data['Category'] ?? 'Uncategorized',
-      date: data['Date Lost/Date Found'] ?? 'Unknown Date',
+      date: data['Date Lost'] ?? data['Data Found'],
       location: data['Location'] ?? 'Unknown Location',
       contact: 'Admin Contact: 555-1234',
       uniqueId: data['id'] ?? 0,
@@ -154,7 +156,7 @@ class Report {
 
     return Report(
       title: data['Title'] ?? 'No Title',
-      reportedUser: data['Complaint_User_name'] ?? 'Unknown User',
+      reportedUser: data['Complaint_User_Name'],
       reportedUserId: data['Reported_User_ID'] ?? 'N/A',
       reportedBy: data['Reported_User_name'] ?? 'Unknown Reporter',
       date: data['created_at']?.toString().split('T').first ?? 'Unknown Date',
@@ -311,49 +313,49 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
   }
 
   // Helper method to get user ID from username/email in the report
+  // Helper method to get user ID from username/email in the report
   Future<String?> _getUserIdFromReport(Report report) async {
     try {
       debugPrint('🔍 Looking up user ID for: ${report.reportedUser}');
 
-      // Query users collection to find the user by their name or email
+      // 1. Try to find the user by their 'fullName'
       QuerySnapshot userQuery = await FirebaseFirestore.instance
           .collection('users')
           .where('fullName', isEqualTo: report.reportedUser)
           .limit(1)
           .get();
 
-      // If not found by fullName, try by email
+      // 2. If not found by fullName, try by 'email'
       if (userQuery.docs.isEmpty) {
         userQuery = await FirebaseFirestore.instance
             .collection('users')
             .where('email', isEqualTo: report.reportedUser)
             .limit(1)
             .get();
+      } else if (userQuery.docs.isEmpty) {
+        userQuery = await FirebaseFirestore.instance
+            .collection('users')
+            .where('studentId', isEqualTo: report.reportedUser)
+            .limit(1)
+            .get();
       }
 
       if (userQuery.docs.isNotEmpty) {
+        // ✅ Success: Return the Firestore Document ID
         final userId = userQuery.docs.first.id;
-        debugPrint(' Found user ID: $userId for ${report.reportedUser}');
+        debugPrint(
+          '✅ Found user ID (Document ID): $userId for ${report.reportedUser}',
+        );
         return userId;
       } else {
-        debugPrint(' User not found: ${report.reportedUser}');
-        // Fallback: Try to extract from reportedBy if reportedUser is not found
-        QuerySnapshot reporterQuery = await FirebaseFirestore.instance
-            .collection('users')
-            .where('fullName', isEqualTo: report.reportedBy)
-            .limit(1)
-            .get();
-
-        if (reporterQuery.docs.isNotEmpty) {
-          final userId = reporterQuery.docs.first.id;
-          debugPrint('✅ Using reporter ID as fallback: $userId');
-          return userId;
-        }
-
+        debugPrint(
+          '❌ User not found by fullName or email: ${report.reportedUser}',
+        );
+        // Return null if the user document is not found.
         return null;
       }
     } catch (e) {
-      debugPrint(' Error looking up user ID: $e');
+      debugPrint('🛑 Error looking up user ID: $e');
       return null;
     }
   }
@@ -1120,7 +1122,7 @@ class _HeaderSection extends StatelessWidget {
                 'Admin Dashboard 🛡️',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 24,
+                  fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -2057,24 +2059,6 @@ class _ReportCard extends StatelessWidget {
                     ),
 
                     const SizedBox(width: 8.0),
-
-                    // NEW BUTTON: Warn User
-                    _buildCardActionButton(
-                      context: context,
-                      icon: Icons.error_outline,
-                      label: 'Warn User',
-                      color: Colors.orange.shade700,
-                      onTap: () {
-                        // Display the warning confirmation overlay/dialog
-                        _navigateToScreen(
-                          context,
-                          AdminWarnUserMaskScreen(
-                            report: report,
-                            onWarnConfirmed: onWarnUser,
-                          ),
-                        );
-                      },
-                    ),
                   ],
                 ),
                 const SizedBox(height: 8.0), // Separator for the next row
@@ -3036,8 +3020,6 @@ class AdminViewReportDetail extends StatelessWidget {
                       ),
                     ],
                   ),
-
-                  
                 ],
               ),
             ),

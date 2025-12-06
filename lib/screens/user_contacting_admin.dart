@@ -193,7 +193,7 @@ class _ContactAdminDialogState extends State<ContactAdminDialog> {
             ),
             child: Text(
               // DYNAMIC TITLE
-              'Item: $itemTitle',
+              'Title: $itemTitle',
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
@@ -231,13 +231,13 @@ class _ContactAdminDialogState extends State<ContactAdminDialog> {
             children: <Widget>[
               // Cancel Button
               SizedBox(
-                width: 120,
+                width: 110,
                 height: 45,
                 child: OutlinedButton.icon(
                   onPressed: () => _handleAction(context),
                   icon: const Icon(
                     Icons.close,
-                    size: 20,
+                    size: 16,
                     color: Colors.black54,
                   ),
                   label: const Text(
@@ -256,7 +256,7 @@ class _ContactAdminDialogState extends State<ContactAdminDialog> {
 
               // Send Button (with Gradient)
               Container(
-                width: 120,
+                width: 110,
                 height: 45,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(15),
@@ -269,7 +269,7 @@ class _ContactAdminDialogState extends State<ContactAdminDialog> {
                 child: ElevatedButton.icon(
                   // Calls _sendEmailToAdmin
                   onPressed: () => _sendEmailToAdmin(),
-                  icon: const Icon(Icons.send, size: 20, color: Colors.white),
+                  icon: const Icon(Icons.send, size: 16, color: Colors.white),
                   label: const Text(
                     'Send',
                     style: TextStyle(color: Colors.white),

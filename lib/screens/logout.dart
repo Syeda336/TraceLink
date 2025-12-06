@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../theme_provider.dart';
 
-//for online/offline status 
-import 'package:firebase_auth/firebase_auth.dart'; 
-import '../firebase_service.dart';                
+//for online/offline status
+import 'package:firebase_auth/firebase_auth.dart';
+import '../firebase_service.dart';
 
 // Placeholders for navigation
 import 'profile_page.dart';
@@ -245,13 +245,6 @@ class LogoutConfirmationScreen extends StatelessWidget {
                         color: primaryColor, // Dynamic Primary Color Text
                       ),
                     ),
-                    Text(
-                      "You've helped return 8 items and earned a 4.9⭐ rating from the community!",
-                      style: TextStyle(
-                        color: primaryColor.withOpacity(isDarkMode ? 1.0 : 0.8),
-                        fontSize: 14,
-                      ),
-                    ),
                   ],
                 ),
               ),
@@ -325,11 +318,10 @@ class LogoutConfirmationScreen extends StatelessWidget {
           gradient: gradient, // Dynamic Gradient for button
         ),
         child: ElevatedButton.icon(
-          
           onPressed: () async {
             // 1. Mark user as OFFLINE
             await FirebaseService.updateUserStatus(false);
-            
+
             // 2. Actually Sign Out
             await FirebaseAuth.instance.signOut();
 

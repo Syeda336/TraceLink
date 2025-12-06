@@ -5,7 +5,7 @@ import 'package:tracelink/supabase_reports_problems.dart';
 // Placeholder screen imports - ensure these files exist
 import 'notifications.dart'; // Assume this contains NotificationsScreen
 import 'user_contacting_admin.dart'; // Assume this contains ContactAdminDialog
-import 'item_description.dart';
+import 'warning_item.dart';
 
 // --- Data Model (Report) ---
 class Report {
