@@ -12,6 +12,7 @@ class SupabaseProfileService {
           .from('Edited_Profiles') // Your Supabase table name
           .select('user_image') // The column containing the image URL
           .eq('user_id', studentId) // Filter by the user's ID
+          .limit(1)
           .single(); // Expect a single row
 
       if (response.isNotEmpty) {

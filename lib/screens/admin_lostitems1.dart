@@ -448,7 +448,7 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
       // Send contact notification
       await NotificationsService.sendMessageNotification(
         targetUserId: targetUserId,
-        senderName: 'Admin Contact',
+        senderName: 'Admin',
         messagePreview:
             'Administrator has contacted you regarding "${report.title}"',
         chatRoomId: 'message',

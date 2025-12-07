@@ -388,7 +388,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     );
   }
 
-  void _handleNotificationTap(BuildContext context, NotificationItem item) {
+  void _handleNotificationTap(
+    BuildContext context,
+    NotificationItem item,
+  ) async {
     // Mark as read when tapped
     if (!item.isRead) {
       NotificationsService.markAsRead(item.id);
@@ -402,33 +405,56 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           MaterialPageRoute(
             builder: (context) =>
                 WarningScreen(reportId: item.data['reportId']),
+            settings: RouteSettings(
+              arguments: item.data,
+            ), // This is the specific line you need
           ),
         );
         break;
 
       case 'message':
-        final senderName = item.data['senderName'] ?? 'Admin';
+        // 1. Get IDs
+        final senderId = item.data['senderId'];
+        String senderName = item.data['senderName'] ?? 'User';
 
-        final senderId = item.data['senderId']; // Get the sender ID
+        // 2. SHOW LOADING (Optional but good UX)
+        // Since we are fetching data, showing a tiny loading indicator or
+        // just waiting a split second is better than showing the wrong name.
 
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ChatScreen(
-              chatPartnerName: senderName,
-              chatPartnerInitials: senderName.isNotEmpty
-                  ? senderName.substring(0, 1)
-                  : 'A',
-              isOnline: true,
-              avatarColor: const Color(0xFF007AFF),
-              receiverId: senderId,
-              // IMPORTANT: You likely need to add these parameters to your ChatScreen
-              // constructor in chat.dart to load the correct conversation:
-              // chatRoomId: chatRoomId,
-              // chatPartnerId: senderId,
+        // 3. FETCH REAL NAME (The Fix)
+        if (senderId != null) {
+          try {
+            final userDoc = await FirebaseFirestore.instance
+                .collection('users')
+                .doc(senderId)
+                .get();
+            if (userDoc.exists) {
+              // Overwrite the notification name with the Real Database Name
+              senderName = userDoc['fullName'] ?? senderName;
+            }
+          } catch (e) {
+            print("Error fetching fresh user name: $e");
+          }
+        }
+
+        // 4. Navigate with the CORRECT name
+        if (context.mounted) {
+          // Check if still on screen
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ChatScreen(
+                chatPartnerName: senderName, // <--- Correct Name
+                chatPartnerInitials: senderName.isNotEmpty
+                    ? senderName.substring(0, 1)
+                    : 'U',
+                isOnline: true,
+                avatarColor: const Color(0xFF007AFF),
+                receiverId: senderId,
+              ),
             ),
-          ),
-        );
+          );
+        }
         break;
 
       case 'emergency':

@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../firebase_service.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../notifications_service.dart';
+import 'package:tracelink/supabase_profile_service.dart'; // Import is here
 
 // --- Define the Color Palette ---
 const Color primaryBlue = Color(0xFF42A5F5); // Bright Blue (Header, My Bubble)
@@ -30,13 +31,15 @@ class ChatScreen extends StatefulWidget {
   final String chatPartnerInitials;
   final bool isOnline;
   final Color avatarColor;
-  final String? receiverId; // Now critical for fetching real chats
+  final String?
+  receiverId; // Now critical for fetching real chats and pinning/deleting
 
   const ChatScreen({
     super.key,
     required this.chatPartnerName,
     required this.chatPartnerInitials,
-    this.isOnline = false,
+    //this.isOnline = false,
+    required this.isOnline,
     required this.avatarColor,
     required this.receiverId,
   });
@@ -46,6 +49,9 @@ class ChatScreen extends StatefulWidget {
 }
 
 class _ChatScreenState extends State<ChatScreen> {
+  // 1. **NEW/MODIFIED**: Use a specific name for the partner's image URL
+  String? _partnerProfileImageUrl;
+
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
@@ -58,12 +64,326 @@ class _ChatScreenState extends State<ChatScreen> {
   // Firebase variables
   Stream<QuerySnapshot>? _messagesStream;
   bool _isLoading = true;
+  bool isPinned = false; // To track state
 
   @override
   void initState() {
     super.initState();
+    _fetchPartnerProfileImage(); // **NEW**: Fetch image on init
     _initializeChat();
     _initSpeech();
+    // Check if chat is pinned
+    _checkIfPinned();
+  }
+
+  // **NEW**: Function to fetch the image URL from Supabase/Firebase
+  Future<void> _fetchPartnerProfileImage() async {
+    if (widget.receiverId == null) return;
+    try {
+      // Assuming a function exists in SupabaseProfileService to get the URL
+      // This function needs to query the 'Edited_Profile' table for the 'user_image' column.
+      final url = await SupabaseProfileService.getProfileImage(
+        widget.receiverId!,
+      );
+
+      if (mounted) {
+        setState(() {
+          _partnerProfileImageUrl = url;
+        });
+      }
+    } catch (e) {
+      print("Error fetching partner profile image: $e");
+    }
+  }
+
+  // --- NEW: Helper Function 1 (Check Pin Status) ---
+  void _checkIfPinned() {
+    if (widget.receiverId == null) return;
+    String myId = FirebaseAuth.instance.currentUser!.uid;
+
+    // Listen to my user profile to see if this chat is in 'pinnedChats'
+    FirebaseFirestore.instance.collection('users').doc(myId).snapshots().listen(
+      (snapshot) {
+        if (snapshot.exists && mounted) {
+          List<dynamic> pinned = snapshot.data()?['pinnedChats'] ?? [];
+          setState(() {
+            isPinned = pinned.contains(widget.receiverId);
+          });
+        }
+      },
+    );
+  }
+
+  // --- HELPER FUNCTIONS START ---
+
+  // 1. Logic for Pinning and Deleting
+  // --- NEW: Helper Function 2 (Handle Menu Clicks) ---
+  void _handleMenuOption(String value) async {
+    if (widget.receiverId == null) return;
+
+    if (value == 'Pin') {
+      // 1. Determine the message BEFORE we toggle (fix the logic error)
+      String messageText = isPinned ? "Chat Unpinned" : "Chat Pinned";
+      // Toggle the pin in Firestore
+      await FirebaseService.toggleChatPin(widget.receiverId!);
+
+      // Feedback to user
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(messageText)));
+      }
+    } else if (value == 'Clear') {
+      // Use the new Professional Dialog
+      _showProfessionalDialog(
+        title: "Delete Chat?",
+        content:
+            "This will clear the conversation history for you. This action cannot be undone.",
+        icon: Icons.delete_forever_rounded,
+        iconColor: Colors.red,
+        confirmText: "Delete",
+        confirmColor: Colors.red,
+        onConfirm: () async {
+          // Perform the soft delete
+          await FirebaseService.clearChat(widget.receiverId!);
+          if (mounted) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text("Chat cleared")));
+          }
+        },
+      );
+    }
+  }
+
+  // 2. Logic to View Profile
+  void _showProfileDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // **MODIFIED**: Use the fetched image URL in the Profile Dialog
+            CircleAvatar(
+              radius: 40,
+              backgroundColor: widget.avatarColor,
+              backgroundImage: _partnerProfileImageUrl != null
+                  ? NetworkImage(_partnerProfileImageUrl!)
+                  : null,
+              child: _partnerProfileImageUrl == null
+                  ? Text(
+                      widget.chatPartnerInitials,
+                      style: const TextStyle(fontSize: 30, color: Colors.white),
+                    )
+                  : null,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              widget.chatPartnerName,
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
+
+            // --- NEW: Fetch 'studentId' from database ---
+            FutureBuilder<Map<String, dynamic>?>(
+              // Fetch user details using the internal ID
+              future: FirebaseService.getUserDataById(widget.receiverId ?? ''),
+              builder: (context, snapshot) {
+                // 1. Loading State
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Padding(
+                    padding: EdgeInsets.only(top: 10),
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  );
+                }
+
+                // 2. Get the Student ID
+                final data = snapshot.data;
+                final studentId = data?['studentId'] ?? '@*d*m!n';
+
+                // 3. Display it
+                return Container(
+                  margin: const EdgeInsets.only(top: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: SelectableText(
+                    "ID: $studentId", // <--- Shows the actual Student ID
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.blueGrey,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                );
+              },
+            ),
+
+            // ---------------------------------------------
+            const SizedBox(height: 10),
+            Text(
+              widget.isOnline ? "Online" : "Offline",
+              style: const TextStyle(color: Colors.grey, fontSize: 14),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("Close"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- HELPER FUNCTIONS END ---
+
+  //UPDATED UI
+  // --- PROFESSIONAL DIALOG DEFINITION ---
+  void _showProfessionalDialog({
+    required String title,
+    required String content,
+    required IconData icon,
+    required Color iconColor,
+    required String confirmText,
+    required Color confirmColor,
+    required VoidCallback onConfirm,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final contentColor = isDark ? Colors.grey[300] : Colors.grey[700];
+
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        // 1. CRITICAL: Remove default white rect and shadow
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        insetPadding: const EdgeInsets.all(20), // Make it responsive
+
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(24), // Highly rounded corners
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.25),
+                blurRadius: 20,
+                offset: const Offset(0, 10), // Deep drop shadow
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min, // Wrap content tightly
+            children: [
+              // --- ICON BUBBLE ---
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: iconColor.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, size: 36, color: iconColor),
+              ),
+              const SizedBox(height: 24),
+
+              // --- TITLE ---
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: textColor,
+                  fontFamily: 'Roboto', // Or your app font
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // --- CONTENT ---
+              Text(
+                content,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: contentColor,
+                  fontSize: 15,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 32),
+
+              // --- BUTTONS ---
+              Row(
+                children: [
+                  // Cancel Button
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      child: Text(
+                        "Cancel",
+                        style: TextStyle(
+                          color: contentColor,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+
+                  // Confirm Button
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        onConfirm();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: confirmColor,
+                        foregroundColor: Colors.white,
+                        elevation: 0, // Flat modern look
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      child: Text(
+                        confirmText,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   void _initSpeech() async {
@@ -183,6 +503,7 @@ class _ChatScreenState extends State<ChatScreen> {
         message: messageText,
         receiverName: widget.chatPartnerName,
         receiverInitials: widget.chatPartnerInitials,
+        isInitialMessage: false, // <--- ADD THIS LINE to prevent name swapping
       );
 
       if (success) {
@@ -190,25 +511,37 @@ class _ChatScreenState extends State<ChatScreen> {
         _lastWords = ''; // Clear speech buffer
         _scrollToBottom();
 
-        // 2. TRIGGER NOTIFICATION (NEW CODE)
+        // 2. TRIGGER NOTIFICATION (FIXED)
         try {
           final currentUser = FirebaseAuth.instance.currentUser;
           if (currentUser != null) {
-            // Construct chatRoomId exactly like the chat service does (sorted IDs)
             List<String> ids = [currentUser.uid, widget.receiverId!];
             ids.sort();
             String chatRoomId = ids.join("_");
 
-            // Use the email username if display name is empty
-            String senderName =
-                currentUser.displayName ?? currentUser.email!.split('@')[0];
+            // --- NEW: Fetch YOUR real name from Firestore ---
+            // This ensures we send "John Doe" instead of "User 2"
+            String senderName = 'Someone';
+            try {
+              DocumentSnapshot userDoc = await FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(currentUser.uid)
+                  .get();
+
+              if (userDoc.exists) {
+                senderName = userDoc['fullName'] ?? senderName;
+              }
+            } catch (e) {
+              print("Could not fetch name for notification: $e");
+            }
+            // -----------------------------------------------
 
             await NotificationsService.sendMessageNotification(
-              targetUserId: widget.receiverId!, // Send to the other person
-              senderId: currentUser.uid, // Your ID (so they know who sent it)
-              senderName: senderName, // Your Name
-              messagePreview: messageText, // The message text
-              chatRoomId: chatRoomId, // The specific chat room
+              targetUserId: widget.receiverId!,
+              senderId: currentUser.uid,
+              senderName: senderName, // <--- Now contains the correct name
+              messagePreview: messageText,
+              chatRoomId: chatRoomId,
             );
           }
         } catch (e) {
@@ -251,6 +584,27 @@ class _ChatScreenState extends State<ChatScreen> {
     };
   }
 
+  // **NEW**: Function to build the CircleAvatar for the chat partner
+  Widget _buildPartnerAvatar() {
+    return CircleAvatar(
+      radius: 20,
+      backgroundColor: widget.avatarColor.withOpacity(0.8),
+      backgroundImage: _partnerProfileImageUrl != null
+          ? NetworkImage(_partnerProfileImageUrl!)
+          : null,
+      child: _partnerProfileImageUrl == null
+          ? Text(
+              widget.chatPartnerInitials,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            )
+          : null,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
@@ -263,47 +617,124 @@ class _ChatScreenState extends State<ChatScreen> {
         elevation: 1,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () {
-            Navigator.pop(context);
-          },
+          onPressed: () => Navigator.pop(context),
         ),
-        title: Row(
-          children: [
-            CircleAvatar(
-              radius: 20,
-              backgroundColor: widget.avatarColor.withOpacity(0.8),
-              child: Text(
-                widget.chatPartnerInitials,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                ),
+        titleSpacing: 0, // Reduces gap between arrow and avatar
+        // --- NEW: Wrapped in InkWell to make it CLICKABLE ---
+        title: InkWell(
+          onTap: _showProfileDialog, // <--- Calls the profile function
+          child: Row(
+            children: [
+              // **MODIFIED**: Use the new avatar builder function
+              _buildPartnerAvatar(),
+              const SizedBox(width: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.chatPartnerName,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  Text(
+                    widget.isOnline ? 'Online' : 'Offline',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.8),
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(width: 10),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  widget.chatPartnerName,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-                Text(
-                  widget.isOnline ? 'Online' : 'Offline',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.8),
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ],
+            ],
+          ),
         ),
+
+        // --- NEW: Replaced IconButton with PopupMenuButton ---
+        actions: [
+          Container(
+            margin: const EdgeInsets.only(right: 8),
+            child: PopupMenuButton<String>(
+              // 1. Round the menu corners and add shadow
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              offset: const Offset(0, 50), // Move it slightly down
+              icon: const Icon(Icons.more_vert, color: Colors.white),
+
+              onSelected: _handleMenuOption,
+              itemBuilder: (BuildContext context) {
+                return [
+                  // --- PIN OPTION ---
+                  PopupMenuItem(
+                    value: 'Pin',
+                    child: Row(
+                      children: [
+                        // Dynamic Icon (Pinned vs Unpinned)
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            isPinned ? Icons.push_pin_outlined : Icons.push_pin,
+                            color: Colors.blue,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          isPinned ? "Unpin Chat" : "Pin Chat",
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // --- DIVIDER ---
+                  const PopupMenuDivider(height: 1),
+
+                  // --- DELETE OPTION ---
+                  PopupMenuItem(
+                    value: 'Clear',
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.delete_forever_rounded,
+                            color: Colors.red,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        const Text(
+                          "Delete Chat",
+                          style: TextStyle(
+                            color: Colors.red,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ];
+              },
+            ),
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -321,33 +752,54 @@ class _ChatScreenState extends State<ChatScreen> {
                         return const Center(child: CircularProgressIndicator());
                       }
 
-                      if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                      // 1. FILTERING HAPPENS HERE
+                      // Get all docs, but throw away the ones marked as deleted for me
+                      final currentUserId =
+                          FirebaseAuth.instance.currentUser?.uid;
+
+                      final messages = snapshot.data!.docs.where((doc) {
+                        final data = doc.data() as Map<String, dynamic>;
+                        final deletedIds = List<String>.from(
+                          data['deletedIds'] ?? [],
+                        );
+                        // Keep message ONLY if my ID is NOT in the deleted list
+                        return !deletedIds.contains(currentUserId);
+                      }).toList();
+
+                      // 2. CHECK IF EMPTY AFTER FILTERING
+                      if (messages.isEmpty) {
                         return Center(
                           child: Text(
-                            "Say Hello!",
+                            "No messages",
                             style: TextStyle(
-                              color: isDarkMode ? darkHintColor : Colors.grey,
+                              color:
+                                  Theme.of(context).brightness ==
+                                      Brightness.dark
+                                  ? const Color(0xFFB0B0B0)
+                                  : Colors.grey,
                             ),
                           ),
                         );
                       }
 
-                      final messages = snapshot.data!.docs;
                       return ListView.builder(
                         controller: _scrollController,
                         padding: const EdgeInsets.all(16.0),
-                        itemCount: messages.length,
+                        itemCount: messages.length, // Now this count is correct
                         itemBuilder: (context, index) {
                           final message = _firebaseDocToMessage(
-                            messages[index],
-                            FirebaseAuth.instance.currentUser?.uid ?? '',
+                            messages[index], // Use the filtered list
+                            currentUserId ?? '',
                           );
+
                           return _MessageBubble(
                             message: message['text'],
                             isMe: message['isMe'],
                             time: message['time'],
                             chatPartnerInitials: widget.chatPartnerInitials,
                             chatPartnerAvatarColor: widget.avatarColor,
+                            // **NEW**: Pass the image URL to the bubble
+                            chatPartnerImageUrl: _partnerProfileImageUrl,
                           );
                         },
                       );
@@ -484,6 +936,7 @@ class _MessageBubble extends StatelessWidget {
   final String time;
   final String? chatPartnerInitials;
   final Color? chatPartnerAvatarColor;
+  final String? chatPartnerImageUrl; // **NEW**: Image URL
 
   const _MessageBubble({
     required this.message,
@@ -491,6 +944,7 @@ class _MessageBubble extends StatelessWidget {
     required this.time,
     this.chatPartnerInitials,
     this.chatPartnerAvatarColor,
+    this.chatPartnerImageUrl, // **NEW**: Include in constructor
   });
 
   @override
@@ -525,13 +979,22 @@ class _MessageBubble extends StatelessWidget {
               if (!isMe &&
                   chatPartnerInitials != null &&
                   chatPartnerAvatarColor != null)
+                // **MODIFIED**: Use the image URL if available
                 CircleAvatar(
                   radius: 16,
                   backgroundColor: chatPartnerAvatarColor!.withOpacity(0.8),
-                  child: Text(
-                    chatPartnerInitials!,
-                    style: const TextStyle(color: Colors.white, fontSize: 12),
-                  ),
+                  backgroundImage: chatPartnerImageUrl != null
+                      ? NetworkImage(chatPartnerImageUrl!)
+                      : null,
+                  child: chatPartnerImageUrl == null
+                      ? Text(
+                          chatPartnerInitials!,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                          ),
+                        )
+                      : null, // No text if image is present
                 ),
               if (!isMe) const SizedBox(width: 8),
               Flexible(

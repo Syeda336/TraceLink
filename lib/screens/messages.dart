@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+
+// Assuming these services are correctly implemented elsewhere:
 import 'package:tracelink/theme_provider.dart';
 import '../firebase_service.dart';
+import 'package:tracelink/supabase_profile_service.dart';
 
-// Import the screens
+// Import the screens (Adjust these if your project structure is different)
 import 'bottom_navigation.dart';
 import 'chat.dart';
 
@@ -33,6 +36,30 @@ class _MessagesListScreenState extends State<MessagesListScreen> {
   List<Map<String, dynamic>> _searchResults = [];
   bool _isSearching = false;
 
+  // Cache for profile image URLs to prevent redundant Supabase calls
+  // Key: studentId, Value: Image URL string or null/empty string if not found/loading
+  final Map<String, String?> _profileImageUrlCache = {};
+
+  // --- Image Loading Fix: Load image and call setState to force UI refresh ---
+  Future<void> _loadProfileImageForUser(String studentId) async {
+    // Check if we already have the ID or if it's currently loading (null placeholder)
+    if (studentId.isNotEmpty && !_profileImageUrlCache.containsKey(studentId)) {
+      // Set a temporary placeholder to prevent multiple simultaneous calls
+      _profileImageUrlCache[studentId] = null;
+
+      final imageUrl = await SupabaseProfileService.getProfileImage(studentId);
+
+      if (mounted) {
+        // CRITICAL FIX: Update the cache and explicitly call setState to refresh the ListView
+        setState(() {
+          // If the fetch failed or returned null/empty, store an empty string to mark as 'checked'
+          _profileImageUrlCache[studentId] = imageUrl ?? '';
+        });
+      }
+    }
+  }
+  // --- END Image Loading Fix ---
+
   // Function to search users
   void _onSearchChanged(String value) async {
     if (value.trim().isEmpty) {
@@ -55,6 +82,15 @@ class _MessagesListScreenState extends State<MessagesListScreen> {
       results.removeWhere((user) => user['uid'] == currentUserId);
     }
 
+    // Pre-fetch image URLs for search results to prevent flicker
+    for (var user in results) {
+      final studentId = user['studentId'] as String? ?? '';
+      // Use the new reliable loader
+      if (studentId.isNotEmpty) {
+        _loadProfileImageForUser(studentId);
+      }
+    }
+
     if (mounted) {
       setState(() {
         _searchResults = results;
@@ -62,13 +98,24 @@ class _MessagesListScreenState extends State<MessagesListScreen> {
     }
   }
 
-  String _getInitials(String name) {
-    if (name.isEmpty) return "U";
-    List<String> names = name.split(' ');
+  // Helper function to get initials from name
+  static String _getInitials(String name) {
+    String cleanedName = name.trim();
+
+    if (cleanedName.isEmpty) return "U";
+
+    List<String> names = cleanedName
+        .split(' ')
+        .where((part) => part.isNotEmpty)
+        .toList();
+
     if (names.length >= 2) {
       return '${names[0][0]}${names[1][0]}'.toUpperCase();
+    } else if (names.isNotEmpty) {
+      return names[0].substring(0, 1).toUpperCase();
     }
-    return name.substring(0, 1).toUpperCase();
+
+    return 'UU';
   }
 
   void _openChat(Map<String, dynamic> userData) {
@@ -80,7 +127,7 @@ class _MessagesListScreenState extends State<MessagesListScreen> {
           chatPartnerInitials: _getInitials(userData['fullName'] ?? 'U'),
           isOnline: false,
           avatarColor: Colors.blueAccent,
-          receiverId: userData['uid'],
+          receiverId: userData['uid'], // Pass the UID to start chat
         ),
       ),
     );
@@ -90,9 +137,40 @@ class _MessagesListScreenState extends State<MessagesListScreen> {
     });
   }
 
+  // --- Helper Widget for Avatar (Synchronous Check) ---
+  Widget _buildAvatar(
+    String studentId,
+    String initials,
+    Color fallbackColor,
+    double radius,
+  ) {
+    // 1. Get the image URL from the cache
+    final imageUrl = _profileImageUrlCache[studentId];
+
+    // 2. If the URL is null, it means it's currently loading. Show initials/placeholder.
+    // 3. If the URL is an empty string (''), it means the check failed or no image exists. Show initials.
+    // 4. If we have a cached URL and it's not empty, use NetworkImage immediately.
+    if (imageUrl != null && imageUrl.isNotEmpty) {
+      return CircleAvatar(
+        radius: radius,
+        backgroundImage: NetworkImage(imageUrl),
+        backgroundColor: fallbackColor,
+      );
+    }
+
+    // Otherwise (loading, failed, or missing image), display initials
+    return CircleAvatar(
+      radius: radius,
+      backgroundColor: fallbackColor,
+      child: Text(initials, style: const TextStyle(color: Colors.white)),
+    );
+  }
+  // --- END Helper Widget for Avatar ---
+
   @override
   Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
+    // Placeholder usage of Provider/Theme
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
     final isDarkMode = themeProvider.isDarkMode;
 
     final appbarColor = isDarkMode ? darkSurfaceColor : primaryBlue;
@@ -182,6 +260,8 @@ class _MessagesListScreenState extends State<MessagesListScreen> {
       );
     }
 
+    final fallbackColor = isDarkMode ? darkPrimaryColor : primaryBlue;
+
     return ListView.builder(
       itemCount: _searchResults.length,
       itemBuilder: (context, index) {
@@ -192,10 +272,7 @@ class _MessagesListScreenState extends State<MessagesListScreen> {
         final studentId = user['studentId'] ?? '';
 
         return ListTile(
-          leading: CircleAvatar(
-            backgroundColor: isDarkMode ? darkPrimaryColor : primaryBlue,
-            child: Text(initials, style: const TextStyle(color: Colors.white)),
-          ),
+          leading: _buildAvatar(studentId, initials, fallbackColor, 24),
           title: Text(
             name,
             style: TextStyle(
@@ -204,7 +281,7 @@ class _MessagesListScreenState extends State<MessagesListScreen> {
             ),
           ),
           subtitle: Text(
-            "$department • $studentId", // Display extra info to distinguish users
+            "$department • $studentId",
             style: TextStyle(
               color: isDarkMode ? darkHintColor : Colors.grey[600],
             ),
@@ -215,113 +292,311 @@ class _MessagesListScreenState extends State<MessagesListScreen> {
     );
   }
 
-  // Widget to display existing conversations (Same as previous code)
+  // Widget to display existing conversations
   Widget _buildConversationsList(bool isDarkMode) {
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
     final inputTextColor = isDarkMode ? darkTextColor : darkBlue;
     final hintColor = isDarkMode ? darkHintColor : Colors.grey;
+    final fallbackColor = primaryBlue;
 
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseService.getConversations(),
-      //********Testinggg*********** */
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          //return Center(child: Text("Error loading chats", style: TextStyle(color: inputTextColor)));
-          // MODIFIED: Print the actual error so you can see the link
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: SelectableText(
-                // Use SelectableText so you can copy the link
-                "Error: ${snapshot.error}",
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.red),
-              ),
-            ),
-          );
+    if (currentUserId == null) {
+      return Center(
+        child: Text(
+          "User not logged in.",
+          style: TextStyle(color: inputTextColor),
+        ),
+      );
+    }
+
+    // 1. OUTER STREAM: Listen to Current User to get PINNED chats and Student IDs
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUserId)
+          .snapshots(),
+      builder: (context, userSnapshot) {
+        List<dynamic> pinnedIds = [];
+        Map<String, dynamic> studentIdsMap = {};
+
+        if (userSnapshot.hasData && userSnapshot.data!.exists) {
+          final userData = userSnapshot.data!.data() as Map<String, dynamic>?;
+          pinnedIds = userData?['pinnedChats'] ?? [];
+          if (userData?['participantStudentIds'] is Map) {
+            studentIdsMap =
+                userData!['participantStudentIds'] as Map<String, dynamic>;
+          }
         }
 
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.chat_bubble_outline, size: 50, color: hintColor),
-                const SizedBox(height: 10),
-                Text(
-                  "No messages yet.\nSearch above to start chatting!",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: inputTextColor),
+        // 2. INNER STREAM: Your existing chat conversation stream
+        return StreamBuilder<QuerySnapshot>(
+          stream: FirebaseService.getConversations(),
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return Center(
+                child: Text(
+                  "Error: ${snapshot.error}",
+                  style: const TextStyle(color: Colors.red),
                 ),
-              ],
-            ),
-          );
-        }
+              );
+            }
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.chat_bubble_outline, size: 50, color: hintColor),
+                    const SizedBox(height: 10),
+                    Text(
+                      "No messages yet.",
+                      style: TextStyle(color: inputTextColor),
+                    ),
+                  ],
+                ),
+              );
+            }
 
-        final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+            // 3. PROCESS DATA
+            final visibleDocs = snapshot.data!.docs.where((doc) {
+              final data = doc.data() as Map<String, dynamic>;
+              final hiddenFor = List<String>.from(data['hiddenFor'] ?? []);
+              return !hiddenFor.contains(currentUserId);
+            }).toList();
 
-        return ListView.separated(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          itemCount: snapshot.data!.docs.length,
-          separatorBuilder: (ctx, i) => Divider(
-            height: 1,
-            color: isDarkMode ? darkSurfaceColor : lightBlueBackground,
-          ),
-          itemBuilder: (context, index) {
-            final doc = snapshot.data!.docs[index];
-            final data = doc.data() as Map<String, dynamic>;
+            var processedDocs = visibleDocs.map((doc) {
+              final data = doc.data() as Map<String, dynamic>;
+              final names =
+                  data['participantNames'] as Map<String, dynamic>? ?? {};
+              final initialsMap =
+                  data['participantInitials'] as Map<String, dynamic>? ?? {};
 
-            // Determine the "Other" user
-            final Map<String, dynamic> names = data['participantNames'] ?? {};
-            final Map<String, dynamic> initials =
-                data['participantInitials'] ?? {};
+              String otherId = '';
+              String otherName = 'Unknown';
+              names.forEach((key, value) {
+                if (key != currentUserId) {
+                  otherId = key;
+                  otherName = value;
+                }
+              });
 
-            String otherUserId = '';
-            String otherUserName = 'Unknown';
-            String otherUserInitials = 'U';
+              String otherInitials = initialsMap[otherId] ?? 'U';
 
-            names.forEach((key, value) {
-              if (key != currentUserId) {
-                otherUserId = key;
-                otherUserName = value;
+              String timeAgo = '';
+              if (data['lastMessageTimestamp'] != null) {
+                Timestamp t = data['lastMessageTimestamp'];
+                DateTime dt = t.toDate();
+                Duration diff = DateTime.now().difference(dt);
+                if (diff.inDays > 0)
+                  timeAgo = '${diff.inDays}d';
+                else if (diff.inHours > 0)
+                  timeAgo = '${diff.inHours}h';
+                else
+                  timeAgo = '${diff.inMinutes}m';
               }
+
+              String otherStudentId = studentIdsMap[otherId] ?? '';
+
+              // FIX: Trigger image loading if we have the student ID and haven't cached the URL yet.
+              // This function handles the async fetch and calls setState to update the list.
+              if (otherStudentId.isNotEmpty &&
+                  !_profileImageUrlCache.containsKey(otherStudentId)) {
+                _loadProfileImageForUser(otherStudentId);
+              }
+
+              return {
+                'doc': doc,
+                'data': data,
+                'otherId': otherId,
+                'otherName': otherName,
+                'otherInitials': otherInitials,
+                'timeAgo': timeAgo,
+                'isPinned': pinnedIds.contains(otherId),
+                'otherStudentId': otherStudentId,
+              };
+            }).toList();
+
+            // 4. SORT: Pinned items first
+            processedDocs.sort((a, b) {
+              bool aPinned = a['isPinned'] as bool;
+              bool bPinned = b['isPinned'] as bool;
+              if (aPinned && !bPinned) return -1;
+              if (!aPinned && bPinned) return 1;
+              return 0;
             });
 
-            if (initials.containsKey(otherUserId)) {
-              otherUserInitials = initials[otherUserId];
-            }
+            // 5. BUILD THE LIST
+            return ListView.separated(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              itemCount: processedDocs.length,
+              separatorBuilder: (ctx, i) => Divider(
+                height: 1,
+                color: isDarkMode ? darkSurfaceColor : lightBlueBackground,
+              ),
+              itemBuilder: (context, index) {
+                final item = processedDocs[index];
+                final otherId = item['otherId'] as String;
+                final otherName = item['otherName'] as String;
+                final otherInitials = item['otherInitials'] as String;
+                final timeAgo = item['timeAgo'] as String;
+                final isPinned = item['isPinned'] as bool;
+                final lastMessage = (item['data'] as Map)['lastMessage'] ?? '';
+                final docId = (item['doc'] as DocumentSnapshot).id;
+                final otherStudentId = item['otherStudentId'] as String;
 
-            // Format Time
-            String timeAgo = '';
-            if (data['lastMessageTimestamp'] != null) {
-              final ts = data['lastMessageTimestamp'] as Timestamp;
-              final dt = ts.toDate();
-              final now = DateTime.now();
-              final diff = now.difference(dt);
+                // We stream unread count individually like before
+                return StreamBuilder<int>(
+                  stream: FirebaseService.getUnreadCountStream(docId),
+                  builder: (context, unreadSnapshot) {
+                    int unread = unreadSnapshot.data ?? 0;
 
-              if (diff.inDays > 0) {
-                timeAgo = '${diff.inDays}d ago';
-              } else if (diff.inHours > 0) {
-                timeAgo = '${diff.inHours}h ago';
-              } else {
-                timeAgo = '${diff.inMinutes}m ago';
-              }
-            }
+                    return ListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        vertical: 8,
+                        horizontal: 8,
+                      ),
+                      tileColor: isPinned
+                          ? (isDarkMode
+                                ? Colors.white10
+                                : Colors.blue.withOpacity(0.05))
+                          : null,
 
-            return StreamBuilder<int>(
-              stream: FirebaseService.getUnreadCountStream(doc.id),
-              builder: (context, unreadSnapshot) {
-                return _ConversationListItem(
-                  userInitials: otherUserInitials,
-                  userName: otherUserName,
-                  lastMessage: data['lastMessage'] ?? '',
-                  timeAgo: timeAgo,
-                  unreadCount: unreadSnapshot.data ?? 0,
-                  isOnline: false,
-                  receiverId: otherUserId,
+                      // CLICKABLE AVATAR logic
+                      leading: GestureDetector(
+                        onTap: () {
+                          // Fetch full user data *on demand* for the dialog
+                          FirebaseService.getUserDataById(otherId).then((
+                            userData,
+                          ) {
+                            final dialogStudentId =
+                                userData?['studentId'] ?? 'N/A';
+                            final dialogDepartment =
+                                userData?['department'] ?? 'N/A';
+
+                            // Load image into cache for the dialog if it's missing
+                            // This is now safe and won't call setState if the dialog is closed.
+                            if (dialogStudentId.isNotEmpty &&
+                                _profileImageUrlCache[dialogStudentId] ==
+                                    null) {
+                              _loadProfileImageForUser(dialogStudentId).then((
+                                _,
+                              ) {
+                                _showProfileDialog(
+                                  context,
+                                  otherName,
+                                  otherInitials,
+                                  dialogStudentId,
+                                  dialogDepartment,
+                                  isDarkMode,
+                                  fallbackColor,
+                                );
+                              });
+                            } else {
+                              _showProfileDialog(
+                                context,
+                                otherName,
+                                otherInitials,
+                                dialogStudentId,
+                                dialogDepartment,
+                                isDarkMode,
+                                fallbackColor,
+                              );
+                            }
+                          });
+                        },
+
+                        child: Stack(
+                          children: [
+                            // CORRECT: Uses the synchronous _buildAvatar which checks the cache.
+                            _buildAvatar(
+                              otherStudentId,
+                              otherInitials,
+                              fallbackColor,
+                              24,
+                            ),
+
+                            // Re-add the pinned indicator on top of the avatar
+                            if (isPinned)
+                              const Positioned(
+                                bottom: 0,
+                                right: 0,
+                                child: CircleAvatar(
+                                  radius: 8,
+                                  backgroundColor: Colors.white,
+                                  child: Icon(
+                                    Icons.push_pin,
+                                    size: 12,
+                                    color: primaryBlue,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+
+                      title: Text(
+                        otherName,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: isDarkMode ? Colors.white : Colors.black,
+                        ),
+                      ),
+                      subtitle: Text(
+                        lastMessage,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: isDarkMode ? Colors.grey : Colors.black54,
+                        ),
+                      ),
+                      trailing: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            timeAgo,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          if (unread > 0)
+                            Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: Colors.red,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                unread.toString(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      onTap: () {
+                        // Navigate to Chat Screen
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ChatScreen(
+                              chatPartnerName: otherName,
+                              chatPartnerInitials: otherInitials,
+                              isOnline: false,
+                              avatarColor: primaryBlue,
+                              receiverId: otherId, // Needed for chat
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
                 );
               },
             );
@@ -330,127 +605,67 @@ class _MessagesListScreenState extends State<MessagesListScreen> {
       },
     );
   }
-}
 
-// _ConversationListItem remains exactly the same as provided previously
-class _ConversationListItem extends StatelessWidget {
-  final String userInitials;
-  final String userName;
-  final String lastMessage;
-  final String timeAgo;
-  final int unreadCount;
-  final bool isOnline;
-  final String? receiverId;
-
-  const _ConversationListItem({
-    required this.userInitials,
-    required this.userName,
-    required this.lastMessage,
-    required this.timeAgo,
-    required this.unreadCount,
-    required this.isOnline,
-    this.receiverId,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    final isDarkMode = themeProvider.isDarkMode;
-
-    final avatarBg = isDarkMode ? darkSurfaceColor : lightBlueBackground;
-    final initialsColor = isDarkMode ? darkPrimaryColor : darkBlue;
-    final userNameColor = isDarkMode ? darkTextColor : darkBlue;
-    final messageColor = isDarkMode ? darkHintColor : darkBlue.withOpacity(0.7);
-    final timeColor = isDarkMode
-        ? darkHintColor.withOpacity(0.6)
-        : darkBlue.withOpacity(0.6);
-    final unreadColor = isDarkMode ? darkPrimaryColor : primaryBlue;
-
-    return InkWell(
-      onTap: () {
-        if (receiverId == null) return;
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ChatScreen(
-              chatPartnerName: userName,
-              chatPartnerInitials: userInitials,
-              isOnline: isOnline,
-              avatarColor: avatarBg,
-              receiverId: receiverId,
-            ),
-          ),
-        );
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 8.0),
-        child: Row(
+  // Extracted Dialog Widget for cleanliness
+  void _showProfileDialog(
+    BuildContext context,
+    String otherName,
+    String otherInitials,
+    String dialogStudentId,
+    String dialogDepartment,
+    bool isDarkMode,
+    Color fallbackColor,
+  ) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Stack(
-              children: [
-                CircleAvatar(
-                  radius: 28,
-                  backgroundColor: avatarBg,
-                  child: Text(
-                    userInitials,
-                    style: TextStyle(
-                      color: initialsColor,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                    ),
-                  ),
-                ),
-              ],
+            // Use the synchronous _buildAvatar for the dialog
+            _buildAvatar(dialogStudentId, otherInitials, fallbackColor, 40),
+            const SizedBox(height: 16),
+            Text(
+              otherName,
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    userName,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      color: userNameColor,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    lastMessage,
-                    style: TextStyle(color: messageColor, fontSize: 14),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
+            const SizedBox(height: 4),
+            Text(
+              dialogDepartment,
+              style: TextStyle(
+                fontSize: 16,
+                color: isDarkMode ? darkHintColor : Colors.grey,
               ),
+              textAlign: TextAlign.center,
             ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(timeAgo, style: TextStyle(color: timeColor, fontSize: 12)),
-                if (unreadCount > 0) ...[
-                  const SizedBox(height: 4),
-                  Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: unreadColor,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      unreadCount.toString(),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ],
+            // Display studentId in dialog
+            Container(
+              margin: const EdgeInsets.only(top: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.grey.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: SelectableText(
+                "ID: $dialogStudentId",
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.blueGrey,
+                ),
+                textAlign: TextAlign.center,
+              ),
             ),
           ],
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("Close"),
+          ),
+        ],
       ),
     );
   }

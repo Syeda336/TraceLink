@@ -7,7 +7,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 //for multiple login notifications
 import 'dart:async';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'notifications_service.dart'; // <--- new
+import 'notifications_service.dart'; // <---
 import 'firebase_options.dart';
 
 class FirebaseService {
@@ -713,6 +713,10 @@ class FirebaseService {
   // -----------------------
   // Send a message
   // -----------------------
+  // In firebase_service.dart
+
+  // In firebase_service.dart
+
   static Future<bool> sendMessage({
     required String receiverId,
     required String message,
@@ -723,38 +727,58 @@ class FirebaseService {
     try {
       User? user = _auth.currentUser;
       if (user == null) {
-        print('Send message: no authenticated user.');
+        print("❌ SendMessage Failed: No user logged in");
         return false;
       }
 
-      // Fetch current user data ONCE
-      final currentUserData = await getUserData();
-      final String currentUserName = currentUserData?['fullName'] ?? 'Unknown';
-      final String currentUserInitials = _getInitials(currentUserName);
+      // --- 1. SAFE NAME FETCHING ---
+      // We wrap this in a try-catch so it NEVER blocks the message
+      String currentUserName = user.displayName ?? 'Unknown';
+      String currentUserInitials = 'U';
 
-      // Determine sender and receiver based on whether it's an initial message
-      final String finalSenderId = isInitialMessage ? receiverId : user.uid;
-      final String finalSenderName = isInitialMessage
-          ? receiverName
-          : currentUserName;
-      final String finalSenderInitials = isInitialMessage
-          ? receiverInitials
-          : currentUserInitials;
+      try {
+        DocumentSnapshot userDoc = await _firestore
+            .collection('users')
+            .doc(user.uid)
+            .get();
+        if (userDoc.exists) {
+          final data = userDoc.data() as Map<String, dynamic>;
+          currentUserName = data['fullName'] ?? currentUserName;
+        }
+        currentUserInitials = _getInitials(currentUserName);
+      } catch (e) {
+        print(
+          "⚠️ Warning: Could not fetch real name, using fallback. Error: $e",
+        );
+        // We continue anyway! Don't return false here.
+      }
+      // -----------------------------
 
-      final String finalReceiverId = isInitialMessage ? user.uid : receiverId;
-      final String finalReceiverName = isInitialMessage
-          ? currentUserName
-          : receiverName;
-      final String finalReceiverInitials = isInitialMessage
-          ? currentUserInitials
-          : receiverInitials;
+      // 2. Determine Final Sender/Receiver (Handle Initial Message Swap)
+      String finalSenderId = user.uid;
+      String finalSenderName = currentUserName;
+      String finalSenderInitials = currentUserInitials;
 
-      // Chat room ID
+      String finalReceiverId = receiverId;
+      String finalReceiverName = receiverName;
+      String finalReceiverInitials = receiverInitials;
+
+      if (isInitialMessage) {
+        finalSenderId = receiverId;
+        finalSenderName = receiverName;
+        finalSenderInitials = receiverInitials;
+
+        finalReceiverId = user.uid;
+        finalReceiverName = currentUserName;
+        finalReceiverInitials = currentUserInitials;
+      }
+
+      // 3. Create Chat Room ID
       List<String> participants = [user.uid, receiverId];
       participants.sort();
       String chatRoomId = participants.join('_');
 
-      // Create message data
+      // 4. Message Data
       Map<String, dynamic> messageData = {
         'senderId': finalSenderId,
         'senderName': finalSenderName,
@@ -766,35 +790,36 @@ class FirebaseService {
         'timestamp': FieldValue.serverTimestamp(),
         'read': false,
         'isInitialMessage': isInitialMessage,
+        'deletedIds': [],
       };
 
-      // Add message to the chat room
+      // 5. Save Message
       await _firestore
           .collection('chatRooms')
           .doc(chatRoomId)
           .collection('messages')
           .add(messageData);
 
-      // Update last message in chat room
+      // 6. Update Chat Room
       await _firestore.collection('chatRooms').doc(chatRoomId).set({
         'lastMessage': message,
         'lastMessageTimestamp': FieldValue.serverTimestamp(),
         'participants': participants,
         'participantNames': {
-          user.uid: currentUserName, // Current user's name
-          receiverId: receiverName, // The other participant's name
+          user.uid: currentUserName,
+          receiverId: receiverName,
         },
         'participantInitials': {
-          user.uid: currentUserInitials, // Current user's initials
-          receiverId: receiverInitials, // The other participant's initials
+          user.uid: currentUserInitials,
+          receiverId: receiverInitials,
         },
         'updatedAt': FieldValue.serverTimestamp(),
+        'hiddenFor': [], // Unhide chat for everyone
       }, SetOptions(merge: true));
 
-      print('Message sent successfully to $receiverName');
       return true;
     } catch (e) {
-      print('Send message error: $e');
+      print('❌ Send message CRITICAL error: $e');
       return false;
     }
   }
@@ -1199,14 +1224,103 @@ class FirebaseService {
   }
 
   // Helper function to get initials from name
+  // Helper function to get initials from name(UPDATEDDDDD)
   static String _getInitials(String name) {
-    List<String> names = name.split(' ');
+    // 1. Trim to remove start/end spaces immediately
+    String cleanedName = name.trim();
+
+    if (cleanedName.isEmpty) return "U";
+
+    // 2. Split by space and FILTER out empty parts
+    // This handles "Faseeha " -> ['Faseeha'] instead of ['Faseeha', '']
+    List<String> names = cleanedName
+        .split(' ')
+        .where((part) => part.isNotEmpty)
+        .toList();
+
     if (names.length >= 2) {
       return '${names[0][0]}${names[1][0]}'.toUpperCase();
-    } else if (name.isNotEmpty) {
-      return name.substring(0, 1).toUpperCase();
+    } else if (names.isNotEmpty) {
+      return names[0].substring(0, 1).toUpperCase();
     }
+
     return 'UU';
+  }
+
+  //***************PIN CHATS & DELETE CHATS********************************************** */
+
+  // 1. Toggle Pin Status (Save to Firestore)
+  static Future<void> toggleChatPin(String receiverId) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    final userRef = _firestore.collection('users').doc(user.uid);
+    final doc = await userRef.get();
+
+    // Get current pinned list or create empty one
+    List<dynamic> pinnedList = doc.data()?['pinnedChats'] ?? [];
+
+    if (pinnedList.contains(receiverId)) {
+      // Unpin
+      await userRef.update({
+        'pinnedChats': FieldValue.arrayRemove([receiverId]),
+      });
+    } else {
+      // Pin
+      await userRef.update({
+        'pinnedChats': FieldValue.arrayUnion([receiverId]),
+      });
+    }
+  }
+
+  // 2. Clear Chat Messages
+  // Soft Delete: Hides messages for the current user only
+  // In firebase_service.dart
+
+  // 2. Clear Chat Messages
+  // Soft Delete: Hides messages for the current user only
+  static Future<void> clearChat(String receiverId) async {
+    final currentUserId = _auth.currentUser?.uid;
+    if (currentUserId == null) return;
+
+    List<String> ids = [currentUserId, receiverId];
+    ids.sort();
+    String chatRoomId = ids.join("_");
+
+    // 1. Hide the conversation from the main list (messages.dart)
+    // We prefer 'set' with merge to ensure the document exists or update it safely
+    await _firestore.collection('chatRooms').doc(chatRoomId).set({
+      'hiddenFor': FieldValue.arrayUnion([currentUserId]),
+    }, SetOptions(merge: true));
+
+    // 2. Soft Delete messages (as before)
+    // NOTE: Make sure this says 'chatRooms' (camelCase), not 'chat_rooms'
+    var collection = _firestore
+        .collection('chatRooms')
+        .doc(chatRoomId)
+        .collection('messages');
+
+    var snapshots = await collection.get();
+    WriteBatch batch = _firestore.batch();
+    int batchCount = 0;
+
+    for (var doc in snapshots.docs) {
+      // Mark individual messages as deleted
+      batch.update(doc.reference, {
+        'deletedIds': FieldValue.arrayUnion([currentUserId]),
+      });
+
+      batchCount++;
+      if (batchCount >= 450) {
+        await batch.commit();
+        batch = _firestore.batch();
+        batchCount = 0;
+      }
+    }
+
+    if (batchCount > 0) {
+      await batch.commit();
+    }
   }
 
   // -----------------------

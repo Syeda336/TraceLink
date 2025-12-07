@@ -803,8 +803,9 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                           chatPartnerInitials:
                               item.userInitials, // **Reporter's Initials**
                           avatarColor: Colors.blueAccent,
-                          receiverId: item
-                              .userId, // Keep existing parameter (or pass a color)
+                          receiverId: item.userId,
+                          isOnline:
+                              false, // Keep existing parameter (or pass a color
                         ),
                       ),
                     );

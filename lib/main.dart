@@ -120,7 +120,7 @@ class _FigmaLoginLabState extends State<FigmaLoginLab>
               chatPartnerInitials: data['senderInitials'] ?? 'U',
               isOnline: true,
               avatarColor: Colors.blue,
-              receiverId: data['senderId'] ?? 'User Id',
+              receiverId: data['senderId'] ?? data['uid'] ?? data['id'] ?? '',
             ),
           ),
         );
