@@ -1,55 +1,69 @@
 import 'package:flutter/material.dart';
 import '../supabase_reports_problems.dart';
-import 'warning_item.dart';
+import 'warning_item.dart'; // Contains ItemDetailScreen (Assumed)
 import 'notifications.dart';
+// Assuming this import contains ContactAdminDialog
 import 'user_contacting_admin.dart';
 
 // ---------------------------------------------
 // --- DATA MODEL (Report) ---
 // ---------------------------------------------
 class Report {
+  final int id;
   final String title;
   final String itemId; // The ID/Name of the reported item (String)
 
-  const Report({required this.title, required this.itemId});
+  const Report({required this.title, required this.itemId, required this.id});
 
   // Factory constructor to create a Report from Supabase data map
   factory Report.fromSupabase(Map<String, dynamic> data) {
     return Report(
-      title: data['Title'] ?? 'No Title',
+      title: data['Title'] as String? ?? 'No Title',
       // Assuming 'Item Name' holds the item identifier string
-      itemId: data['Item Name'],
+      itemId: data['Item Name'] as String? ?? 'N/A',
+      // Ensure the ID is correctly parsed as an integer
+      id: data['id'] is int
+          ? data['id']
+          : int.tryParse(data['id']?.toString() ?? '0') ?? 0,
     );
   }
 
+  // Renamed copyWith parameter for clarity (though not strictly necessary here)
   Report copyWith({String? status}) {
-    return Report(title: title, itemId: itemId);
+    return Report(title: title, itemId: itemId, id: id);
   }
 }
 
 // ---------------------------------------------
-// --- WARNING SCREEN IMPLEMENTATION ---
+// --- WARNING SCREEN IMPLEMENTATION (CORRECTED) ---
 // ---------------------------------------------
 class WarningScreen extends StatefulWidget {
-  const WarningScreen({super.key});
+  // FIX 1: The constructor must accept a nullable int (int?)
+  // because it might be called from notifications with a missing ID,
+  // though the fetching logic below requires a non-null ID.
+  // Given your current fetching logic, we'll keep it as non-nullable 'int'
+  // but rely on the calling code to ensure it's a valid ID.
+  // If the previous code sent 'null', the calling screen must be fixed.
+  final int reportId;
+
+  const WarningScreen({super.key, required this.reportId});
 
   @override
   State<WarningScreen> createState() => _WarningScreenState();
 }
 
 class _WarningScreenState extends State<WarningScreen> {
-  List<Report> _reports = [];
+  Report? _report;
   bool _isLoading = true;
   bool _hasError = false;
 
   @override
   void initState() {
     super.initState();
-    _fetchItems();
+    _fetchItemById(widget.reportId);
   }
 
-  // Method to fetch data from Supabase
-  Future<void> _fetchItems() async {
+  Future<void> _fetchItemById(int id) async {
     if (!mounted) return;
 
     setState(() {
@@ -58,14 +72,20 @@ class _WarningScreenState extends State<WarningScreen> {
     });
 
     try {
+      // Assuming SupabaseReportService.fetchReports() returns a List<Map<String, dynamic>>
       final reportsData = await SupabaseReportService.fetchReports();
-      final fetchedReports = reportsData
-          .map((data) => Report.fromSupabase(data))
-          .toList();
+
+      // Find the specific report based on the passed ID
+      final reportMap = reportsData.firstWhere(
+        (data) => data['id'] == id,
+        orElse: () => throw Exception('Report not found with ID: $id'),
+      );
+
+      final fetchedReport = Report.fromSupabase(reportMap);
 
       if (mounted) {
         setState(() {
-          _reports = fetchedReports;
+          _report = fetchedReport;
           _isLoading = false;
         });
       }
@@ -75,21 +95,23 @@ class _WarningScreenState extends State<WarningScreen> {
           _isLoading = false;
           _hasError = true;
         });
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to load data. Check console.')),
+          const SnackBar(content: Text('Failed to load specific report data.')),
         );
       }
-      debugPrint('Error fetching reports from Supabase: $e');
+      debugPrint(
+        'Error fetching report (ID: ${widget.reportId}) from Supabase: $e',
+      );
     }
   }
 
-  // Function to navigate to a new screen
   void _navigateTo(BuildContext context, Widget screen) {
     Navigator.push(context, MaterialPageRoute(builder: (context) => screen));
   }
 
-  // Function to navigate back or replace the current screen
   void _goBack(BuildContext context) {
+    // Navigate back to the notifications screen
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (context) => const NotificationsScreen()),
@@ -98,109 +120,62 @@ class _WarningScreenState extends State<WarningScreen> {
 
   // Extracted main content into a separate method for clarity
   Widget _buildWarningContent(double screenWidth) {
-    // 💡 FIX: Safely check for empty list before accessing the first element
-    if (_reports.isEmpty) {
-      return const Center(child: Text('No reports to display.'));
+    if (_report == null) {
+      return const Center(child: Text('Report not found or failed to load.'));
     }
 
-    // Display the details of the first report found
-    final Report report = _reports.first;
+    // Get the non-nullable Report object
+    final Report report = _report!;
 
     return Padding(
       padding: const EdgeInsets.all(20.0),
       child: Column(
         children: [
-          // Admin Warning Icon
-          Container(
-            width: 100,
-            height: 100,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: const LinearGradient(
-                colors: [Color(0xFFFF9800), Color(0xFFFFE082)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.orange.withOpacity(0.5),
-                  spreadRadius: 2,
-                  blurRadius: 10,
-                  offset: const Offset(0, 5),
-                ),
-              ],
-            ),
-            child: const Icon(
-              Icons.warning_amber_rounded,
-              color: Colors.white,
-              size: 60,
-            ),
+          const Text(
+            'Admin Warning',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
+          // ...
           const SizedBox(height: 30),
 
-          // Admin Warning Card
-          Card(
-            elevation: 5,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(15),
+          Container(
+            padding: const EdgeInsets.all(15),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              gradient: LinearGradient(
+                colors: [const Color(0xFFFFFDE7), Colors.orange.shade50],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+              ),
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
-                children: [
-                  const Text(
-                    'Admin Warning',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 20),
-                  Container(
-                    padding: const EdgeInsets.all(15),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(10),
-                      gradient: LinearGradient(
-                        colors: [
-                          const Color(0xFFFFFDE7),
-                          Colors.orange.shade50,
-                        ],
-                        begin: Alignment.centerLeft,
-                        end: Alignment.centerRight,
-                      ),
+            child: RichText(
+              textAlign: TextAlign.center,
+              text: TextSpan(
+                style: const TextStyle(
+                  color: Colors.black,
+                  fontSize: 16,
+                  height: 1.5,
+                ),
+                children: <TextSpan>[
+                  const TextSpan(text: 'Admin has issued a warning regarding '),
+                  TextSpan(
+                    text: report.title,
+                    style: const TextStyle(
+                      color: Color(0xFFFF5252),
+                      fontWeight: FontWeight.bold,
                     ),
-                    child: RichText(
-                      textAlign: TextAlign.center,
-                      text: TextSpan(
-                        style: const TextStyle(
-                          color: Colors.black,
-                          fontSize: 16,
-                          height: 1.5,
-                        ),
-                        children: <TextSpan>[
-                          const TextSpan(
-                            text: 'Admin has issued a warning regarding ',
-                          ),
-                          TextSpan(
-                            text: report.title,
-                            style: const TextStyle(
-                              color: Color(0xFFFF5252),
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  const Text(
-                    'Please cooperate and return the item to its rightful owner. Failure to do so may result in further action.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 16, color: Colors.black87),
                   ),
                 ],
               ),
             ),
           ),
           const SizedBox(height: 20),
-
+          const Text(
+            'Please cooperate and return the item to its rightful owner. Failure to do so may result in further action.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 16, color: Colors.black87),
+          ),
+          const SizedBox(height: 20),
           // "View Item Details" Button
           Container(
             width: screenWidth * 0.9,
@@ -226,7 +201,7 @@ class _WarningScreenState extends State<WarningScreen> {
               child: InkWell(
                 onTap: () => _navigateTo(
                   context,
-                  // 💡 FIX: Pass the item's unique identifier (String itemId)
+                  // Pass the item's unique identifier (String itemId)
                   ItemDetailScreen(id: report.itemId),
                 ),
                 borderRadius: BorderRadius.circular(30),
@@ -257,7 +232,15 @@ class _WarningScreenState extends State<WarningScreen> {
             width: screenWidth * 0.9,
             height: 60,
             child: ElevatedButton(
-              onPressed: () => _navigateTo(context, const ContactAdminDialog()),
+              // 💡 FIX 4: Correctly pass the non-nullable reportId and reportTitle
+              // from the successfully loaded '_report' object.
+              onPressed: () => _navigateTo(
+                context,
+                ContactAdminDialog(
+                  reportId: report.id,
+                  reportTitle: report.title,
+                ),
+              ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF2196F3),
                 shape: RoundedRectangleBorder(
@@ -308,7 +291,6 @@ class _WarningScreenState extends State<WarningScreen> {
           ),
           const SizedBox(height: 25),
 
-          // Footer Message
           Container(
             padding: const EdgeInsets.all(15),
             margin: const EdgeInsets.symmetric(horizontal: 10),
@@ -322,6 +304,7 @@ class _WarningScreenState extends State<WarningScreen> {
               style: TextStyle(fontSize: 15, color: Colors.black87),
             ),
           ),
+          // ...
           const SizedBox(height: 30),
         ],
       ),
@@ -342,14 +325,17 @@ class _WarningScreenState extends State<WarningScreen> {
           children: [
             const Text('Error loading warnings.'),
             ElevatedButton(
-              onPressed: _fetchItems,
+              onPressed: () => _fetchItemById(widget.reportId),
               child: const Text('Try Again'),
             ),
           ],
         ),
       );
-    } else if (_reports.isEmpty) {
-      content = const Center(child: Text('No active warnings from the admin.'));
+    } else if (_report == null) {
+      // This is reached if report is not found/orElse in fetchReports
+      content = Center(
+        child: Text('No warning found for ID: ${widget.reportId}.'),
+      );
     } else {
       content = _buildWarningContent(screenWidth);
     }
@@ -358,7 +344,7 @@ class _WarningScreenState extends State<WarningScreen> {
       body: SingleChildScrollView(
         child: Column(
           children: <Widget>[
-            // --- Top Header Section ---
+            // --- Top Header Section --- (omitted for brevity)
             Container(
               padding: const EdgeInsets.only(
                 top: 50,
@@ -405,16 +391,25 @@ class _WarningScreenState extends State<WarningScreen> {
                       'Important message from admin',
                       style: TextStyle(color: Colors.white70, fontSize: 16),
                     ),
+                    const SizedBox(height: 10),
+                    Text(
+                      'Report ID: ${widget.reportId}',
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 16,
+                      ),
+                    ),
                   ],
                 ),
               ),
             ),
 
             // Display the main content (loading/error or the warning UI)
-            // Use Padding only if content is not the main warning UI
-            // to center loading/error/empty messages.
-            _isLoading || _hasError || _reports.isEmpty
-                ? Padding(padding: const EdgeInsets.all(20.0), child: content)
+            _isLoading || _hasError || _report == null
+                ? SizedBox(
+                    height: MediaQuery.of(context).size.height * 0.5,
+                    child: Center(child: content),
+                  )
                 : content,
           ],
         ),

@@ -107,11 +107,11 @@ class _FigmaLoginLabState extends State<FigmaLoginLab>
     print(' Handling notification navigation: ${data['type']}');
 
     // Use a slight delay to ensure context is available
-    Future.delayed(Duration(milliseconds: 500), () {
+    Future.delayed(const Duration(milliseconds: 500), () {
       if (data['type'] == 'emergency') {
-        Navigator.of(
-          context,
-        ).push(MaterialPageRoute(builder: (context) => EmergencyAlerts()));
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (context) => const EmergencyAlerts()),
+        );
       } else if (data['type'] == 'chat') {
         Navigator.of(context).push(
           MaterialPageRoute(
@@ -125,9 +125,23 @@ class _FigmaLoginLabState extends State<FigmaLoginLab>
           ),
         );
       } else if (data['type'] == 'warning') {
-        Navigator.of(
-          context,
-        ).push(MaterialPageRoute(builder: (context) => WarningScreen()));
+        // ✅ FIX: Extract reportId from data and ensure it is an integer.
+        // We assume the key in the payload is 'reportId' and default to 0 if missing/invalid.
+        final int reportId =
+            int.tryParse(data['reportId']?.toString() ?? '0') ?? 0;
+
+        if (reportId > 0) {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => WarningScreen(reportId: reportId),
+            ),
+          );
+        } else {
+          // Handle case where reportId is missing or invalid in the payload
+          print(
+            'Navigation Error: Warning notification data missing a valid reportId.',
+          );
+        }
       }
     });
   }

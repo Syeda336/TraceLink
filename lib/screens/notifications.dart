@@ -399,7 +399,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       case 'warning':
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => const WarningScreen()),
+          MaterialPageRoute(
+            builder: (context) =>
+                WarningScreen(reportId: item.data['reportId']),
+          ),
         );
         break;
 

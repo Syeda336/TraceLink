@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'warning_admin.dart'; // Target screen for the "Close" button
-import '../supabase_lost_service.dart';
 import '../supabase_found_service.dart';
 
 // ------------------------------------
-// Item Class (Modified to ensure ID is always a String)
+// Item Class (No changes needed here)
 // ------------------------------------
-
 class Item {
   final String id;
   // Column names from your Supabase table
@@ -35,11 +33,11 @@ class Item {
     required this.status,
     required this.userInitials,
     required this.userName,
-    required this.userEmail, // Added
-    required this.userId, // Added
+    required this.userEmail,
+    required this.userId,
   });
 
-  // 🌟 Factory constructor to create an Item from a Supabase row (Map)
+  // Factory constructor to create an Item from a Supabase row (Map)
   factory Item.fromSupabase(Map<String, dynamic> data) {
     // --- 🎯 FIX: Extract REAL User Data from Supabase Columns ---
     final fetchedUserName = data['User Name'] as String? ?? 'Community User';
@@ -104,10 +102,37 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
     _fetchItemsFromSupabase();
   }
 
+  // 💡 FIX APPLIED HERE
   void _closeAndNavigateBack(BuildContext context) {
+    // 1. Get the item ID as a string from the widget
+    final String itemIdString = widget.id;
+
+    // 2. Try to parse the item ID string into an integer
+    final int? reportIdInt = int.tryParse(itemIdString);
+
+    if (reportIdInt == null) {
+      // Handle the case where the ID is not a valid integer
+      // This suggests a fundamental data mismatch.
+      debugPrint(
+        'Error: Cannot parse item ID "$itemIdString" to an integer for WarningScreen.',
+      );
+
+      // Optionally show an error message before navigating to a safe fallback
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error: Invalid item ID for navigation.')),
+      );
+      // Navigate to a default or error version of the WarningScreen, or just pop
+      Navigator.pop(context);
+      return;
+    }
+
+    // 3. Navigate back to WarningScreen, passing the parsed integer ID
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => const WarningScreen()),
+      // Pass the converted report ID back to WarningScreen
+      MaterialPageRoute(
+        builder: (context) => WarningScreen(reportId: reportIdInt),
+      ),
     );
   }
 
@@ -123,18 +148,9 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
     });
 
     try {
-      final lostItemsFuture = SupabaseLostService.fetchLostItems();
       final foundItemsFuture = SupabaseFoundService.fetchFoundItems();
 
-      final List<Map<String, dynamic>> lostData = await lostItemsFuture;
       final List<Map<String, dynamic>> foundData = await foundItemsFuture;
-
-      // Inject the status and prepare for Item creation
-      final List<Map<String, dynamic>> lostItemsWithStatus = lostData.map((
-        row,
-      ) {
-        return {...row, 'status': 'Lost'};
-      }).toList();
 
       final List<Map<String, dynamic>> foundItemsWithStatus = foundData.map((
         row,
@@ -149,10 +165,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
       }).toList();
 
       // Combine the lost and found data into one list
-      final List<Map<String, dynamic>> combinedData = [
-        ...lostItemsWithStatus,
-        ...foundItemsWithStatus,
-      ];
+      final List<Map<String, dynamic>> combinedData = [...foundItemsWithStatus];
 
       // Convert the combined raw Supabase data into a List of Item objects
       // The Item.fromSupabase factory now ensures item.id is a String.
@@ -485,7 +498,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
             color: Colors.transparent,
             child: InkWell(
               // 🎯 FIX: Call the private method with context
-              onTap: () => _closeAndNavigateBack(context),
+              onTap: () => Navigator.pop(context),
               borderRadius: BorderRadius.circular(30),
               child: const Center(
                 child: Text(

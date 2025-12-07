@@ -384,6 +384,7 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
 
     if (targetUserId != null && targetUserId.isNotEmpty) {
       await NotificationsService.sendWarningNotification(
+        reportId: report.uniqueId,
         targetUserId: targetUserId,
         itemTitle: report.title,
         itemId: report.itemId,

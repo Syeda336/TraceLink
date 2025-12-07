@@ -468,6 +468,18 @@ class _ReportProblemScreenState extends State<ReportProblem> {
                           ],
                         ),
                       ),
+                      Text(
+                        'Only found items can be reported.',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Color.fromRGBO(
+                            255,
+                            50,
+                            50,
+                            50,
+                          ), // Dynamic text color
+                        ),
+                      ),
                       const SizedBox(height: 20),
 
                       // --- Submit Report Button (Bright Blue Theme) ---
