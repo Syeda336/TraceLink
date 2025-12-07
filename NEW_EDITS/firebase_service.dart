@@ -7,8 +7,9 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 //for multiple login notifications
 import 'dart:async';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'notifications_service.dart'; // <--- new
+import 'notifications_service.dart'; // <---
 import 'firebase_options.dart';
+import 'supabase_alerts_service.dart';
 
 class FirebaseService {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -735,16 +736,21 @@ class FirebaseService {
       // We wrap this in a try-catch so it NEVER blocks the message
       String currentUserName = user.displayName ?? 'Unknown';
       String currentUserInitials = 'U';
-      
+
       try {
-        DocumentSnapshot userDoc = await _firestore.collection('users').doc(user.uid).get();
+        DocumentSnapshot userDoc = await _firestore
+            .collection('users')
+            .doc(user.uid)
+            .get();
         if (userDoc.exists) {
-           final data = userDoc.data() as Map<String, dynamic>;
-           currentUserName = data['fullName'] ?? currentUserName;
+          final data = userDoc.data() as Map<String, dynamic>;
+          currentUserName = data['fullName'] ?? currentUserName;
         }
         currentUserInitials = _getInitials(currentUserName);
       } catch (e) {
-        print("⚠️ Warning: Could not fetch real name, using fallback. Error: $e");
+        print(
+          "⚠️ Warning: Could not fetch real name, using fallback. Error: $e",
+        );
         // We continue anyway! Don't return false here.
       }
       // -----------------------------
@@ -762,7 +768,7 @@ class FirebaseService {
         finalSenderId = receiverId;
         finalSenderName = receiverName;
         finalSenderInitials = receiverInitials;
-        
+
         finalReceiverId = user.uid;
         finalReceiverName = currentUserName;
         finalReceiverInitials = currentUserInitials;
@@ -785,7 +791,7 @@ class FirebaseService {
         'timestamp': FieldValue.serverTimestamp(),
         'read': false,
         'isInitialMessage': isInitialMessage,
-        'deletedIds': [], 
+        'deletedIds': [],
       };
 
       // 5. Save Message
@@ -818,6 +824,7 @@ class FirebaseService {
       return false;
     }
   }
+
   // -----------------------
   // Get messages for a chat room
   // -----------------------
@@ -1222,24 +1229,27 @@ class FirebaseService {
   static String _getInitials(String name) {
     // 1. Trim to remove start/end spaces immediately
     String cleanedName = name.trim();
-    
+
     if (cleanedName.isEmpty) return "U";
 
     // 2. Split by space and FILTER out empty parts
     // This handles "Faseeha " -> ['Faseeha'] instead of ['Faseeha', '']
-    List<String> names = cleanedName.split(' ').where((part) => part.isNotEmpty).toList();
+    List<String> names = cleanedName
+        .split(' ')
+        .where((part) => part.isNotEmpty)
+        .toList();
 
     if (names.length >= 2) {
       return '${names[0][0]}${names[1][0]}'.toUpperCase();
     } else if (names.isNotEmpty) {
       return names[0].substring(0, 1).toUpperCase();
     }
-    
+
     return 'UU';
   }
 
   //***************PIN CHATS & DELETE CHATS********************************************** */
- 
+
   // 1. Toggle Pin Status (Save to Firestore)
   static Future<void> toggleChatPin(String receiverId) async {
     final user = _auth.currentUser;
@@ -1247,19 +1257,19 @@ class FirebaseService {
 
     final userRef = _firestore.collection('users').doc(user.uid);
     final doc = await userRef.get();
-    
+
     // Get current pinned list or create empty one
     List<dynamic> pinnedList = doc.data()?['pinnedChats'] ?? [];
-    
+
     if (pinnedList.contains(receiverId)) {
       // Unpin
       await userRef.update({
-        'pinnedChats': FieldValue.arrayRemove([receiverId])
+        'pinnedChats': FieldValue.arrayRemove([receiverId]),
       });
     } else {
       // Pin
       await userRef.update({
-        'pinnedChats': FieldValue.arrayUnion([receiverId])
+        'pinnedChats': FieldValue.arrayUnion([receiverId]),
       });
     }
   }
@@ -1281,13 +1291,13 @@ class FirebaseService {
     // 1. Hide the conversation from the main list (messages.dart)
     // We prefer 'set' with merge to ensure the document exists or update it safely
     await _firestore.collection('chatRooms').doc(chatRoomId).set({
-      'hiddenFor': FieldValue.arrayUnion([currentUserId])
+      'hiddenFor': FieldValue.arrayUnion([currentUserId]),
     }, SetOptions(merge: true));
 
     // 2. Soft Delete messages (as before)
     // NOTE: Make sure this says 'chatRooms' (camelCase), not 'chat_rooms'
     var collection = _firestore
-        .collection('chatRooms') 
+        .collection('chatRooms')
         .doc(chatRoomId)
         .collection('messages');
 
@@ -1298,7 +1308,7 @@ class FirebaseService {
     for (var doc in snapshots.docs) {
       // Mark individual messages as deleted
       batch.update(doc.reference, {
-        'deletedIds': FieldValue.arrayUnion([currentUserId])
+        'deletedIds': FieldValue.arrayUnion([currentUserId]),
       });
 
       batchCount++;
@@ -1313,7 +1323,6 @@ class FirebaseService {
       await batch.commit();
     }
   }
-
 
   // -----------------------
   // Update user profile WITHOUT email change (Simplified version)
@@ -1440,7 +1449,6 @@ class FirebaseService {
     }
   }
 
-
   // -----------------------
   // Update Privacy Settings
   // -----------------------
@@ -1473,6 +1481,43 @@ class FirebaseService {
       return false;
     }
   }
+
+  //**************************Emergency Alerts***************************** */
+    // In firebase_service.dart, inside FirebaseService class:
+
+// --- ADD THIS METHOD ---
+  static void setupEmergencyAlertsListener() {
+      final user = _auth.currentUser;
+      if (user == null) {
+        print('No user logged in to set up alert listener.');
+        return;
+      }
+
+      final docRef = _firestore.collection('users').doc(user.uid);
+
+      // This listener watches for changes to the user's settings document
+      docRef.snapshots().listen((snapshot) {
+        if (snapshot.exists) {
+          final data = snapshot.data();
+          // ASSUMPTION: 'emergencyEnabled' is nested under 'notificationSettings'
+          final bool emergencyEnabled = data?['notificationSettings']?['emergencyEnabled'] ?? false;
+          
+          print('Emergency Alerts preference changed: $emergencyEnabled');
+
+          if (emergencyEnabled) {
+            // If enabled, start listening to real-time data
+            SupabaseAlertService.startAlertsListener();
+          } else {
+            // If disabled, stop the data listener
+            SupabaseAlertService.stopAlertsListener();
+          }
+        }
+      }, onError: (error) {
+        print("Error listening to user settings for alerts: $error");
+      });
+  }
+
+  
 
   // -----------------------
   // Get Privacy Settings

@@ -13,6 +13,9 @@ import 'screens/warning_admin.dart';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'package:firebase_auth/firebase_auth.dart' as fbauth; // <--- ADD THIS
+import 'supabase_alerts_service.dart'; // <--- ADD THIS
+
 // --- 1. BACKGROUND HANDLER (MUST BE OUTSIDE ANY CLASS) ---
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -35,6 +38,24 @@ Future<void> main() async {
 
   // Initialize Firebase & Notification Channels
   await FirebaseService.initialize();
+  // ------------------------------------------------------------------
+  //  <-- START OF ADDED CODE BLOCK HERE -->
+  // ------------------------------------------------------------------
+  
+  // 1. Listen for user sign-in/sign-out events
+  fbauth.FirebaseAuth.instance.authStateChanges().listen((fbauth.User? user) {
+    if (user != null) {
+      // 2. User is logged in: START monitoring their Emergency Alert setting
+      FirebaseService.setupEmergencyAlertsListener(); 
+    } else {
+      // 3. User is logged out: STOP the Supabase data stream to save resources
+      SupabaseAlertService.stopAlertsListener(); 
+    }
+  });
+
+  // ------------------------------------------------------------------
+  //  <-- END OF ADDED CODE BLOCK -->
+  // ------------------------------------------------------------------
 
   runApp(
     ChangeNotifierProvider(
