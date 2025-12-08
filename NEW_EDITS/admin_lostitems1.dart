@@ -10,8 +10,10 @@ import 'package:tracelink/supabase_reports_problems.dart';
 import 'admin_logout.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-// MOCK SERVICE - Assume this is correct and exists
 import '../notifications_service.dart';
+import 'package:intl/intl.dart'; // For date formatting
+import 'package:tracelink/firebase_service.dart';
+
 
 // -----------------------------------------------------------------------------
 // DATA MODELS (UPDATED FOR UNIQUE ID CONSISTENCY)
@@ -490,23 +492,78 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
   }
 
   // Method to ban user with notification (FIXED: Calls _resolveReport)
+  // Method to ban user with notification (UPDATED: 3-day ban)
   void _banUser(Report report) async {
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return const Center(child: CircularProgressIndicator());
+      },
+    );
+
     final String? targetUserId = await _getUserIdFromReport(report);
+
+    // Hide loading dialog
+    if (mounted) Navigator.of(context).pop();
 
     if (!mounted) return;
 
     if (targetUserId != null && targetUserId.isNotEmpty) {
-      // Send ban notification
-      await NotificationsService.addNotification(
-        userId: targetUserId,
-        title: 'Account Suspended',
-        message:
-            'Your account has been temporarily suspended due to misconduct.',
-        type: 'warning',
-        data: {'screen': 'warning_admin', 'banReason': report.misconductDetail},
-      );
+      try {
+        // 1. Ban the user for 3 days in Firebase
+        final bool banSuccess = await FirebaseService.banUserForDays(
+          userId: targetUserId,
+          days: 3,
+          reason: report.misconductDetail,
+        );
 
-      debugPrint('🔨 Ban notification sent to user: $targetUserId');
+        if (banSuccess) {
+          // 2. Send ban notification
+          await NotificationsService.addNotification(
+            userId: targetUserId,
+            title: 'Account Suspended',
+            message: 'Your account has been suspended for 3 days due to misconduct.',
+            type: 'warning',
+            data: {
+              'screen': 'warning_admin',
+              'banReason': report.misconductDetail,
+              'bannedUntil': DateTime.now().add(const Duration(days: 3)).toIso8601String(),
+            },
+          );
+
+          debugPrint('🔨 User $targetUserId banned for 3 days');
+
+          // Show success message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${report.reportedUser} has been banned for 3 days'),
+              backgroundColor: Colors.red.shade600,
+            ),
+          );
+        } else {
+          throw 'Failed to ban user in database';
+        }
+      } catch (e) {
+        debugPrint('Error banning user: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to ban user: $e'),
+            backgroundColor: Colors.red.shade600,
+          ),
+        );
+        return;
+      }
+    } else {
+      debugPrint('Could not find user ID for report');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not find user ${report.reportedUser}'),
+          backgroundColor: Colors.red.shade600,
+        ),
+      );
+      return;
     }
 
     // Navigate to ban confirmation screens
@@ -515,31 +572,6 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
     // Resolve the report after the action is initiated
     _resolveReport(report);
   }
-
-  // Method to mark item as returned with notification (Unchanged)
-  void _markItemReturned(Item item, String claimedByUser) async {
-    final String? targetUserId = await _getUserIdFromName(claimedByUser);
-
-    if (!mounted) return;
-
-    if (targetUserId != null && targetUserId.isNotEmpty) {
-      // Send return notification
-      await NotificationsService.addNotification(
-        userId: targetUserId,
-        title: 'Item Returned',
-        message: 'Your item "${item.title}" has been marked as returned.',
-        type: 'claim',
-        data: {
-          'itemTitle': item.title,
-          'status': 'returned',
-          'screen': 'claims',
-        },
-      );
-
-      debugPrint('✅ Return notification sent to user: $targetUserId');
-    }
-  }
-
   // Helper method to get user ID from name (for item returns) (Unchanged)
   Future<String?> _getUserIdFromName(String userName) async {
     if (!mounted) return null;
@@ -623,10 +655,9 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
     }
   }
 
-    // Method to mark a report as resolved (FIXED: Calls _fetchItems for state refresh)
-    // 📁 admin_lostitems1.dart
+  // Method to mark a report as resolved (FIXED: Calls _fetchItems for state refresh)
+   
 
-  // Method to mark a report as resolved
   // Method to mark a report as resolved
   void _resolveReport(Report report) async {
     if (!mounted) return;
@@ -667,6 +698,7 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
   }
 
   // Method to mark a claim as returned (FIXED: Calls _fetchItems)
+  // NEW: Method to mark a claim as returned (FIXED: Removed _markItemReturned call)
   void _markClaimAsReturned(Claim claim) async {
     if (!mounted) return;
 
@@ -680,11 +712,23 @@ class _AdminDashboardScreenState extends State<AdminDashboard1LostItems> {
         _claims[index] = _claims[index].copyWith(status: 'Returned');
       });
 
-      // Send return notification
-      _markItemReturned(
-        _lostItems.firstWhere((i) => i.title == claim.title),
-        claim.claimedBy,
-      ); // Mock item lookup
+      // Send return notification directly (no _markItemReturned call)
+      final String? targetUserId = await _getUserIdFromName(claim.claimedBy);
+      
+      if (targetUserId != null && targetUserId.isNotEmpty) {
+        await NotificationsService.addNotification(
+          userId: targetUserId,
+          title: 'Item Returned',
+          message: 'Your item "$title" has been marked as returned.',
+          type: 'claim',
+          data: {
+            'itemTitle': title,
+            'status': 'returned',
+            'screen': 'claims',
+          },
+        );
+        debugPrint('✅ Return notification sent to user: $targetUserId');
+      }
 
       // Refresh item list (Lost/Found tabs)
       await _fetchItems();
@@ -1042,7 +1086,7 @@ class AdminSplashUserBanConfirmed extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Ban Confirmed', style: TextStyle(color: darkBlueText)),
+        title: Text('Ban Confirmed!', style: TextStyle(color: darkBlueText)),
         backgroundColor: whiteBackground,
         iconTheme: IconThemeData(color: darkBlueText),
         elevation: 1,
@@ -1067,7 +1111,7 @@ class AdminSplashUserBanConfirmed extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 40.0),
               child: Text(
-                'The user has been successfully restricted from accessing the platform.',
+                'The user has been successfully restricted for 3 days from accessing the platform.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 16,

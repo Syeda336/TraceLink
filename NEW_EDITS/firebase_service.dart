@@ -221,100 +221,123 @@ class FirebaseService {
     }
   }
 
+ // -----------------------
+// Sign in user with email (UPDATED WITH BAN CHECK)
+// -----------------------
+static Future<User?> signIn({
+  required String email,
+  required String password,
+}) async {
+  try {
+    // First, try to find the user by email to check ban status
+    QuerySnapshot userQuery = await _firestore
+        .collection('users')
+        .where('email', isEqualTo: email)
+        .limit(1)
+        .get();
+
+    if (userQuery.docs.isNotEmpty) {
+      final userId = userQuery.docs.first.id;
+      
+      // Check if user is banned
+      if (await isUserBanned(userId)) {
+        throw 'Your account has been temporarily suspended. Please contact support.';
+      }
+    }
+
+    // Proceed with regular sign-in
+    UserCredential userCredential = await _auth.signInWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
+
+    // Update lastLogin timestamp
+    await _updateLoginTimestamp(userCredential.user!.uid);
+
+    // Start listening
+    _startSecurityListener();
+
+    // Send login notification
+    await sendLoginNotification();
+
+    return userCredential.user;
+  } on FirebaseAuthException catch (e) {
+    print('Firebase Sign in Error: ${e.code} - ${e.message}');
+    rethrow;
+  } catch (e) {
+    print('General Sign in Error: $e');
+    rethrow;
+  }
+}
+
   // -----------------------
-  // Sign in user with email
-  // -----------------------
-  static Future<User?> signIn({
-    required String email,
-    required String password,
-  }) async {
-    try {
-      UserCredential userCredential = await _auth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+// Sign in with STUDENT ID (UPDATED WITH BAN CHECK)
+// -----------------------
+static Future<User?> signInWithStudentId({
+  required String studentId,
+  required String password,
+}) async {
+  try {
+    // 1. Find user by Student ID
+    QuerySnapshot querySnapshot = await _firestore
+        .collection('users')
+        .where('studentId', isEqualTo: studentId)
+        .limit(1)
+        .get();
 
-      // Update lastLogin timestamp
-      await _updateLoginTimestamp(userCredential.user!.uid);
+    if (querySnapshot.docs.isEmpty) {
+      throw 'Student ID not found.';
+    }
 
-      // Start listening
-      _startSecurityListener();
+    final doc = querySnapshot.docs.first;
+    final data = doc.data() as Map<String, dynamic>;
+    final String userId = doc.id;
 
-      // Send login notification
-      await sendLoginNotification();
+    // Check if user is banned
+    if (await isUserBanned(userId)) {
+      throw 'Your account has been temporarily suspended. Please contact support.';
+    }
 
-      return userCredential.user;
-    } on FirebaseAuthException catch (e) {
-      print('Firebase Sign in Error: ${e.code} - ${e.message}');
-      rethrow;
-    } catch (e) {
-      print('General Sign in Error: $e');
+    // Rest of existing code...
+    // [Keep all the existing 2FA logic here]
+    final privacySettings = data['privacySettings'] as Map<String, dynamic>?;
+    final bool is2FAEnabled = privacySettings?['twoFactorAuth'] ?? false;
+
+    if (!is2FAEnabled) {
+      throw 'Student ID login is disabled. Please enable 2FA in settings or login using Email.';
+    }
+
+    if (data['email'] == null) {
+      throw 'Account has no email linked.';
+    }
+
+    final String email = data['email'] as String;
+
+    UserCredential userCredential = await _auth.signInWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
+
+    // Update lastLogin timestamp
+    await _updateLoginTimestamp(userCredential.user!.uid);
+
+    // Start listening
+    _startSecurityListener();
+
+    // Send login notification
+    await sendLoginNotification();
+
+    return userCredential.user;
+  } catch (e) {
+    if (e.toString().contains('Student ID login is disabled') ||
+        e.toString().contains('temporarily suspended')) {
       rethrow;
     }
+    print('Student ID sign-in general error: $e');
+    if (e is String) rethrow;
+    return null;
   }
-
-  // -----------------------
-  // Sign in with STUDENT ID (Modified for 2FA Check)
-  // -----------------------
-  static Future<User?> signInWithStudentId({
-    required String studentId,
-    required String password,
-  }) async {
-    try {
-      // 1. Find user by Student ID
-      QuerySnapshot querySnapshot = await _firestore
-          .collection('users')
-          .where('studentId', isEqualTo: studentId)
-          .limit(1)
-          .get();
-
-      if (querySnapshot.docs.isEmpty) {
-        throw 'Student ID not found.';
-      }
-
-      final doc = querySnapshot.docs.first;
-      final data = doc.data() as Map<String, dynamic>;
-
-      // 2. CHECK: Is 2FA Enabled? [NEW LOGIC]
-      final privacySettings = data['privacySettings'] as Map<String, dynamic>?;
-      final bool is2FAEnabled = privacySettings?['twoFactorAuth'] ?? false;
-
-      // If 2FA is NOT enabled, block Student ID login
-      if (!is2FAEnabled) {
-        throw 'Student ID login is disabled. Please enable 2FA in settings or login using Email.';
-      }
-
-      // 3. If allowed, proceed to get email and login
-      if (data['email'] == null) {
-        throw 'Account has no email linked.';
-      }
-
-      final String email = data['email'] as String;
-
-      UserCredential userCredential = await _auth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-
-      // Update lastLogin timestamp
-      await _updateLoginTimestamp(userCredential.user!.uid);
-
-      // Start listening
-      _startSecurityListener();
-
-      // Send login notification
-      await sendLoginNotification();
-
-      return userCredential.user;
-    } catch (e) {
-      if (e.toString().contains('Student ID login is disabled')) {
-        rethrow;
-      }
-      print('Student ID sign-in general error: $e');
-      if (e is String) rethrow;
-      return null;
-    }
-  }
+}
 
   // --- Helper to update login timestamp ---
   static Future<void> _updateLoginTimestamp(String uid) async {
@@ -1448,6 +1471,89 @@ class FirebaseService {
       return false;
     }
   }
+
+//***********************BAN USER******************************* */
+      
+    // -----------------------
+    // Ban user for specific days
+    // -----------------------
+    static Future<bool> banUserForDays({
+      required String userId,
+      required int days,
+      required String reason,
+    }) async {
+      try {
+        // 1. Calculate ban expiration date
+        final DateTime banUntil = DateTime.now().add(Duration(days: days));
+        
+        // 2. Store ban information in Firestore
+        await _firestore.collection('user_bans').doc(userId).set({
+          'userId': userId,
+          'bannedUntil': banUntil,
+          'banReason': reason,
+          'bannedAt': FieldValue.serverTimestamp(),
+          'isActive': true,
+        });
+        
+        print('✅ User $userId banned until $banUntil');
+        return true;
+      } catch (e) {
+        print('❌ Error banning user: $e');
+        return false;
+      }
+    }
+
+    // -----------------------
+    // Check if user is banned
+    // -----------------------
+    static Future<bool> isUserBanned(String userId) async {
+      try {
+        final doc = await _firestore.collection('user_bans').doc(userId).get();
+        
+        if (!doc.exists) return false;
+        
+        final data = doc.data() as Map<String, dynamic>?;
+        if (data == null) return false;
+        
+        final bool isActive = data['isActive'] as bool? ?? false;
+        if (!isActive) return false;
+        
+        final Timestamp? bannedUntil = data['bannedUntil'] as Timestamp?;
+        if (bannedUntil == null) return false;
+        
+        final DateTime now = DateTime.now();
+        final DateTime banUntil = bannedUntil.toDate();
+        
+        // Check if ban is still active
+        if (now.isBefore(banUntil)) {
+          return true;
+        } else {
+          // Ban has expired, mark as inactive
+          await doc.reference.update({'isActive': false});
+          return false;
+        }
+      } catch (e) {
+        print('❌ Error checking user ban status: $e');
+        return false;
+      }
+    }
+
+    // -----------------------
+    // Unban user (manual override)
+    // -----------------------
+    static Future<bool> unbanUser(String userId) async {
+      try {
+        await _firestore.collection('user_bans').doc(userId).update({
+          'isActive': false,
+          'unbannedAt': FieldValue.serverTimestamp(),
+        });
+        print('✅ User $userId unbanned');
+        return true;
+      } catch (e) {
+        print('❌ Error unbanning user: $e');
+        return false;
+      }
+    }
 
   // -----------------------
   // Update Privacy Settings
