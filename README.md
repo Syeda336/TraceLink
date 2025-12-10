@@ -38,17 +38,17 @@ It ensures **safe, quick, and reliable** communication between finders and owner
 - **Platform:** Android
 
 ## Setup:
-**1.** Download the zip file.
-**2.** Unzip and open in VS code.
-**3.** Run the following commands in the terminal (set the terminal to cmd)
-       **i.** flutter pub get
-       **ii.**flutter pub upgrade --major-versions
-       **iii.**flutter build apk
+- **1.** Download the zip file.
+- **2.** Unzip and open in VS code.
+- **3.** Run the following commands in the terminal (set the terminal to cmd)
+       - **i.** flutter pub get
+       - **ii.** flutter pub upgrade --major-versions
+       - **iii.** flutter build apk
 
 ## Steps to run on android phone:
-**1.** Open settings and find *"About phone"*
-**2.** Tap 7 times on *"Build no."*
-**3.** Connect USB cable with phone and PC
-**4.** Select the transfer files on phone
-**5.** On VS code, install the extensions *"Android"*, *"Flex Mobile Preview"*, and *"Auto Builder"*
+- **1.** Open settings and find *"About phone"*
+- **2.** Tap 7 times on *"Build no."*
+- **3.** Connect USB cable with phone and PC
+- **4.** Select the transfer files on phone
+- **5.** On VS code, install the extensions *"Android"*, *"Flex Mobile Preview"*, and *"Auto Builder"*
 
