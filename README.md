@@ -2,6 +2,8 @@
 
 Figma Link: https://www.figma.com/design/N74e2WiHM9UkGWrl8t6iBo/Login-Page?node-id=0-1&p=f&t=fh612BikO0P5QHGC-0
 
+Video:
+https://drive.google.com/file/d/14yevv8Lpu7WSE6C6EfzUpBdFSVlu589I/view?usp=drivesdk
 
 # App Overview
 TraceLink is a mobile-based platform designed to help **university students** securely report, track, and recover lost items within campus premises.  
