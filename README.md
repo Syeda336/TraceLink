@@ -52,3 +52,5 @@ It ensures **safe, quick, and reliable** communication between finders and owner
 - **4.** Select the transfer files on phone
 - **5.** On VS code, install the extensions *"Android"*, *"Flex Mobile Preview"*, and *"Auto Builder"*
 
+## Developed by:
+Faseeha Siddiqui & Syeda Maryam Raza
